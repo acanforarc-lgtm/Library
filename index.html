@@ -2831,11 +2831,11 @@
                 }
             };
 
-            // Re-fetch only books from Supabase and update state
+            // Re-fetch only books from Supabase, update state, and return fresh rows
             const reloadBooks = async () => {
                 try {
                     const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (!user) return;
+                    if (!user) return [];
                     const { data, error } = await supabaseClient
                         .from('books')
                         .select('*')
@@ -2843,8 +2843,10 @@
                         .order('created_at', { ascending: true });
                     if (error) throw error;
                     setBooks(data || []);
+                    return data || [];
                 } catch (err) {
                     console.error('reloadBooks error:', err);
+                    return [];
                 }
             };
 
@@ -3519,7 +3521,7 @@
             // Get books for a specific board with positions
             const getBooksForBoard = (shelfId, boardIndex) => {
                 return books
-                    .filter(book => book.shelf_id === shelfId && book.board_index === boardIndex)
+                    .filter(book => String(book.shelf_id) === String(shelfId) && Number(book.board_index) === Number(boardIndex))
                     .sort((a, b) => (a.position || 0) - (b.position || 0)); // Sort by position
             };
             
@@ -3948,10 +3950,16 @@
                     }));
 
                     // Re-fetch from Supabase so state always matches DB
-                    await reloadBooks();
+                    const freshBooks = await reloadBooks();
+                    const onShelf = freshBooks.filter(b => String(b.shelf_id) === String(targetShelf));
+                    console.log(`📖 DB reports ${onShelf.length} book(s) on shelf ${targetShelf}:`, onShelf);
 
                     const shelfName = shelves.find(s => s.id === targetShelf)?.name;
-                    showMessage(`✅ Added ${booksToAdd.length} ${booksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);
+                    if (onShelf.length > 0) {
+                        showMessage(`✅ Added ${onShelf.length} book(s) to "${shelfName}"`);
+                    } else {
+                        showMessage(`⚠️ DB saved but no books found on shelf "${shelfName}" (shelf id: ${targetShelf}). Check Supabase RLS/columns.`);
+                    }
                     closeBookSelector();
                 } catch (error) {
                     console.error('Error adding books to shelf:', error);

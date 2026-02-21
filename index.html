@@ -3369,19 +3369,20 @@
             // BLUETOOTH SCANNER MODE - RAPID FIRE! 🔫
             const handleScannerInput = async (scannedIsbn) => {
                 const cleanIsbn = scannedIsbn.replace(/[-\s]/g, '');
-                
+
                 if (!cleanIsbn) return;
-                
+
                 try {
                     console.log('🔫 Scanner fired:', cleanIsbn);
-                    
+
                     const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
                     const bookKey = `ISBN:${cleanIsbn}`;
-                    
+
                     if (data[bookKey]) {
                         const book = data[bookKey];
-                        
+
                         // DETAIL MODE - Show popup like original scanner
                         if (scanMode === 'detail') {
                             setScannedBookData({
@@ -3394,46 +3395,51 @@
                             setScannerInput('');
                             return;
                         }
-                        
+
                         // RAPID MODE - Auto-add with pre-set location
                         let targetShelfId = null;
                         let targetBoardIndex = null;
                         let targetPosition = null;
-                        
+
                         // Determine shelf
                         if (rapidScanShelf === 'random') {
+                            if (shelves.length === 0) {
+                                showMessage('❌ No shelves found. Add a shelf first.');
+                                setScannerInput('');
+                                return;
+                            }
                             const randomShelf = shelves[Math.floor(Math.random() * shelves.length)];
                             targetShelfId = randomShelf.id;
                         } else {
                             targetShelfId = parseInt(rapidScanShelf);
                         }
-                        
+
                         // Determine board
-                        const selectedShelf = shelves.find(s => s.id === targetShelfId);
+                        const selectedShelf = shelves.find(s => String(s.id) === String(targetShelfId));
                         if (!selectedShelf) {
                             showMessage('❌ Error: Shelf not found');
                             setScannerInput('');
                             return;
                         }
-                        
+
                         if (rapidScanBoard === 'random') {
-                            targetBoardIndex = Math.floor(Math.random() * (selectedShelf.boardCount || 3));
+                            targetBoardIndex = Math.floor(Math.random() * (selectedShelf.board_count || selectedShelf.boardCount || 3));
                         } else {
                             targetBoardIndex = parseInt(rapidScanBoard);
                         }
-                        
+
                         // Determine position
                         if (rapidScanPosition === 'in-order') {
                             // Place books consecutively: 0, 10, 20, 30...
                             targetPosition = rapidScanCounter * BOOK_WIDTH;
-                            
+
                             // Check if we've filled this board
                             if (targetPosition > SHELF_WIDTH - BOOK_WIDTH) {
                                 showMessage('⚠️ Board full! Select new location.');
                                 setScannerInput('');
                                 return;
                             }
-                            
+
                             // Check if position is occupied
                             if (!isPositionAvailable(targetShelfId, targetBoardIndex, targetPosition)) {
                                 // Find next available
@@ -3444,13 +3450,13 @@
                                     return;
                                 }
                             }
-                            
+
                             setRapidScanCounter(rapidScanCounter + 1); // Increment for next book
                         } else {
                             // Random position
                             const randomPos = Math.floor(Math.random() * (SHELF_WIDTH - BOOK_WIDTH + 1));
                             const snappedPos = Math.round(randomPos / 5) * 5; // Snap to 5s
-                            
+
                             if (isPositionAvailable(targetShelfId, targetBoardIndex, snappedPos)) {
                                 targetPosition = snappedPos;
                             } else {
@@ -3462,22 +3468,30 @@
                                 }
                             }
                         }
-                        
-                        // Create and add book
-                        const newBook = {
-                            id: Date.now() + Math.random(),
-                            title: book.title || 'Unknown Title',
-                            author: book.authors?.[0]?.name || 'Unknown Author',
-                            cover: book.cover?.large || book.cover?.medium || book.cover?.small,
-                            color: getRandomColor(),
-                            shelfId: targetShelfId,
-                            boardIndex: targetBoardIndex,
-                            position: targetPosition
-                        };
-                        
-                        setBooks(prev => [...prev, newBook]);
-                        showMessage(`✅ ${newBook.title} → ${selectedShelf.name} (Shelf ${targetBoardIndex + 1}, Pos ${targetPosition})`);
-                        
+
+                        // Persist to Supabase
+                        const { data: { user } } = await supabaseClient.auth.getUser();
+                        if (!user) { showMessage('❌ Not logged in'); setScannerInput(''); return; }
+
+                        const { data: inserted, error: insertError } = await supabaseClient
+                            .from('books')
+                            .insert([{
+                                user_id: user.id,
+                                title: book.title || 'Unknown Title',
+                                author: book.authors?.[0]?.name || 'Unknown Author',
+                                cover: book.cover?.large || book.cover?.medium || book.cover?.small,
+                                color: getRandomColor(),
+                                shelf_id: targetShelfId,
+                                board_index: targetBoardIndex,
+                                position: targetPosition
+                            }])
+                            .select();
+
+                        if (insertError) throw insertError;
+
+                        setBooks(prev => [...prev, inserted[0]]);
+                        showMessage(`✅ ${inserted[0].title} → ${selectedShelf.name} (Shelf ${targetBoardIndex + 1}, Pos ${targetPosition})`);
+
                         // Play success beep
                         const beep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGa74+OlQRgWbbro8LRgFgY3kdXzx3koJlIx');
                         beep.play().catch(() => {});
@@ -3485,10 +3499,10 @@
                         showMessage(`❌ Not found: ${cleanIsbn}`);
                     }
                 } catch (error) {
-                    showMessage(`❌ Error scanning: ${cleanIsbn}`);
-                    console.error('Scanner error:', error);
+                    showMessage(`❌ Error scanning: ${error.message || cleanIsbn}`);
+                    console.error('Scanner error:', error.message || error);
                 }
-                
+
                 setScannerInput(''); // Clear for next scan
             };
 

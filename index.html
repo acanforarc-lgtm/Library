@@ -3266,6 +3266,7 @@
 
                 const targetShelfId = parseInt(selectedShelfForAdd);
                 const targetBoardIndex = 0; // Default to first board
+                const bookId = bookInfoData.id; // capture before async
 
                 // Find next available position on the first board
                 const nextPosition = findNextAvailablePosition(targetShelfId, targetBoardIndex);
@@ -3275,18 +3276,25 @@
                     return;
                 }
 
+                console.log('📚 Assigning book', bookId, 'to shelf', targetShelfId, 'board', targetBoardIndex, 'pos', nextPosition);
+
                 try {
                     const { error } = await supabaseClient
                         .from('books')
                         .update({ shelf_id: targetShelfId, board_index: targetBoardIndex, position: nextPosition })
-                        .eq('id', bookInfoData.id);
+                        .eq('id', bookId);
                     if (error) throw error;
 
-                    setBooks(books.map(b =>
-                        b.id === bookInfoData.id
-                            ? { ...b, shelf_id: targetShelfId, board_index: targetBoardIndex, position: nextPosition }
-                            : b
-                    ));
+                    // Use functional updater to avoid stale closure on books
+                    setBooks(prev => {
+                        const updated = prev.map(b =>
+                            b.id === bookId
+                                ? { ...b, shelf_id: targetShelfId, board_index: targetBoardIndex, position: nextPosition }
+                                : b
+                        );
+                        console.log('📖 Book after assign:', updated.find(b => b.id === bookId));
+                        return updated;
+                    });
 
                     const shelfName = shelves.find(s => s.id === targetShelfId)?.name;
                     showMessage(`✅ Assigned to "${shelfName}" (Board 1, Pos ${nextPosition})`);
@@ -3901,7 +3909,9 @@
                 if (selectedBooksToAdd.length === 0) return;
 
                 const targetBoardIndex = 0; // Default to first board
-                let nextPosition = findNextAvailablePosition(targetShelfForSelector, targetBoardIndex);
+                const targetShelf = targetShelfForSelector; // capture before async
+                const booksToAdd = [...selectedBooksToAdd]; // capture before async
+                let nextPosition = findNextAvailablePosition(targetShelf, targetBoardIndex);
 
                 if (nextPosition === null) {
                     showMessage('❌ First shelf board is full!');
@@ -3911,30 +3921,37 @@
                 try {
                     // Build position assignments for each selected book
                     let pos = nextPosition;
-                    const assignments = selectedBooksToAdd.map(bookId => {
-                        const assignment = { id: bookId, shelf_id: targetShelfForSelector, board_index: targetBoardIndex, position: pos };
+                    const assignments = booksToAdd.map(bookId => {
+                        const assignment = { id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos };
                         pos += BOOK_WIDTH;
                         return assignment;
                     });
 
-                    // Persist all to Supabase
-                    await Promise.all(assignments.map(({ id, shelf_id, board_index, position }) =>
-                        supabaseClient
+                    console.log('📚 Adding books to shelf', targetShelf, 'assignments:', assignments);
+
+                    // Persist all to Supabase, checking each for errors
+                    await Promise.all(assignments.map(async ({ id, shelf_id, board_index, position }) => {
+                        const { error } = await supabaseClient
                             .from('books')
                             .update({ shelf_id, board_index, position })
-                            .eq('id', id)
-                    ));
+                            .eq('id', id);
+                        if (error) throw error;
+                    }));
 
-                    // Update local state with snake_case keys to match Supabase data
+                    // Use functional updater to avoid stale closure on books
                     const assignmentMap = Object.fromEntries(assignments.map(a => [a.id, a]));
-                    setBooks(books.map(b =>
-                        assignmentMap[b.id]
-                            ? { ...b, shelf_id: assignmentMap[b.id].shelf_id, board_index: assignmentMap[b.id].board_index, position: assignmentMap[b.id].position }
-                            : b
-                    ));
+                    setBooks(prev => {
+                        const updated = prev.map(b =>
+                            assignmentMap[b.id]
+                                ? { ...b, shelf_id: assignmentMap[b.id].shelf_id, board_index: assignmentMap[b.id].board_index, position: assignmentMap[b.id].position }
+                                : b
+                        );
+                        console.log('📖 Books after update:', updated.filter(b => b.shelf_id === targetShelf));
+                        return updated;
+                    });
 
-                    const shelfName = shelves.find(s => s.id === targetShelfForSelector)?.name;
-                    showMessage(`✅ Added ${selectedBooksToAdd.length} ${selectedBooksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);
+                    const shelfName = shelves.find(s => s.id === targetShelf)?.name;
+                    showMessage(`✅ Added ${booksToAdd.length} ${booksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);
                     closeBookSelector();
                 } catch (error) {
                     console.error('Error adding books to shelf:', error);

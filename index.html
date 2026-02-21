@@ -2821,13 +2821,30 @@
                         .select('*')
                         .eq('user_id', user.id)
                         .order('created_at', { ascending: true });
-                    
+
                     if (booksError) throw booksError;
                     setBooks(booksData || []);
-                    
+
                 } catch (error) {
                     console.error('Error loading user data:', error);
                     showMessage('Error loading your library');
+                }
+            };
+
+            // Re-fetch only books from Supabase and update state
+            const reloadBooks = async () => {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (!user) return;
+                    const { data, error } = await supabaseClient
+                        .from('books')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: true });
+                    if (error) throw error;
+                    setBooks(data || []);
+                } catch (err) {
+                    console.error('reloadBooks error:', err);
                 }
             };
 
@@ -3260,31 +3277,41 @@
                 }
             };
 
-            // Assign book to shelf from info popup - ONLY update shelfId!
-            const assignBookToShelf = () => {
+            // Assign book to shelf from info popup
+            const assignBookToShelf = async () => {
                 if (!bookInfoData || !selectedShelfForAdd) return;
 
                 const targetShelfId = parseInt(selectedShelfForAdd);
                 const targetBoardIndex = 0; // Default to first board
-                
+                const bookId = bookInfoData.id; // capture before async
+
                 // Find next available position on the first board
                 const nextPosition = findNextAvailablePosition(targetShelfId, targetBoardIndex);
-                
+
                 if (nextPosition === null) {
                     showMessage('❌ First shelf board is full! Try another board.');
                     return;
                 }
 
-                // Update book with shelfId, boardIndex, and position
-                setBooks(books.map(b =>
-                    b.id === bookInfoData.id
-                        ? { ...b, shelfId: targetShelfId, boardIndex: targetBoardIndex, position: nextPosition }
-                        : b
-                ));
+                console.log('📚 Assigning book', bookId, 'to shelf', targetShelfId, 'board', targetBoardIndex, 'pos', nextPosition);
 
-                const shelfName = shelves.find(s => s.id === targetShelfId)?.name;
-                showMessage(`✅ Assigned to "${shelfName}" (Board 1, Pos ${nextPosition})`);
-                closeBookInfo();
+                try {
+                    const { error } = await supabaseClient
+                        .from('books')
+                        .update({ shelf_id: targetShelfId, board_index: targetBoardIndex, position: nextPosition })
+                        .eq('id', bookId);
+                    if (error) throw error;
+
+                    // Re-fetch from Supabase so state always matches DB
+                    await reloadBooks();
+
+                    const shelfName = shelves.find(s => s.id === targetShelfId)?.name;
+                    showMessage(`✅ Assigned to "${shelfName}" (Board 1, Pos ${nextPosition})`);
+                    closeBookInfo();
+                } catch (error) {
+                    console.error('Error assigning book to shelf:', error);
+                    showMessage('❌ Error assigning book to shelf');
+                }
             };
 
             const addBook = async () => {
@@ -3887,37 +3914,49 @@
             };
 
             // Add selected books to shelf
-            const addSelectedBooksToShelf = () => {
+            const addSelectedBooksToShelf = async () => {
                 if (selectedBooksToAdd.length === 0) return;
 
                 const targetBoardIndex = 0; // Default to first board
-                let nextPosition = findNextAvailablePosition(targetShelfForSelector, targetBoardIndex);
-                
+                const targetShelf = targetShelfForSelector; // capture before async
+                const booksToAdd = [...selectedBooksToAdd]; // capture before async
+                let nextPosition = findNextAvailablePosition(targetShelf, targetBoardIndex);
+
                 if (nextPosition === null) {
                     showMessage('❌ First shelf board is full!');
                     return;
                 }
 
-                // Update books with positions
-                const updatedBooks = books.map(b => {
-                    if (selectedBooksToAdd.includes(b.id)) {
-                        const bookWithPosition = { 
-                            ...b, 
-                            shelfId: targetShelfForSelector, 
-                            boardIndex: targetBoardIndex, 
-                            position: nextPosition 
-                        };
-                        nextPosition += BOOK_WIDTH; // Move to next position for next book
-                        return bookWithPosition;
-                    }
-                    return b;
-                });
+                try {
+                    // Build position assignments for each selected book
+                    let pos = nextPosition;
+                    const assignments = booksToAdd.map(bookId => {
+                        const assignment = { id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos };
+                        pos += BOOK_WIDTH;
+                        return assignment;
+                    });
 
-                setBooks(updatedBooks);
+                    console.log('📚 Adding books to shelf', targetShelf, 'assignments:', assignments);
 
-                const shelfName = shelves.find(s => s.id === targetShelfForSelector)?.name;
-                showMessage(`✅ Added ${selectedBooksToAdd.length} ${selectedBooksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);
-                closeBookSelector();
+                    // Persist all to Supabase, checking each for errors
+                    await Promise.all(assignments.map(async ({ id, shelf_id, board_index, position }) => {
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id, board_index, position })
+                            .eq('id', id);
+                        if (error) throw error;
+                    }));
+
+                    // Re-fetch from Supabase so state always matches DB
+                    await reloadBooks();
+
+                    const shelfName = shelves.find(s => s.id === targetShelf)?.name;
+                    showMessage(`✅ Added ${booksToAdd.length} ${booksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);
+                    closeBookSelector();
+                } catch (error) {
+                    console.error('Error adding books to shelf:', error);
+                    showMessage('❌ Error adding books to shelf');
+                }
             };
 
             // Open shelf book popup

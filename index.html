@@ -2821,13 +2821,30 @@
                         .select('*')
                         .eq('user_id', user.id)
                         .order('created_at', { ascending: true });
-                    
+
                     if (booksError) throw booksError;
                     setBooks(booksData || []);
-                    
+
                 } catch (error) {
                     console.error('Error loading user data:', error);
                     showMessage('Error loading your library');
+                }
+            };
+
+            // Re-fetch only books from Supabase and update state
+            const reloadBooks = async () => {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (!user) return;
+                    const { data, error } = await supabaseClient
+                        .from('books')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: true });
+                    if (error) throw error;
+                    setBooks(data || []);
+                } catch (err) {
+                    console.error('reloadBooks error:', err);
                 }
             };
 
@@ -3285,16 +3302,8 @@
                         .eq('id', bookId);
                     if (error) throw error;
 
-                    // Use functional updater to avoid stale closure on books
-                    setBooks(prev => {
-                        const updated = prev.map(b =>
-                            b.id === bookId
-                                ? { ...b, shelf_id: targetShelfId, board_index: targetBoardIndex, position: nextPosition }
-                                : b
-                        );
-                        console.log('📖 Book after assign:', updated.find(b => b.id === bookId));
-                        return updated;
-                    });
+                    // Re-fetch from Supabase so state always matches DB
+                    await reloadBooks();
 
                     const shelfName = shelves.find(s => s.id === targetShelfId)?.name;
                     showMessage(`✅ Assigned to "${shelfName}" (Board 1, Pos ${nextPosition})`);
@@ -3938,17 +3947,8 @@
                         if (error) throw error;
                     }));
 
-                    // Use functional updater to avoid stale closure on books
-                    const assignmentMap = Object.fromEntries(assignments.map(a => [a.id, a]));
-                    setBooks(prev => {
-                        const updated = prev.map(b =>
-                            assignmentMap[b.id]
-                                ? { ...b, shelf_id: assignmentMap[b.id].shelf_id, board_index: assignmentMap[b.id].board_index, position: assignmentMap[b.id].position }
-                                : b
-                        );
-                        console.log('📖 Books after update:', updated.filter(b => b.shelf_id === targetShelf));
-                        return updated;
-                    });
+                    // Re-fetch from Supabase so state always matches DB
+                    await reloadBooks();
 
                     const shelfName = shelves.find(s => s.id === targetShelf)?.name;
                     showMessage(`✅ Added ${booksToAdd.length} ${booksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);

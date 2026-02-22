@@ -2660,16 +2660,12 @@
             const [activeTab, setActiveTab] = useState('books');
             const [newShelfName, setNewShelfName] = useState('');
             
-            // FIX #4: Custom confirm modal
             const [showConfirm, setShowConfirm] = useState(false);
             const [confirmAction, setConfirmAction] = useState(null);
-            
-            // FIX #5: Description expansion
             const [showFullDescription, setShowFullDescription] = useState(false);
             
             // Drag and drop state
             const [draggedBook, setDraggedBook] = useState(null);
-            const [draggedFromShelf, setDraggedFromShelf] = useState(null);
             const [dropTargetShelf, setDropTargetShelf] = useState(null);
             const [snapPreviewPosition, setSnapPreviewPosition] = useState(null); // Shows where book will snap
             const [snapPreviewBoard, setSnapPreviewBoard] = useState(null);
@@ -2730,7 +2726,7 @@
             const [scannedISBN, setScannedISBN] = useState('');
             const [scannedBookData, setScannedBookData] = useState(null);
             const [showScannedBookPopup, setShowScannedBookPopup] = useState(false);
-            const [showQuickAdd, setShowQuickAdd] = useState(true); // STEP 2: Quick add vs full form
+            const [showQuickAdd, setShowQuickAdd] = useState(true);
             const scannerStreamRef = React.useRef(null);
             const videoRef = React.useRef(null);
             const scanningStartTime = React.useRef(null); // STEP 3: Track scan duration
@@ -3148,13 +3144,13 @@
             const openBookDetail = (book) => {
                 setSelectedBook(book);
                 // FIX: Don't close search - let user continue browsing
-                setShowFullDescription(false); // FIX #5: Reset description expansion
+                setShowFullDescription(false);
             };
 
             const closeBookDetail = () => {
                 setSelectedBook(null);
                 setSelectedShelfForAdd('');
-                setShowFullDescription(false); // FIX #5: Reset description expansion
+                setShowFullDescription(false);
             };
 
             const addBookFromSearch = async () => {
@@ -3295,8 +3291,6 @@
                     return;
                 }
 
-                console.log('📚 Assigning book', bookId, 'to shelf', targetShelfId, 'board', targetBoardIndex, 'pos', nextPosition);
-
                 try {
                     const { error } = await supabaseClient
                         .from('books')
@@ -3316,56 +3310,6 @@
                 }
             };
 
-            const addBook = async () => {
-                if (!isbn) {
-                    showMessage('Please enter an ISBN');
-                    return;
-                }
-
-                // Remove any dashes or spaces from ISBN
-                const cleanIsbn = isbn.replace(/[-\s]/g, '');
-
-                try {
-                    showMessage('Searching for book...');
-                    
-                    // Use Open Library API - more reliable and no rate limits
-                    const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    console.log('Open Library Response:', data);
-
-                    const bookKey = `ISBN:${cleanIsbn}`;
-                    
-                    if (data[bookKey]) {
-                        const book = data[bookKey];
-                        const newBook = {
-                            id: Date.now(),
-                            title: book.title || 'Unknown Title',
-                            author: book.authors?.[0]?.name || 'Unknown Author',
-                            cover: book.cover?.large || book.cover?.medium || book.cover?.small,
-                            color: getRandomColor(),
-                            shelfId: null, // Not assigned to any shelf yet
-                            boardIndex: null, // Which board on the shelf
-                            position: null // Position on the board (0-190)
-                        };
-                        setBooks([...books, newBook]);
-                        setIsbn('');
-                        showMessage(`✅ Added: ${newBook.title}`);
-                    } else {
-                        showMessage(`❌ Book not found for ISBN: ${cleanIsbn}. Try a different ISBN or check the number.`);
-                        console.log('No book found for ISBN:', cleanIsbn);
-                    }
-                } catch (error) {
-                    console.error('Error details:', error);
-                    showMessage(`❌ Error: ${error.message}. Check your internet connection or try again in a moment.`);
-                }
-            };
-            
             // BLUETOOTH SCANNER MODE - RAPID FIRE! 🔫
             const handleScannerInput = async (scannedIsbn) => {
                 const cleanIsbn = scannedIsbn.replace(/[-\s]/g, '');
@@ -3373,8 +3317,6 @@
                 if (!cleanIsbn) return;
 
                 try {
-                    console.log('🔫 Scanner fired:', cleanIsbn);
-
                     const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
@@ -3519,10 +3461,6 @@
                 return colors[Math.floor(Math.random() * colors.length)];
             };
 
-            const removeBook = (bookId) => {
-                setBooks(books.filter(b => b.id !== bookId));
-            };
-
             // Get books for a specific shelf (derived from books array - SINGLE SOURCE OF TRUTH)
             const getBooksForShelf = (shelfId) => {
                 return books.filter(book => book.shelf_id === shelfId);
@@ -3556,7 +3494,6 @@
                     // Two ranges overlap if: NOT (end1 < start2 OR start1 > end2)
                     // Simplified: (start1 <= end2 AND end1 >= start2)
                     if (newBookStart <= bookEnd && newBookEnd >= bookStart) {
-                        console.log(`❌ Collision detected: New book ${newBookStart}-${newBookEnd} overlaps with existing book ${bookStart}-${bookEnd}`);
                         return false; // Collision!
                     }
                 }
@@ -3764,9 +3701,7 @@
             
             // Drag and drop handlers - FIXED
             const handleDragStart = (e, book, fromShelfId) => {
-                console.log('🎯 Drag started:', book.title);
                 setDraggedBook(book);
-                setDraggedFromShelf(fromShelfId);
                 e.dataTransfer.effectAllowed = 'move';
                 e.currentTarget.style.opacity = '0.5';
             };
@@ -3788,7 +3723,6 @@
             
             const handleDragEnter = (e, shelfId) => {
                 e.preventDefault();
-                console.log('📍 Drag enter shelf:', shelfId);
                 setDropTargetShelf(shelfId);
             };
             
@@ -3803,27 +3737,18 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                console.log('📦 Drop on shelf:', toShelfId, 'Board:', toBoardIndex, 'Book:', draggedBook?.title);
-                
-                if (!draggedBook) {
-                    console.log('❌ No dragged book');
-                    return;
-                }
+                if (!draggedBook) return;
                 
                 // Calculate drop position (snapped)
                 const boardElement = e.currentTarget;
                 const targetPosition = calculateDropPosition(e, boardElement);
                 
-                console.log('📍 Target position:', targetPosition, '(occupies', targetPosition, 'to', targetPosition + BOOK_WIDTH - 1, ')');
-                
                 // Find nearest available position (will snap to target if available)
                 const finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, draggedBook.id);
                 
                 if (finalPosition === null) {
-                    console.log('❌ No available positions on this board!');
                     showMessage('❌ This shelf board is full!');
                     setDraggedBook(null);
-                    setDraggedFromShelf(null);
                     setDropTargetShelf(null);
                     return;
                 }
@@ -3854,23 +3779,18 @@
                         ? `📚 Snapped "${draggedBook.title}" to nearest spot (Pos ${finalPosition})`
                         : `📚 Moved "${draggedBook.title}" to ${shelfName} (Pos ${finalPosition})`;
                     showMessage(message);
-                    console.log(`✅ Book placed at position ${finalPosition}-${finalPosition + BOOK_WIDTH - 1}${snapped ? ' (snapped)' : ''}`);
-                    
                 } catch (error) {
                     console.error('Error updating book position:', error);
                     showMessage('❌ Failed to move book');
                 }
                 
                 setDraggedBook(null);
-                setDraggedFromShelf(null);
                 setDropTargetShelf(null);
             };
-            
+
             const handleDragEnd = (e) => {
-                console.log('🏁 Drag ended');
                 e.currentTarget.style.opacity = '1';
                 setDraggedBook(null);
-                setDraggedFromShelf(null);
                 setDropTargetShelf(null);
                 setSnapPreviewPosition(null);
                 setSnapPreviewBoard(null);
@@ -4001,23 +3921,26 @@
             const removeFromCurrentShelf = () => {
                 if (!shelfBookData || !currentShelfId) return;
 
-                // FIX #4: Custom confirm modal (will add below)
                 setConfirmAction({
                     title: 'Remove Book',
                     message: `Remove "${shelfBookData.title}" from this shelf?`,
-                    onConfirm: () => {
-                        // FIX #1: Add null check for shelf.books
-                        setShelves(shelves.map(shelf =>
-                            shelf.id === currentShelfId
-                                ? { ...shelf, books: (shelf.books || []).filter(b => b.id !== shelfBookData.id) }
-                                : shelf
-                        ));
+                    onConfirm: async () => {
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id: null, board_index: null, position: null })
+                            .eq('id', shelfBookData.id);
 
-                        // Update book's shelfId to null
+                        if (error) {
+                            console.error('Error removing book from shelf:', error);
+                            showMessage('❌ Failed to remove book from shelf');
+                            return;
+                        }
+
                         setBooks(books.map(b =>
-                            b.id === shelfBookData.id ? { ...b, shelfId: null } : b
+                            b.id === shelfBookData.id
+                                ? { ...b, shelf_id: null, board_index: null, position: null }
+                                : b
                         ));
-
                         showMessage('Book removed from shelf');
                         closeShelfBookPopup();
                     }
@@ -4025,18 +3948,36 @@
                 setShowConfirm(true);
             };
 
-            // Move book to different shelf - ONLY update shelfId!
-            const moveBookToShelf = () => {
+            // Move book to a different shelf
+            const moveBookToShelf = async () => {
                 if (!shelfBookData || !selectedShelfToMove) return;
 
-                // ONLY update book's shelfId - shelves derive their books from this!
+                const newShelfId = parseInt(selectedShelfToMove);
+                const nextPos = findNextAvailablePosition(newShelfId, 0);
+
+                if (nextPos === null) {
+                    showMessage('❌ That shelf\'s first board is full. Try another shelf.');
+                    return;
+                }
+
+                const { error } = await supabaseClient
+                    .from('books')
+                    .update({ shelf_id: newShelfId, board_index: 0, position: nextPos })
+                    .eq('id', shelfBookData.id);
+
+                if (error) {
+                    console.error('Error moving book to shelf:', error);
+                    showMessage('❌ Failed to move book');
+                    return;
+                }
+
                 setBooks(books.map(b =>
                     b.id === shelfBookData.id
-                        ? { ...b, shelfId: parseInt(selectedShelfToMove) }
+                        ? { ...b, shelf_id: newShelfId, board_index: 0, position: nextPos }
                         : b
                 ));
 
-                const newShelfName = shelves.find(s => s.id === parseInt(selectedShelfToMove))?.name;
+                const newShelfName = shelves.find(s => s.id === newShelfId)?.name;
                 showMessage(`✅ Moved to "${newShelfName}"`);
                 setShowMoveModal(false);
                 closeShelfBookPopup();
@@ -4047,53 +3988,6 @@
                 setSelectedShelfToMove('');
                 setShowMoveModal(true);
             };
-
-            // DEPRECATED v7.1 - userData will be added to database in v7.2
-            // Update user book data - ONLY update books array!
-            /*
-            const updateBookUserData = (bookId, field, value) => {
-                setBooks(books.map(book => 
-                    book.id === bookId 
-                        ? { 
-                            ...book, 
-                            userData: { 
-                                ...(book.userData || {}),
-                                [field]: value 
-                            } 
-                        } 
-                        : book
-                ));
-
-                if (shelfBookData?.id === bookId) {
-                    const updatedBook = books.find(b => b.id === bookId) || shelfBookData;
-                    setShelfBookData({
-                        ...updatedBook,
-                        userData: {
-                            ...(updatedBook.userData || {}),
-                            [field]: value
-                        }
-                    });
-                }
-
-                if (bookInfoData?.id === bookId) {
-                    const updatedBook = books.find(b => b.id === bookId) || bookInfoData;
-                    setBookInfoData({
-                        ...updatedBook,
-                        userData: {
-                            ...(updatedBook.userData || {}),
-                            [field]: value
-                        }
-                    });
-                }
-            };
-            */
-
-            // Set star rating - DEPRECATED v7.1
-            /*
-            const setStarRating = (bookId, rating) => {
-                updateBookUserData(bookId, 'rating', rating);
-            };
-            */
 
             // ==========================================
             // BARCODE SCANNER FUNCTIONS
@@ -4164,7 +4058,7 @@
                     }
                     Quagga.start();
                     setScannerStatus('scanning');
-                    scanningStartTime.current = Date.now(); // STEP 3: Track when scanning started
+                    scanningStartTime.current = Date.now();
                     
                     // Listen for barcode detection
                     Quagga.onDetected(onBarcodeDetected);
@@ -4630,41 +4524,6 @@
                     console.error('Error fetching book:', error);
                     showMessage('❌ Error looking up book');
                 }
-            };
-
-            const addBookToShelf = (book, shelfId) => {
-                // Remove from current shelf if assigned
-                setShelves(shelves.map(shelf => ({
-                    ...shelf,
-                    books: shelf.books.filter(b => b.id !== book.id)
-                })));
-
-                // Add to new shelf
-                setShelves(shelves.map(shelf => 
-                    shelf.id === shelfId 
-                        ? { ...shelf, books: [...shelf.books, book] }
-                        : shelf
-                ));
-
-                // Update book's shelfId
-                setBooks(books.map(b => 
-                    b.id === book.id ? { ...b, shelfId } : b
-                ));
-
-                showMessage(`Moved to shelf`);
-            };
-
-            const removeBookFromShelf = (book, shelfId) => {
-                setShelves(shelves.map(shelf => 
-                    shelf.id === shelfId
-                        ? { ...shelf, books: shelf.books.filter(b => b.id !== book.id) }
-                        : shelf
-                ));
-
-                // Unassign book
-                setBooks(books.map(b => 
-                    b.id === book.id ? { ...b, shelfId: null } : b
-                ));
             };
 
             const unassignedBooks = books.filter(book => !book.shelf_id);

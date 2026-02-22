@@ -3196,78 +3196,50 @@
             // Fetch popular recommendations
             const fetchRecommendations = async () => {
                 try {
-                    // Use cached recs for the session to avoid repeated API calls
+                    // Return cached recs immediately if available
                     const cached = sessionStorage.getItem('recommendations');
                     if (cached) {
                         setRecommendations(JSON.parse(cached));
                         return;
                     }
 
+                    // Prevent parallel calls from both firing off a fetch
+                    if (sessionStorage.getItem('recommendations_fetching')) return;
+                    sessionStorage.setItem('recommendations_fetching', '1');
+
                     const popularTopics = ['bestseller', 'fiction', 'classic', 'award winner'];
                     const randomTopic = popularTopics[Math.floor(Math.random() * popularTopics.length)];
 
-                    let recs = null;
-
-                    const response = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=${randomTopic}&orderBy=relevance&maxResults=15`
+                    const olResponse = await fetch(
+                        `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
                     );
 
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.items) {
-                            recs = data.items
-                                .filter(item => item.volumeInfo.printType === 'BOOK')
-                                .map(item => {
-                                    const book = item.volumeInfo;
-                                    return {
-                                        title: book.title || 'Unknown Title',
-                                        author: book.authors?.[0] || 'Unknown Author',
-                                        isbn: book.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier ||
-                                              book.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier ||
-                                              'Not Available',
-                                        cover: book.imageLinks?.thumbnail?.replace('http:', 'https:'),
-                                        publishYear: book.publishedDate?.substring(0, 4),
-                                        publisher: book.publisher,
-                                        pageCount: book.pageCount,
-                                        description: book.description || 'No description available.'
-                                    };
-                                })
+                    sessionStorage.removeItem('recommendations_fetching');
+
+                    if (olResponse.ok) {
+                        const olData = await olResponse.json();
+                        if (olData.docs && olData.docs.length > 0) {
+                            const recs = olData.docs
+                                .filter(doc => doc.title)
+                                .map(doc => ({
+                                    title: doc.title || 'Unknown Title',
+                                    author: doc.author_name?.[0] || 'Unknown Author',
+                                    isbn: doc.isbn?.[0] || 'Not Available',
+                                    cover: doc.cover_i
+                                        ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+                                        : null,
+                                    publishYear: doc.first_publish_year?.toString(),
+                                    publisher: doc.publisher?.[0],
+                                    pageCount: doc.number_of_pages_median,
+                                    description: 'No description available.'
+                                }))
                                 .slice(0, 12);
+                            setRecommendations(recs);
+                            try { sessionStorage.setItem('recommendations', JSON.stringify(recs)); } catch(e) {}
                         }
-                    }
-
-                    // Fallback to Open Library when Google Books is rate-limited or unavailable
-                    if (!recs) {
-                        const olResponse = await fetch(
-                            `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
-                        );
-                        if (olResponse.ok) {
-                            const olData = await olResponse.json();
-                            if (olData.docs && olData.docs.length > 0) {
-                                recs = olData.docs
-                                    .filter(doc => doc.title)
-                                    .map(doc => ({
-                                        title: doc.title || 'Unknown Title',
-                                        author: doc.author_name?.[0] || 'Unknown Author',
-                                        isbn: doc.isbn?.[0] || 'Not Available',
-                                        cover: doc.cover_i
-                                            ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
-                                            : null,
-                                        publishYear: doc.first_publish_year?.toString(),
-                                        publisher: doc.publisher?.[0],
-                                        pageCount: doc.number_of_pages_median,
-                                        description: 'No description available.'
-                                    }))
-                                    .slice(0, 12);
-                            }
-                        }
-                    }
-
-                    if (recs) {
-                        setRecommendations(recs);
-                        try { sessionStorage.setItem('recommendations', JSON.stringify(recs)); } catch(e) {}
                     }
                 } catch (error) {
+                    sessionStorage.removeItem('recommendations_fetching');
                     console.error('Error fetching recommendations:', error);
                 }
             };

@@ -3198,11 +3198,11 @@
                 try {
                     const popularTopics = ['bestseller', 'fiction', 'classic', 'award winner'];
                     const randomTopic = popularTopics[Math.floor(Math.random() * popularTopics.length)];
-                    
+
                     const response = await fetch(
                         `https://www.googleapis.com/books/v1/volumes?q=${randomTopic}&orderBy=relevance&maxResults=15`
                     );
-                    
+
                     if (response.ok) {
                         const data = await response.json();
                         if (data.items) {
@@ -3223,6 +3223,33 @@
                                         description: book.description || 'No description available.'
                                     };
                                 })
+                                .slice(0, 12);
+                            setRecommendations(recs);
+                            return;
+                        }
+                    }
+
+                    // Fallback to Open Library when Google Books is rate-limited or unavailable
+                    const olResponse = await fetch(
+                        `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
+                    );
+                    if (olResponse.ok) {
+                        const olData = await olResponse.json();
+                        if (olData.docs && olData.docs.length > 0) {
+                            const recs = olData.docs
+                                .filter(doc => doc.title)
+                                .map(doc => ({
+                                    title: doc.title || 'Unknown Title',
+                                    author: doc.author_name?.[0] || 'Unknown Author',
+                                    isbn: doc.isbn?.[0] || 'Not Available',
+                                    cover: doc.cover_i
+                                        ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+                                        : null,
+                                    publishYear: doc.first_publish_year?.toString(),
+                                    publisher: doc.publisher?.[0],
+                                    pageCount: doc.number_of_pages_median,
+                                    description: 'No description available.'
+                                }))
                                 .slice(0, 12);
                             setRecommendations(recs);
                         }
@@ -4270,11 +4297,32 @@
             // Add scanned book and scan next - SUPABASE v7.1
             const addScannedBookAndContinue = async () => {
                 if (!scannedBookData) return;
-                
+
                 try {
                     const { data: { user } } = await supabaseClient.auth.getUser();
                     if (!user) return;
-                    
+
+                    let targetShelfId = selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null;
+                    let targetBoardIndex = null;
+                    let targetPosition = null;
+
+                    if (targetShelfId) {
+                        const shelf = shelves.find(s => s.id === targetShelfId);
+                        const boardCount = shelf?.board_count || 3;
+                        for (let b = 0; b < boardCount; b++) {
+                            const pos = findNextAvailablePosition(targetShelfId, b);
+                            if (pos !== null) {
+                                targetBoardIndex = b;
+                                targetPosition = pos;
+                                break;
+                            }
+                        }
+                        if (targetBoardIndex === null) {
+                            showMessage('⚠️ All boards on that shelf are full. Book added to library without shelf.');
+                            targetShelfId = null;
+                        }
+                    }
+
                     const { data, error } = await supabaseClient
                         .from('books')
                         .insert([{
@@ -4283,33 +4331,30 @@
                             author: scannedBookData.author,
                             cover: scannedBookData.cover,
                             color: getRandomColor(),
-                            shelf_id: selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null,
-                            board_index: null,
-                            position: null
+                            shelf_id: targetShelfId,
+                            board_index: targetBoardIndex,
+                            position: targetPosition
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
+
                     setBooks([...books, data[0]]);
                     showMessage(`✅ Added "${data[0].title}"`);
-                    
-                    console.log('📚 Book added, preparing to reopen scanner...');
-                    
+
                     // Close popup and scanner in RIGHT ORDER
                     closeScanner();
                     setShowScannedBookPopup(false);
                     setScannedBookData(null);
                     setSelectedShelfForAdd('');
                     setShowQuickAdd(true);
-                    
+
                     // Wait for cleanup, then reopen
                     setTimeout(() => {
-                        console.log('🔄 Reopening scanner...');
                         setScannerKey(prev => prev + 1);
                         openScanner();
                     }, 800);
-                    
+
                 } catch (error) {
                     console.error('Error adding scanned book:', error);
                     showMessage('❌ Failed to add book');
@@ -4319,11 +4364,32 @@
             // Add scanned book and close scanner
             const addScannedBookAndClose = async () => {
                 if (!scannedBookData) return;
-                
+
                 try {
                     const { data: { user } } = await supabaseClient.auth.getUser();
                     if (!user) return;
-                    
+
+                    let targetShelfId = selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null;
+                    let targetBoardIndex = null;
+                    let targetPosition = null;
+
+                    if (targetShelfId) {
+                        const shelf = shelves.find(s => s.id === targetShelfId);
+                        const boardCount = shelf?.board_count || 3;
+                        for (let b = 0; b < boardCount; b++) {
+                            const pos = findNextAvailablePosition(targetShelfId, b);
+                            if (pos !== null) {
+                                targetBoardIndex = b;
+                                targetPosition = pos;
+                                break;
+                            }
+                        }
+                        if (targetBoardIndex === null) {
+                            showMessage('⚠️ All boards on that shelf are full. Book added to library without shelf.');
+                            targetShelfId = null;
+                        }
+                    }
+
                     const { data, error } = await supabaseClient
                         .from('books')
                         .insert([{
@@ -4332,14 +4398,14 @@
                             author: scannedBookData.author,
                             cover: scannedBookData.cover,
                             color: getRandomColor(),
-                            shelf_id: selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null,
-                            board_index: null,
-                            position: null
+                            shelf_id: targetShelfId,
+                            board_index: targetBoardIndex,
+                            position: targetPosition
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
+
                     setBooks([...books, data[0]]);
                     showMessage(`✅ Added "${data[0].title}"`);
                     closeScanner();

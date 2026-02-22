@@ -5057,11 +5057,17 @@
                                         </div>
 
                                         <div className="book-info-buttons">
-                                            <button 
+                                            <button
                                                 className="btn-info btn-info-remove"
                                                 onClick={() => removeBookFromLibrary(bookInfoData.id)}
                                             >
                                                 🗑 Remove from Library
+                                            </button>
+                                            <button
+                                                className="btn-info btn-info-close"
+                                                onClick={closeBookInfo}
+                                            >
+                                                ✓ Close
                                             </button>
                                         </div>
                                     </div>

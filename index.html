@@ -4001,6 +4001,20 @@
                 setShowMoveModal(true);
             };
 
+            // Update user-facing book data (status, rating, notes) in local state.
+            // These fields live under book.userData and are read throughout the UI.
+            const updateBookUserData = (bookId, field, value) => {
+                const merge = (book) => ({
+                    ...book,
+                    userData: { ...(book.userData || {}), [field]: value }
+                });
+
+                setBooks(prev => prev.map(b => b.id === bookId ? merge(b) : b));
+
+                if (shelfBookData?.id === bookId) setShelfBookData(prev => merge(prev));
+                if (bookInfoData?.id === bookId) setBookInfoData(prev => merge(prev));
+            };
+
             // ==========================================
             // BARCODE SCANNER FUNCTIONS
             // ==========================================

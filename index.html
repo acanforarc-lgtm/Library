@@ -3196,8 +3196,17 @@
             // Fetch popular recommendations
             const fetchRecommendations = async () => {
                 try {
+                    // Use cached recs for the session to avoid repeated API calls
+                    const cached = sessionStorage.getItem('recommendations');
+                    if (cached) {
+                        setRecommendations(JSON.parse(cached));
+                        return;
+                    }
+
                     const popularTopics = ['bestseller', 'fiction', 'classic', 'award winner'];
                     const randomTopic = popularTopics[Math.floor(Math.random() * popularTopics.length)];
+
+                    let recs = null;
 
                     const response = await fetch(
                         `https://www.googleapis.com/books/v1/volumes?q=${randomTopic}&orderBy=relevance&maxResults=15`
@@ -3206,7 +3215,7 @@
                     if (response.ok) {
                         const data = await response.json();
                         if (data.items) {
-                            const recs = data.items
+                            recs = data.items
                                 .filter(item => item.volumeInfo.printType === 'BOOK')
                                 .map(item => {
                                     const book = item.volumeInfo;
@@ -3224,35 +3233,39 @@
                                     };
                                 })
                                 .slice(0, 12);
-                            setRecommendations(recs);
-                            return;
                         }
                     }
 
                     // Fallback to Open Library when Google Books is rate-limited or unavailable
-                    const olResponse = await fetch(
-                        `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
-                    );
-                    if (olResponse.ok) {
-                        const olData = await olResponse.json();
-                        if (olData.docs && olData.docs.length > 0) {
-                            const recs = olData.docs
-                                .filter(doc => doc.title)
-                                .map(doc => ({
-                                    title: doc.title || 'Unknown Title',
-                                    author: doc.author_name?.[0] || 'Unknown Author',
-                                    isbn: doc.isbn?.[0] || 'Not Available',
-                                    cover: doc.cover_i
-                                        ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
-                                        : null,
-                                    publishYear: doc.first_publish_year?.toString(),
-                                    publisher: doc.publisher?.[0],
-                                    pageCount: doc.number_of_pages_median,
-                                    description: 'No description available.'
-                                }))
-                                .slice(0, 12);
-                            setRecommendations(recs);
+                    if (!recs) {
+                        const olResponse = await fetch(
+                            `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
+                        );
+                        if (olResponse.ok) {
+                            const olData = await olResponse.json();
+                            if (olData.docs && olData.docs.length > 0) {
+                                recs = olData.docs
+                                    .filter(doc => doc.title)
+                                    .map(doc => ({
+                                        title: doc.title || 'Unknown Title',
+                                        author: doc.author_name?.[0] || 'Unknown Author',
+                                        isbn: doc.isbn?.[0] || 'Not Available',
+                                        cover: doc.cover_i
+                                            ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+                                            : null,
+                                        publishYear: doc.first_publish_year?.toString(),
+                                        publisher: doc.publisher?.[0],
+                                        pageCount: doc.number_of_pages_median,
+                                        description: 'No description available.'
+                                    }))
+                                    .slice(0, 12);
+                            }
                         }
+                    }
+
+                    if (recs) {
+                        setRecommendations(recs);
+                        try { sessionStorage.setItem('recommendations', JSON.stringify(recs)); } catch(e) {}
                     }
                 } catch (error) {
                     console.error('Error fetching recommendations:', error);
@@ -6084,20 +6097,34 @@
                                                 </div>
                                             </div>
 
-                                            <div className="book-info-actions" style={{ marginTop: '1.5rem' }}>
-                                                <button 
+                                            <div style={{ marginTop: '1rem' }}>
+                                                <select
+                                                    className="user-data-select"
+                                                    value={selectedShelfForAdd}
+                                                    onChange={(e) => setSelectedShelfForAdd(e.target.value)}
+                                                    style={{ width: '100%', padding: '0.6rem', marginBottom: '0.75rem', borderRadius: '6px', border: '1px solid #c4a882', background: '#fdf6e9', color: '#3d2817', fontSize: '1rem' }}
+                                                >
+                                                    <option value="">📚 Add to library (no shelf)</option>
+                                                    {shelves.map(shelf => (
+                                                        <option key={shelf.id} value={shelf.id}>{shelf.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="book-info-actions">
+                                                <button
                                                     className="btn-info btn-info-assign"
                                                     onClick={addScannedBookAndClose}
                                                     style={{ width: '100%', fontSize: '1.2rem', padding: '1rem', marginBottom: '0.75rem' }}
                                                 >
-                                                    ✅ Add to Library
+                                                    ✅ {selectedShelfForAdd ? 'Add to Shelf' : 'Add to Library'}
                                                 </button>
-                                                <button 
+                                                <button
                                                     className="btn-info"
                                                     onClick={() => setShowQuickAdd(false)}
                                                     style={{ width: '100%', background: '#8b6f47', color: 'white' }}
                                                 >
-                                                    📝 Add Details (shelf, rating, notes)
+                                                    📝 More Details
                                                 </button>
                                             </div>
                                         </>

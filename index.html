@@ -2660,16 +2660,12 @@
             const [activeTab, setActiveTab] = useState('books');
             const [newShelfName, setNewShelfName] = useState('');
             
-            // FIX #4: Custom confirm modal
             const [showConfirm, setShowConfirm] = useState(false);
             const [confirmAction, setConfirmAction] = useState(null);
-            
-            // FIX #5: Description expansion
             const [showFullDescription, setShowFullDescription] = useState(false);
             
             // Drag and drop state
             const [draggedBook, setDraggedBook] = useState(null);
-            const [draggedFromShelf, setDraggedFromShelf] = useState(null);
             const [dropTargetShelf, setDropTargetShelf] = useState(null);
             const [snapPreviewPosition, setSnapPreviewPosition] = useState(null); // Shows where book will snap
             const [snapPreviewBoard, setSnapPreviewBoard] = useState(null);
@@ -2730,7 +2726,7 @@
             const [scannedISBN, setScannedISBN] = useState('');
             const [scannedBookData, setScannedBookData] = useState(null);
             const [showScannedBookPopup, setShowScannedBookPopup] = useState(false);
-            const [showQuickAdd, setShowQuickAdd] = useState(true); // STEP 2: Quick add vs full form
+            const [showQuickAdd, setShowQuickAdd] = useState(true);
             const scannerStreamRef = React.useRef(null);
             const videoRef = React.useRef(null);
             const scanningStartTime = React.useRef(null); // STEP 3: Track scan duration
@@ -2831,11 +2827,11 @@
                 }
             };
 
-            // Re-fetch only books from Supabase and update state
+            // Re-fetch only books from Supabase, update state, and return fresh rows
             const reloadBooks = async () => {
                 try {
                     const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (!user) return;
+                    if (!user) return [];
                     const { data, error } = await supabaseClient
                         .from('books')
                         .select('*')
@@ -2843,8 +2839,10 @@
                         .order('created_at', { ascending: true });
                     if (error) throw error;
                     setBooks(data || []);
+                    return data || [];
                 } catch (err) {
                     console.error('reloadBooks error:', err);
+                    return [];
                 }
             };
 
@@ -3146,13 +3144,13 @@
             const openBookDetail = (book) => {
                 setSelectedBook(book);
                 // FIX: Don't close search - let user continue browsing
-                setShowFullDescription(false); // FIX #5: Reset description expansion
+                setShowFullDescription(false);
             };
 
             const closeBookDetail = () => {
                 setSelectedBook(null);
                 setSelectedShelfForAdd('');
-                setShowFullDescription(false); // FIX #5: Reset description expansion
+                setShowFullDescription(false);
             };
 
             const addBookFromSearch = async () => {
@@ -3198,17 +3196,26 @@
             // Fetch popular recommendations
             const fetchRecommendations = async () => {
                 try {
+                    // Use cached recs for the session to avoid repeated API calls
+                    const cached = sessionStorage.getItem('recommendations');
+                    if (cached) {
+                        setRecommendations(JSON.parse(cached));
+                        return;
+                    }
+
                     const popularTopics = ['bestseller', 'fiction', 'classic', 'award winner'];
                     const randomTopic = popularTopics[Math.floor(Math.random() * popularTopics.length)];
-                    
+
+                    let recs = null;
+
                     const response = await fetch(
                         `https://www.googleapis.com/books/v1/volumes?q=${randomTopic}&orderBy=relevance&maxResults=15`
                     );
-                    
+
                     if (response.ok) {
                         const data = await response.json();
                         if (data.items) {
-                            const recs = data.items
+                            recs = data.items
                                 .filter(item => item.volumeInfo.printType === 'BOOK')
                                 .map(item => {
                                     const book = item.volumeInfo;
@@ -3226,8 +3233,39 @@
                                     };
                                 })
                                 .slice(0, 12);
-                            setRecommendations(recs);
                         }
+                    }
+
+                    // Fallback to Open Library when Google Books is rate-limited or unavailable
+                    if (!recs) {
+                        const olResponse = await fetch(
+                            `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
+                        );
+                        if (olResponse.ok) {
+                            const olData = await olResponse.json();
+                            if (olData.docs && olData.docs.length > 0) {
+                                recs = olData.docs
+                                    .filter(doc => doc.title)
+                                    .map(doc => ({
+                                        title: doc.title || 'Unknown Title',
+                                        author: doc.author_name?.[0] || 'Unknown Author',
+                                        isbn: doc.isbn?.[0] || 'Not Available',
+                                        cover: doc.cover_i
+                                            ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+                                            : null,
+                                        publishYear: doc.first_publish_year?.toString(),
+                                        publisher: doc.publisher?.[0],
+                                        pageCount: doc.number_of_pages_median,
+                                        description: 'No description available.'
+                                    }))
+                                    .slice(0, 12);
+                            }
+                        }
+                    }
+
+                    if (recs) {
+                        setRecommendations(recs);
+                        try { sessionStorage.setItem('recommendations', JSON.stringify(recs)); } catch(e) {}
                     }
                 } catch (error) {
                     console.error('Error fetching recommendations:', error);
@@ -3293,8 +3331,6 @@
                     return;
                 }
 
-                console.log('📚 Assigning book', bookId, 'to shelf', targetShelfId, 'board', targetBoardIndex, 'pos', nextPosition);
-
                 try {
                     const { error } = await supabaseClient
                         .from('books')
@@ -3314,72 +3350,21 @@
                 }
             };
 
-            const addBook = async () => {
-                if (!isbn) {
-                    showMessage('Please enter an ISBN');
-                    return;
-                }
-
-                // Remove any dashes or spaces from ISBN
-                const cleanIsbn = isbn.replace(/[-\s]/g, '');
-
-                try {
-                    showMessage('Searching for book...');
-                    
-                    // Use Open Library API - more reliable and no rate limits
-                    const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    console.log('Open Library Response:', data);
-
-                    const bookKey = `ISBN:${cleanIsbn}`;
-                    
-                    if (data[bookKey]) {
-                        const book = data[bookKey];
-                        const newBook = {
-                            id: Date.now(),
-                            title: book.title || 'Unknown Title',
-                            author: book.authors?.[0]?.name || 'Unknown Author',
-                            cover: book.cover?.large || book.cover?.medium || book.cover?.small,
-                            color: getRandomColor(),
-                            shelfId: null, // Not assigned to any shelf yet
-                            boardIndex: null, // Which board on the shelf
-                            position: null // Position on the board (0-190)
-                        };
-                        setBooks([...books, newBook]);
-                        setIsbn('');
-                        showMessage(`✅ Added: ${newBook.title}`);
-                    } else {
-                        showMessage(`❌ Book not found for ISBN: ${cleanIsbn}. Try a different ISBN or check the number.`);
-                        console.log('No book found for ISBN:', cleanIsbn);
-                    }
-                } catch (error) {
-                    console.error('Error details:', error);
-                    showMessage(`❌ Error: ${error.message}. Check your internet connection or try again in a moment.`);
-                }
-            };
-            
             // BLUETOOTH SCANNER MODE - RAPID FIRE! 🔫
             const handleScannerInput = async (scannedIsbn) => {
                 const cleanIsbn = scannedIsbn.replace(/[-\s]/g, '');
-                
+
                 if (!cleanIsbn) return;
-                
+
                 try {
-                    console.log('🔫 Scanner fired:', cleanIsbn);
-                    
                     const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
                     const bookKey = `ISBN:${cleanIsbn}`;
-                    
+
                     if (data[bookKey]) {
                         const book = data[bookKey];
-                        
+
                         // DETAIL MODE - Show popup like original scanner
                         if (scanMode === 'detail') {
                             setScannedBookData({
@@ -3392,46 +3377,51 @@
                             setScannerInput('');
                             return;
                         }
-                        
+
                         // RAPID MODE - Auto-add with pre-set location
                         let targetShelfId = null;
                         let targetBoardIndex = null;
                         let targetPosition = null;
-                        
+
                         // Determine shelf
                         if (rapidScanShelf === 'random') {
+                            if (shelves.length === 0) {
+                                showMessage('❌ No shelves found. Add a shelf first.');
+                                setScannerInput('');
+                                return;
+                            }
                             const randomShelf = shelves[Math.floor(Math.random() * shelves.length)];
                             targetShelfId = randomShelf.id;
                         } else {
                             targetShelfId = parseInt(rapidScanShelf);
                         }
-                        
+
                         // Determine board
-                        const selectedShelf = shelves.find(s => s.id === targetShelfId);
+                        const selectedShelf = shelves.find(s => String(s.id) === String(targetShelfId));
                         if (!selectedShelf) {
                             showMessage('❌ Error: Shelf not found');
                             setScannerInput('');
                             return;
                         }
-                        
+
                         if (rapidScanBoard === 'random') {
-                            targetBoardIndex = Math.floor(Math.random() * (selectedShelf.boardCount || 3));
+                            targetBoardIndex = Math.floor(Math.random() * (selectedShelf.board_count || selectedShelf.boardCount || 3));
                         } else {
                             targetBoardIndex = parseInt(rapidScanBoard);
                         }
-                        
+
                         // Determine position
                         if (rapidScanPosition === 'in-order') {
                             // Place books consecutively: 0, 10, 20, 30...
                             targetPosition = rapidScanCounter * BOOK_WIDTH;
-                            
+
                             // Check if we've filled this board
                             if (targetPosition > SHELF_WIDTH - BOOK_WIDTH) {
                                 showMessage('⚠️ Board full! Select new location.');
                                 setScannerInput('');
                                 return;
                             }
-                            
+
                             // Check if position is occupied
                             if (!isPositionAvailable(targetShelfId, targetBoardIndex, targetPosition)) {
                                 // Find next available
@@ -3442,13 +3432,13 @@
                                     return;
                                 }
                             }
-                            
+
                             setRapidScanCounter(rapidScanCounter + 1); // Increment for next book
                         } else {
                             // Random position
                             const randomPos = Math.floor(Math.random() * (SHELF_WIDTH - BOOK_WIDTH + 1));
                             const snappedPos = Math.round(randomPos / 5) * 5; // Snap to 5s
-                            
+
                             if (isPositionAvailable(targetShelfId, targetBoardIndex, snappedPos)) {
                                 targetPosition = snappedPos;
                             } else {
@@ -3460,22 +3450,30 @@
                                 }
                             }
                         }
-                        
-                        // Create and add book
-                        const newBook = {
-                            id: Date.now() + Math.random(),
-                            title: book.title || 'Unknown Title',
-                            author: book.authors?.[0]?.name || 'Unknown Author',
-                            cover: book.cover?.large || book.cover?.medium || book.cover?.small,
-                            color: getRandomColor(),
-                            shelfId: targetShelfId,
-                            boardIndex: targetBoardIndex,
-                            position: targetPosition
-                        };
-                        
-                        setBooks(prev => [...prev, newBook]);
-                        showMessage(`✅ ${newBook.title} → ${selectedShelf.name} (Shelf ${targetBoardIndex + 1}, Pos ${targetPosition})`);
-                        
+
+                        // Persist to Supabase
+                        const { data: { user } } = await supabaseClient.auth.getUser();
+                        if (!user) { showMessage('❌ Not logged in'); setScannerInput(''); return; }
+
+                        const { data: inserted, error: insertError } = await supabaseClient
+                            .from('books')
+                            .insert([{
+                                user_id: user.id,
+                                title: book.title || 'Unknown Title',
+                                author: book.authors?.[0]?.name || 'Unknown Author',
+                                cover: book.cover?.large || book.cover?.medium || book.cover?.small,
+                                color: getRandomColor(),
+                                shelf_id: targetShelfId,
+                                board_index: targetBoardIndex,
+                                position: targetPosition
+                            }])
+                            .select();
+
+                        if (insertError) throw insertError;
+
+                        setBooks(prev => [...prev, inserted[0]]);
+                        showMessage(`✅ ${inserted[0].title} → ${selectedShelf.name} (Shelf ${targetBoardIndex + 1}, Pos ${targetPosition})`);
+
                         // Play success beep
                         const beep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGa74+OlQRgWbbro8LRgFgY3kdXzx3koJlIx');
                         beep.play().catch(() => {});
@@ -3483,10 +3481,10 @@
                         showMessage(`❌ Not found: ${cleanIsbn}`);
                     }
                 } catch (error) {
-                    showMessage(`❌ Error scanning: ${cleanIsbn}`);
-                    console.error('Scanner error:', error);
+                    showMessage(`❌ Error scanning: ${error.message || cleanIsbn}`);
+                    console.error('Scanner error:', error.message || error);
                 }
-                
+
                 setScannerInput(''); // Clear for next scan
             };
 
@@ -3503,10 +3501,6 @@
                 return colors[Math.floor(Math.random() * colors.length)];
             };
 
-            const removeBook = (bookId) => {
-                setBooks(books.filter(b => b.id !== bookId));
-            };
-
             // Get books for a specific shelf (derived from books array - SINGLE SOURCE OF TRUTH)
             const getBooksForShelf = (shelfId) => {
                 return books.filter(book => book.shelf_id === shelfId);
@@ -3519,7 +3513,7 @@
             // Get books for a specific board with positions
             const getBooksForBoard = (shelfId, boardIndex) => {
                 return books
-                    .filter(book => book.shelf_id === shelfId && book.board_index === boardIndex)
+                    .filter(book => String(book.shelf_id) === String(shelfId) && Number(book.board_index) === Number(boardIndex))
                     .sort((a, b) => (a.position || 0) - (b.position || 0)); // Sort by position
             };
             
@@ -3540,7 +3534,6 @@
                     // Two ranges overlap if: NOT (end1 < start2 OR start1 > end2)
                     // Simplified: (start1 <= end2 AND end1 >= start2)
                     if (newBookStart <= bookEnd && newBookEnd >= bookStart) {
-                        console.log(`❌ Collision detected: New book ${newBookStart}-${newBookEnd} overlaps with existing book ${bookStart}-${bookEnd}`);
                         return false; // Collision!
                     }
                 }
@@ -3748,9 +3741,7 @@
             
             // Drag and drop handlers - FIXED
             const handleDragStart = (e, book, fromShelfId) => {
-                console.log('🎯 Drag started:', book.title);
                 setDraggedBook(book);
-                setDraggedFromShelf(fromShelfId);
                 e.dataTransfer.effectAllowed = 'move';
                 e.currentTarget.style.opacity = '0.5';
             };
@@ -3772,7 +3763,6 @@
             
             const handleDragEnter = (e, shelfId) => {
                 e.preventDefault();
-                console.log('📍 Drag enter shelf:', shelfId);
                 setDropTargetShelf(shelfId);
             };
             
@@ -3787,27 +3777,18 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                console.log('📦 Drop on shelf:', toShelfId, 'Board:', toBoardIndex, 'Book:', draggedBook?.title);
-                
-                if (!draggedBook) {
-                    console.log('❌ No dragged book');
-                    return;
-                }
+                if (!draggedBook) return;
                 
                 // Calculate drop position (snapped)
                 const boardElement = e.currentTarget;
                 const targetPosition = calculateDropPosition(e, boardElement);
                 
-                console.log('📍 Target position:', targetPosition, '(occupies', targetPosition, 'to', targetPosition + BOOK_WIDTH - 1, ')');
-                
                 // Find nearest available position (will snap to target if available)
                 const finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, draggedBook.id);
                 
                 if (finalPosition === null) {
-                    console.log('❌ No available positions on this board!');
                     showMessage('❌ This shelf board is full!');
                     setDraggedBook(null);
-                    setDraggedFromShelf(null);
                     setDropTargetShelf(null);
                     return;
                 }
@@ -3838,23 +3819,18 @@
                         ? `📚 Snapped "${draggedBook.title}" to nearest spot (Pos ${finalPosition})`
                         : `📚 Moved "${draggedBook.title}" to ${shelfName} (Pos ${finalPosition})`;
                     showMessage(message);
-                    console.log(`✅ Book placed at position ${finalPosition}-${finalPosition + BOOK_WIDTH - 1}${snapped ? ' (snapped)' : ''}`);
-                    
                 } catch (error) {
                     console.error('Error updating book position:', error);
                     showMessage('❌ Failed to move book');
                 }
                 
                 setDraggedBook(null);
-                setDraggedFromShelf(null);
                 setDropTargetShelf(null);
             };
-            
+
             const handleDragEnd = (e) => {
-                console.log('🏁 Drag ended');
                 e.currentTarget.style.opacity = '1';
                 setDraggedBook(null);
-                setDraggedFromShelf(null);
                 setDropTargetShelf(null);
                 setSnapPreviewPosition(null);
                 setSnapPreviewBoard(null);
@@ -3948,10 +3924,16 @@
                     }));
 
                     // Re-fetch from Supabase so state always matches DB
-                    await reloadBooks();
+                    const freshBooks = await reloadBooks();
+                    const onShelf = freshBooks.filter(b => String(b.shelf_id) === String(targetShelf));
+                    console.log(`📖 DB reports ${onShelf.length} book(s) on shelf ${targetShelf}:`, onShelf);
 
                     const shelfName = shelves.find(s => s.id === targetShelf)?.name;
-                    showMessage(`✅ Added ${booksToAdd.length} ${booksToAdd.length === 1 ? 'book' : 'books'} to "${shelfName}"`);
+                    if (onShelf.length > 0) {
+                        showMessage(`✅ Added ${onShelf.length} book(s) to "${shelfName}"`);
+                    } else {
+                        showMessage(`⚠️ DB saved but no books found on shelf "${shelfName}" (shelf id: ${targetShelf}). Check Supabase RLS/columns.`);
+                    }
                     closeBookSelector();
                 } catch (error) {
                     console.error('Error adding books to shelf:', error);
@@ -3979,23 +3961,26 @@
             const removeFromCurrentShelf = () => {
                 if (!shelfBookData || !currentShelfId) return;
 
-                // FIX #4: Custom confirm modal (will add below)
                 setConfirmAction({
                     title: 'Remove Book',
                     message: `Remove "${shelfBookData.title}" from this shelf?`,
-                    onConfirm: () => {
-                        // FIX #1: Add null check for shelf.books
-                        setShelves(shelves.map(shelf =>
-                            shelf.id === currentShelfId
-                                ? { ...shelf, books: (shelf.books || []).filter(b => b.id !== shelfBookData.id) }
-                                : shelf
-                        ));
+                    onConfirm: async () => {
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id: null, board_index: null, position: null })
+                            .eq('id', shelfBookData.id);
 
-                        // Update book's shelfId to null
+                        if (error) {
+                            console.error('Error removing book from shelf:', error);
+                            showMessage('❌ Failed to remove book from shelf');
+                            return;
+                        }
+
                         setBooks(books.map(b =>
-                            b.id === shelfBookData.id ? { ...b, shelfId: null } : b
+                            b.id === shelfBookData.id
+                                ? { ...b, shelf_id: null, board_index: null, position: null }
+                                : b
                         ));
-
                         showMessage('Book removed from shelf');
                         closeShelfBookPopup();
                     }
@@ -4003,18 +3988,36 @@
                 setShowConfirm(true);
             };
 
-            // Move book to different shelf - ONLY update shelfId!
-            const moveBookToShelf = () => {
+            // Move book to a different shelf
+            const moveBookToShelf = async () => {
                 if (!shelfBookData || !selectedShelfToMove) return;
 
-                // ONLY update book's shelfId - shelves derive their books from this!
+                const newShelfId = parseInt(selectedShelfToMove);
+                const nextPos = findNextAvailablePosition(newShelfId, 0);
+
+                if (nextPos === null) {
+                    showMessage('❌ That shelf\'s first board is full. Try another shelf.');
+                    return;
+                }
+
+                const { error } = await supabaseClient
+                    .from('books')
+                    .update({ shelf_id: newShelfId, board_index: 0, position: nextPos })
+                    .eq('id', shelfBookData.id);
+
+                if (error) {
+                    console.error('Error moving book to shelf:', error);
+                    showMessage('❌ Failed to move book');
+                    return;
+                }
+
                 setBooks(books.map(b =>
                     b.id === shelfBookData.id
-                        ? { ...b, shelfId: parseInt(selectedShelfToMove) }
+                        ? { ...b, shelf_id: newShelfId, board_index: 0, position: nextPos }
                         : b
                 ));
 
-                const newShelfName = shelves.find(s => s.id === parseInt(selectedShelfToMove))?.name;
+                const newShelfName = shelves.find(s => s.id === newShelfId)?.name;
                 showMessage(`✅ Moved to "${newShelfName}"`);
                 setShowMoveModal(false);
                 closeShelfBookPopup();
@@ -4025,53 +4028,6 @@
                 setSelectedShelfToMove('');
                 setShowMoveModal(true);
             };
-
-            // DEPRECATED v7.1 - userData will be added to database in v7.2
-            // Update user book data - ONLY update books array!
-            /*
-            const updateBookUserData = (bookId, field, value) => {
-                setBooks(books.map(book => 
-                    book.id === bookId 
-                        ? { 
-                            ...book, 
-                            userData: { 
-                                ...(book.userData || {}),
-                                [field]: value 
-                            } 
-                        } 
-                        : book
-                ));
-
-                if (shelfBookData?.id === bookId) {
-                    const updatedBook = books.find(b => b.id === bookId) || shelfBookData;
-                    setShelfBookData({
-                        ...updatedBook,
-                        userData: {
-                            ...(updatedBook.userData || {}),
-                            [field]: value
-                        }
-                    });
-                }
-
-                if (bookInfoData?.id === bookId) {
-                    const updatedBook = books.find(b => b.id === bookId) || bookInfoData;
-                    setBookInfoData({
-                        ...updatedBook,
-                        userData: {
-                            ...(updatedBook.userData || {}),
-                            [field]: value
-                        }
-                    });
-                }
-            };
-            */
-
-            // Set star rating - DEPRECATED v7.1
-            /*
-            const setStarRating = (bookId, rating) => {
-                updateBookUserData(bookId, 'rating', rating);
-            };
-            */
 
             // ==========================================
             // BARCODE SCANNER FUNCTIONS
@@ -4142,7 +4098,7 @@
                     }
                     Quagga.start();
                     setScannerStatus('scanning');
-                    scanningStartTime.current = Date.now(); // STEP 3: Track when scanning started
+                    scanningStartTime.current = Date.now();
                     
                     // Listen for barcode detection
                     Quagga.onDetected(onBarcodeDetected);
@@ -4354,11 +4310,32 @@
             // Add scanned book and scan next - SUPABASE v7.1
             const addScannedBookAndContinue = async () => {
                 if (!scannedBookData) return;
-                
+
                 try {
                     const { data: { user } } = await supabaseClient.auth.getUser();
                     if (!user) return;
-                    
+
+                    let targetShelfId = selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null;
+                    let targetBoardIndex = null;
+                    let targetPosition = null;
+
+                    if (targetShelfId) {
+                        const shelf = shelves.find(s => s.id === targetShelfId);
+                        const boardCount = shelf?.board_count || 3;
+                        for (let b = 0; b < boardCount; b++) {
+                            const pos = findNextAvailablePosition(targetShelfId, b);
+                            if (pos !== null) {
+                                targetBoardIndex = b;
+                                targetPosition = pos;
+                                break;
+                            }
+                        }
+                        if (targetBoardIndex === null) {
+                            showMessage('⚠️ All boards on that shelf are full. Book added to library without shelf.');
+                            targetShelfId = null;
+                        }
+                    }
+
                     const { data, error } = await supabaseClient
                         .from('books')
                         .insert([{
@@ -4367,33 +4344,30 @@
                             author: scannedBookData.author,
                             cover: scannedBookData.cover,
                             color: getRandomColor(),
-                            shelf_id: selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null,
-                            board_index: null,
-                            position: null
+                            shelf_id: targetShelfId,
+                            board_index: targetBoardIndex,
+                            position: targetPosition
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
+
                     setBooks([...books, data[0]]);
                     showMessage(`✅ Added "${data[0].title}"`);
-                    
-                    console.log('📚 Book added, preparing to reopen scanner...');
-                    
+
                     // Close popup and scanner in RIGHT ORDER
                     closeScanner();
                     setShowScannedBookPopup(false);
                     setScannedBookData(null);
                     setSelectedShelfForAdd('');
                     setShowQuickAdd(true);
-                    
+
                     // Wait for cleanup, then reopen
                     setTimeout(() => {
-                        console.log('🔄 Reopening scanner...');
                         setScannerKey(prev => prev + 1);
                         openScanner();
                     }, 800);
-                    
+
                 } catch (error) {
                     console.error('Error adding scanned book:', error);
                     showMessage('❌ Failed to add book');
@@ -4403,11 +4377,32 @@
             // Add scanned book and close scanner
             const addScannedBookAndClose = async () => {
                 if (!scannedBookData) return;
-                
+
                 try {
                     const { data: { user } } = await supabaseClient.auth.getUser();
                     if (!user) return;
-                    
+
+                    let targetShelfId = selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null;
+                    let targetBoardIndex = null;
+                    let targetPosition = null;
+
+                    if (targetShelfId) {
+                        const shelf = shelves.find(s => s.id === targetShelfId);
+                        const boardCount = shelf?.board_count || 3;
+                        for (let b = 0; b < boardCount; b++) {
+                            const pos = findNextAvailablePosition(targetShelfId, b);
+                            if (pos !== null) {
+                                targetBoardIndex = b;
+                                targetPosition = pos;
+                                break;
+                            }
+                        }
+                        if (targetBoardIndex === null) {
+                            showMessage('⚠️ All boards on that shelf are full. Book added to library without shelf.');
+                            targetShelfId = null;
+                        }
+                    }
+
                     const { data, error } = await supabaseClient
                         .from('books')
                         .insert([{
@@ -4416,14 +4411,14 @@
                             author: scannedBookData.author,
                             cover: scannedBookData.cover,
                             color: getRandomColor(),
-                            shelf_id: selectedShelfForAdd ? parseInt(selectedShelfForAdd) : null,
-                            board_index: null,
-                            position: null
+                            shelf_id: targetShelfId,
+                            board_index: targetBoardIndex,
+                            position: targetPosition
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
+
                     setBooks([...books, data[0]]);
                     showMessage(`✅ Added "${data[0].title}"`);
                     closeScanner();
@@ -4608,41 +4603,6 @@
                     console.error('Error fetching book:', error);
                     showMessage('❌ Error looking up book');
                 }
-            };
-
-            const addBookToShelf = (book, shelfId) => {
-                // Remove from current shelf if assigned
-                setShelves(shelves.map(shelf => ({
-                    ...shelf,
-                    books: shelf.books.filter(b => b.id !== book.id)
-                })));
-
-                // Add to new shelf
-                setShelves(shelves.map(shelf => 
-                    shelf.id === shelfId 
-                        ? { ...shelf, books: [...shelf.books, book] }
-                        : shelf
-                ));
-
-                // Update book's shelfId
-                setBooks(books.map(b => 
-                    b.id === book.id ? { ...b, shelfId } : b
-                ));
-
-                showMessage(`Moved to shelf`);
-            };
-
-            const removeBookFromShelf = (book, shelfId) => {
-                setShelves(shelves.map(shelf => 
-                    shelf.id === shelfId
-                        ? { ...shelf, books: shelf.books.filter(b => b.id !== book.id) }
-                        : shelf
-                ));
-
-                // Unassign book
-                setBooks(books.map(b => 
-                    b.id === book.id ? { ...b, shelfId: null } : b
-                ));
             };
 
             const unassignedBooks = books.filter(book => !book.shelf_id);
@@ -6137,20 +6097,34 @@
                                                 </div>
                                             </div>
 
-                                            <div className="book-info-actions" style={{ marginTop: '1.5rem' }}>
-                                                <button 
+                                            <div style={{ marginTop: '1rem' }}>
+                                                <select
+                                                    className="user-data-select"
+                                                    value={selectedShelfForAdd}
+                                                    onChange={(e) => setSelectedShelfForAdd(e.target.value)}
+                                                    style={{ width: '100%', padding: '0.6rem', marginBottom: '0.75rem', borderRadius: '6px', border: '1px solid #c4a882', background: '#fdf6e9', color: '#3d2817', fontSize: '1rem' }}
+                                                >
+                                                    <option value="">📚 Add to library (no shelf)</option>
+                                                    {shelves.map(shelf => (
+                                                        <option key={shelf.id} value={shelf.id}>{shelf.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="book-info-actions">
+                                                <button
                                                     className="btn-info btn-info-assign"
                                                     onClick={addScannedBookAndClose}
                                                     style={{ width: '100%', fontSize: '1.2rem', padding: '1rem', marginBottom: '0.75rem' }}
                                                 >
-                                                    ✅ Add to Library
+                                                    ✅ {selectedShelfForAdd ? 'Add to Shelf' : 'Add to Library'}
                                                 </button>
-                                                <button 
+                                                <button
                                                     className="btn-info"
                                                     onClick={() => setShowQuickAdd(false)}
                                                     style={{ width: '100%', background: '#8b6f47', color: 'white' }}
                                                 >
-                                                    📝 Add Details (shelf, rating, notes)
+                                                    📝 More Details
                                                 </button>
                                             </div>
                                         </>

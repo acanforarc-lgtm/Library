@@ -2711,6 +2711,7 @@
             const [settingsTab, setSettingsTab] = useState('account');
             const [showMoveModal, setShowMoveModal] = useState(false);
             const [selectedShelfToMove, setSelectedShelfToMove] = useState('');
+            const [showAssignModal, setShowAssignModal] = useState(false);
             const scannerInitialized = React.useRef(false);
             const [starHover, setStarHover] = useState(0);
             const [userProfile, setUserProfile] = useState({
@@ -5035,28 +5036,13 @@
                                     </div>
 
                                     <div className="book-info-actions">
-                                        <div className="book-info-shelf-select">
-                                            <select
-                                                value={selectedShelfForAdd}
-                                                onChange={(e) => setSelectedShelfForAdd(e.target.value)}
-                                            >
-                                                <option value="">Assign to shelf...</option>
-                                                {shelves.map(shelf => (
-                                                    <option key={shelf.id} value={shelf.id}>
-                                                        {shelf.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button 
-                                                className="btn-info btn-info-assign"
-                                                onClick={assignBookToShelf}
-                                                disabled={!selectedShelfForAdd}
-                                            >
-                                                Assign
-                                            </button>
-                                        </div>
-
                                         <div className="book-info-buttons">
+                                            <button
+                                                className="btn-info btn-info-assign"
+                                                onClick={() => { setSelectedShelfForAdd(''); setShowAssignModal(true); }}
+                                            >
+                                                📚 Assign to Shelf
+                                            </button>
                                             <button
                                                 className="btn-info btn-info-remove"
                                                 onClick={() => removeBookFromLibrary(bookInfoData.id)}
@@ -5064,8 +5050,9 @@
                                                 🗑 Remove from Library
                                             </button>
                                             <button
-                                                className="btn-info btn-info-close"
+                                                className="btn-info"
                                                 onClick={closeBookInfo}
+                                                style={{background: '#8b6f47'}}
                                             >
                                                 ✓ Close
                                             </button>
@@ -6392,6 +6379,58 @@
                                         <button 
                                             className="btn-info btn-info-close"
                                             onClick={() => setShowMoveModal(false)}
+                                            style={{flex: 1}}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Assign Shelf Modal (from Your Books popup) */}
+                    {showAssignModal && bookInfoData && (
+                        <div className="book-detail-overlay" onClick={() => setShowAssignModal(false)}>
+                            <div className="book-detail-popup move-shelf-modal" onClick={(e) => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowAssignModal(false)}>×</button>
+
+                                <div className="book-detail-content">
+                                    <h2 className="book-detail-title">Assign to Shelf</h2>
+                                    <p style={{marginBottom: '1rem', color: '#8b6f47'}}>
+                                        Select which shelf to assign "{bookInfoData.title}" to
+                                    </p>
+
+                                    <div className="shelf-list">
+                                        {shelves.map(shelf => (
+                                            <div
+                                                key={shelf.id}
+                                                className={`shelf-option ${selectedShelfForAdd === shelf.id.toString() ? 'selected' : ''}`}
+                                                onClick={() => setSelectedShelfForAdd(shelf.id.toString())}
+                                            >
+                                                <div className="shelf-option-radio"></div>
+                                                <div style={{flex: 1}}>
+                                                    <div style={{fontWeight: '600'}}>{shelf.name}</div>
+                                                    <div style={{fontSize: '0.85rem', color: '#8b6f47'}}>
+                                                        {getBooksForShelf(shelf.id).length} {getBooksForShelf(shelf.id).length === 1 ? 'book' : 'books'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div style={{display: 'flex', gap: '1rem'}}>
+                                        <button
+                                            className="btn-info btn-info-assign"
+                                            onClick={() => { assignBookToShelf(); setShowAssignModal(false); }}
+                                            disabled={!selectedShelfForAdd}
+                                            style={{flex: 1}}
+                                        >
+                                            Assign to Shelf
+                                        </button>
+                                        <button
+                                            className="btn-info btn-info-close"
+                                            onClick={() => setShowAssignModal(false)}
                                             style={{flex: 1}}
                                         >
                                             Cancel

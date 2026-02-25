@@ -2697,7 +2697,8 @@
             const [fullResultsSort, setFullResultsSort] = useState('popular');
             const [showShelfSearch, setShowShelfSearch] = useState(false);
             const [currentShelfForSearch, setCurrentShelfForSearch] = useState(null);
-            const [recommendations, setRecommendations] = useState([]);
+            const [recSections, setRecSections] = useState([]);
+            const [recsLoading, setRecsLoading] = useState(false);
             const [showBookInfo, setShowBookInfo] = useState(false);
             const [bookInfoData, setBookInfoData] = useState(null);
             const [showBookSelector, setShowBookSelector] = useState(false);
@@ -3194,61 +3195,127 @@
                 }
             };
 
-            // Fetch popular recommendations
-            const fetchRecommendations = async () => {
-                try {
-                    // Return cached recs immediately if available
-                    const cached = sessionStorage.getItem('recommendations');
-                    if (cached) {
-                        setRecommendations(JSON.parse(cached));
-                        return;
-                    }
+            // Fetch all recommendation sections (personalized + trending + new + bestsellers)
+            const fetchAllRecommendations = async (userBooks, userShelves) => {
+                const cacheKey = 'recSections_v2';
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) { setRecSections(JSON.parse(cached)); return; }
+                if (sessionStorage.getItem('recs_fetching')) return;
+                sessionStorage.setItem('recs_fetching', '1');
+                setRecsLoading(true);
 
-                    // Prevent parallel calls from both firing off a fetch
-                    if (sessionStorage.getItem('recommendations_fetching')) return;
-                    sessionStorage.setItem('recommendations_fetching', '1');
+                const parseDoc = (doc) => ({
+                    title: doc.title || 'Unknown Title',
+                    author: doc.author_name?.[0] || 'Unknown Author',
+                    isbn: doc.isbn?.[0] || 'N/A',
+                    cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+                    publishYear: doc.first_publish_year?.toString(),
+                    publisher: doc.publisher?.[0],
+                    pageCount: doc.number_of_pages_median,
+                    description: 'No description available.'
+                });
 
-                    const popularTopics = ['bestseller', 'fiction', 'classic', 'award winner'];
-                    const randomTopic = popularTopics[Math.floor(Math.random() * popularTopics.length)];
+                const olSearch = (q) =>
+                    fetch(`https://openlibrary.org/search.json?${q}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,number_of_pages_median`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null);
 
-                    const olResponse = await fetch(
-                        `https://openlibrary.org/search.json?q=${encodeURIComponent(randomTopic)}&limit=15&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median`
+                const sections = [];
+                const promises = [];
+
+                // 1. Personalized: More by an author from the user's library
+                if (userBooks.length > 0) {
+                    const pick = userBooks[Math.floor(Math.random() * userBooks.length)];
+                    promises.push(
+                        olSearch(`q=author:${encodeURIComponent(pick.author)}`)
+                            .then(data => {
+                                const books = data?.docs?.filter(d => d.cover_i).map(parseDoc).slice(0, 12) || [];
+                                if (books.length >= 3) sections.push({ id: 'personal', title: `More by ${pick.author}`, label: '✨ Based on your library', books });
+                            })
                     );
+                }
 
-                    sessionStorage.removeItem('recommendations_fetching');
+                // 2. Genre: Based on a random shelf the user has created
+                if (userShelves.length > 0) {
+                    const shelf = userShelves[Math.floor(Math.random() * userShelves.length)];
+                    promises.push(
+                        olSearch(`q=${encodeURIComponent(shelf.name)}`)
+                            .then(data => {
+                                const books = data?.docs?.filter(d => d.cover_i).map(parseDoc).slice(0, 12) || [];
+                                if (books.length >= 3) sections.push({ id: 'genre', title: `More ${shelf.name} Books`, label: '📚 From your shelves', books });
+                            })
+                    );
+                }
 
-                    if (olResponse.ok) {
-                        const olData = await olResponse.json();
-                        if (olData.docs && olData.docs.length > 0) {
-                            const recs = olData.docs
-                                .filter(doc => doc.title)
-                                .map(doc => ({
-                                    title: doc.title || 'Unknown Title',
-                                    author: doc.author_name?.[0] || 'Unknown Author',
-                                    isbn: doc.isbn?.[0] || 'Not Available',
-                                    cover: doc.cover_i
-                                        ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
-                                        : null,
-                                    publishYear: doc.first_publish_year?.toString(),
-                                    publisher: doc.publisher?.[0],
-                                    pageCount: doc.number_of_pages_median,
+                // 3. Discovery: A genre the user probably hasn't read
+                const allGenres = ['Science Fiction', 'Mystery', 'Romance', 'Thriller', 'Horror', 'Biography', 'History', 'Philosophy', 'Travel', 'Cooking', 'Poetry', 'Graphic Novels'];
+                const shelfNames = userShelves.map(s => s.name.toLowerCase());
+                const freshGenres = allGenres.filter(g => !shelfNames.some(s => s.includes(g.split(' ')[0].toLowerCase())));
+                const discoverGenre = (freshGenres.length ? freshGenres : allGenres)[Math.floor(Math.random() * (freshGenres.length || allGenres.length))];
+                promises.push(
+                    olSearch(`q=${encodeURIComponent(discoverGenre)}`)
+                        .then(data => {
+                            const books = data?.docs?.filter(d => d.cover_i).map(parseDoc).slice(0, 12) || [];
+                            if (books.length >= 3) sections.push({ id: 'discovery', title: `Explore ${discoverGenre}`, label: '🔍 Outside your usual reads', books });
+                        })
+                );
+
+                // 4. Trending this week
+                promises.push(
+                    fetch('https://openlibrary.org/trending/weekly.json?limit=15')
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                        .then(data => {
+                            const books = (data?.works || [])
+                                .filter(w => w.title && (w.cover_id || w.cover_i))
+                                .map(w => ({
+                                    title: w.title,
+                                    author: w.author_name?.[0] || 'Unknown Author',
+                                    isbn: 'N/A',
+                                    cover: `https://covers.openlibrary.org/b/id/${w.cover_id || w.cover_i}-M.jpg`,
+                                    publishYear: w.first_publish_year?.toString(),
                                     description: 'No description available.'
                                 }))
                                 .slice(0, 12);
-                            setRecommendations(recs);
-                            try { sessionStorage.setItem('recommendations', JSON.stringify(recs)); } catch(e) {}
-                        }
-                    }
-                } catch (error) {
-                    sessionStorage.removeItem('recommendations_fetching');
-                    console.error('Error fetching recommendations:', error);
+                            if (books.length >= 3) sections.push({ id: 'trending', title: 'Trending This Week', label: '🔥 Popular right now', books });
+                        })
+                );
+
+                // 5. New releases (sorted newest first)
+                promises.push(
+                    olSearch(`q=*&sort=new`)
+                        .then(data => {
+                            const books = data?.docs?.filter(d => d.cover_i).map(parseDoc).slice(0, 12) || [];
+                            if (books.length >= 3) sections.push({ id: 'new', title: 'New Releases', label: '📅 Just published', books });
+                        })
+                );
+
+                // 6. Bestsellers (sorted by most editions = most popular ever)
+                promises.push(
+                    olSearch(`q=bestseller&sort=editions`)
+                        .then(data => {
+                            const books = data?.docs?.filter(d => d.cover_i).map(parseDoc).slice(0, 12) || [];
+                            if (books.length >= 3) sections.push({ id: 'bestsellers', title: 'Bestsellers', label: '⭐ Most popular of all time', books });
+                        })
+                );
+
+                await Promise.allSettled(promises);
+
+                sessionStorage.removeItem('recs_fetching');
+                setRecsLoading(false);
+
+                const order = ['personal', 'genre', 'trending', 'new', 'bestsellers', 'discovery'];
+                sections.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+                if (sections.length > 0) {
+                    setRecSections(sections);
+                    try { sessionStorage.setItem(cacheKey, JSON.stringify(sections)); } catch(e) {}
                 }
             };
 
             // Load recommendations when user logs in
             useEffect(() => {
-                if (currentUser && recommendations.length === 0) {
-                    fetchRecommendations();
+                if (currentUser && recSections.length === 0) {
+                    fetchAllRecommendations(books, shelves);
                 }
             }, [currentUser]);
 
@@ -5551,39 +5618,44 @@
                                 </div>
                             </div>
 
-                            {/* Recommendations */}
-                            <div className="category-section">
-                                <h3 className="category-header">Recommendations</h3>
-                                <div className="category-scroll">
-                                    {recommendations.length === 0 ? (
-                                        <div className="empty" style={{ width: '100%', textAlign: 'center', padding: '3rem' }}>
-                                            Loading recommendations...
-                                        </div>
-                                    ) : (
-                                        recommendations.map((book, index) => (
+                            {/* Recommendation Sections */}
+                            {recsLoading && recSections.length === 0 && (
+                                <div className="category-section">
+                                    <h3 className="category-header">Recommendations</h3>
+                                    <div style={{ textAlign: 'center', padding: '3rem', color: '#8b6f47' }}>
+                                        Loading recommendations...
+                                    </div>
+                                </div>
+                            )}
+                            {recSections.map(section => (
+                                <div key={section.id} className="category-section">
+                                    <h3 className="category-header">
+                                        {section.title}
+                                        {section.label && (
+                                            <span style={{ fontSize: '0.85rem', fontWeight: '400', color: '#8b6f47', marginLeft: '0.75rem' }}>
+                                                {section.label}
+                                            </span>
+                                        )}
+                                    </h3>
+                                    <div className="category-scroll">
+                                        {section.books.map((book, i) => (
                                             <div
-                                                key={index}
+                                                key={i}
                                                 className="category-book"
                                                 onClick={() => openBookDetail(book)}
                                             >
                                                 {book.cover ? (
-                                                    <img
-                                                        src={book.cover}
-                                                        alt={book.title}
-                                                        className="category-book-cover"
-                                                    />
+                                                    <img src={book.cover} alt={book.title} className="category-book-cover" />
                                                 ) : (
-                                                    <div className="category-book-cover-placeholder">
-                                                        {book.title}
-                                                    </div>
+                                                    <div className="category-book-cover-placeholder">{book.title}</div>
                                                 )}
                                                 <div className="category-book-title">{book.title}</div>
                                                 <div className="category-book-author">{book.author}</div>
                                             </div>
-                                        ))
-                                    )}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            ))}
 
                             <div style={{ textAlign: 'center', marginTop: '2rem', opacity: 0.6 }}>
                                 <small>💡 Click any book to view details, remove, or assign to a shelf</small>

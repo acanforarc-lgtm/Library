@@ -3324,7 +3324,7 @@
                 ctx.fillStyle = 'rgba(0,0,0,0)';
                 ctx.clearRect(0, 0, 512, 80);
                 ctx.fillStyle = 'rgba(61,40,23,0.85)';
-                ctx.roundRect(4, 4, 504, 72, 10);
+                if (ctx.roundRect) { ctx.roundRect(4, 4, 504, 72, 10); } else { ctx.rect(4, 4, 504, 72); }
                 ctx.fill();
                 ctx.fillStyle = '#f5e6d3';
                 ctx.font = 'bold 36px serif';

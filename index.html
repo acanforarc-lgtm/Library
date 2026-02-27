@@ -3419,9 +3419,7 @@
                 // ── teardown old scene if any ──
                 const old = roomStateRef.current;
                 if (old) {
-                    cancelAnimationFrame(old.animId);
-                    old.renderer.dispose();
-                    old.controls.dispose();
+                    old.cleanup();
                 }
 
                 const W = container.clientWidth  || 800;
@@ -3444,6 +3442,7 @@
                 );
                 oCam.position.set(0, 30, 0);
                 oCam.lookAt(0, 0, 0);
+                oCam.up.set(0, 0, -1); // prevent gimbal lock for top-down view
 
                 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -3452,9 +3451,10 @@
 
                 // OrbitControls
                 const controls = new THREE.OrbitControls(pCam, renderer.domElement);
-                controls.enableDamping  = true;
-                controls.dampingFactor  = 0.06;
-                controls.maxPolarAngle  = Math.PI / 2.05;
+                controls.enableDamping      = true;
+                controls.dampingFactor      = 0.06;
+                controls.screenSpacePanning = false; // restrict pan to XZ plane, prevents panning out of room
+                controls.maxPolarAngle      = Math.PI / 2.05;
                 controls.minDistance    = 3;
                 controls.maxDistance    = 40;
                 controls.target.set(0, 1, 0);
@@ -3585,7 +3585,7 @@
                     }
                 });
 
-                canvas.addEventListener('mousemove', (e) => {
+                const onDragMove = (e) => {
                     if (!drag.active) return;
                     const dx = e.clientX - drag.startX;
                     const dy = e.clientY - drag.startY;
@@ -3597,10 +3597,10 @@
                         drag.shelf.position.x = pt.x;
                         drag.shelf.position.z = pt.z;
                     }
-                });
+                };
 
-                canvas.addEventListener('mouseup', (e) => {
-                    if (!drag.active) return;
+                const onDragUp = (e) => {
+                    if (!drag.active || e.button !== 0) return;
                     controls.enabled = true;
 
                     if (drag.moved) {
@@ -3619,7 +3619,10 @@
                         setSelectedRoomShelf(prev => prev === sid ? null : sid);
                     }
                     drag = { active: false, shelf: null, startX: 0, startY: 0, moved: false };
-                });
+                };
+
+                window.addEventListener('mousemove', onDragMove);
+                window.addEventListener('mouseup', onDragUp);
 
                 // Rotate selected shelf with R key
                 const onKey = (e) => {
@@ -3663,7 +3666,13 @@
                     if (!st) return;
                     const cam = st.floorPlan ? oCam : pCam;
                     controls.object = cam;
-                    controls.update();
+                    if (!drag.active) {
+                        controls.update();
+                        // clamp vertical pan so camera can't leave the room
+                        if (!st.floorPlan) {
+                            controls.target.y = Math.max(-1, Math.min(8, controls.target.y));
+                        }
+                    }
                     renderer.render(scene, cam);
                 };
                 animate();
@@ -3672,13 +3681,15 @@
                     scene, pCam, oCam, renderer, controls, shelfMeshes,
                     animId: 0, floorPlan: false,
                     cleanup: () => {
+                        cancelAnimationFrame(animId);
                         window.removeEventListener('resize', onResize);
                         window.removeEventListener('keydown', onKey);
+                        window.removeEventListener('mousemove', onDragMove);
+                        window.removeEventListener('mouseup', onDragUp);
+                        renderer.dispose();
+                        controls.dispose();
                     }
                 };
-                // store animId after closure captures ref
-                const rafStore = () => { roomStateRef.current.animId = animId; };
-                setTimeout(rafStore, 0);
             };
 
             const toggleRoomView = () => {
@@ -3688,6 +3699,9 @@
                         roomStateRef.current.floorPlan = (next === 'floorplan');
                         const st = roomStateRef.current;
                         if (next === 'floorplan') {
+                            st.oCam.up.set(0, 0, -1);
+                            st.oCam.position.set(0, 30, 0);
+                            st.controls.target.set(0, 0, 0);
                             st.controls.enableRotate = false;
                             st.controls.enablePan    = true;
                         } else {

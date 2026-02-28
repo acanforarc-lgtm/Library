@@ -3207,6 +3207,49 @@
             // SEARCH & BOOK API FUNCTIONS
             // ==========================================
             
+            // Score how relevant a book result is to the user's query.
+            // Higher = better match. Used to re-rank API results client-side.
+            const scoreBookRelevance = (book, query) => {
+                const q = query.trim().toLowerCase();
+                const title  = (book.title  || '').toLowerCase();
+                const author = (book.author || '').toLowerCase();
+                const tokens = q.split(/\s+/).filter(t => t.length > 1);
+                let score = 0;
+
+                // Title match tiers
+                if (title === q)              score += 100;
+                else if (title.startsWith(q)) score += 80;
+                else if (title.includes(q))   score += 60;
+
+                // Token-based title scoring (handles "old man sea" → The Old Man and the Sea)
+                if (tokens.length > 0) {
+                    const hits = tokens.filter(t => title.includes(t)).length;
+                    score += (hits / tokens.length) * 40;
+                }
+
+                // Author match
+                if (author === q)              score += 50;
+                else if (author.includes(q))   score += 30;
+                else if (tokens.length > 0) {
+                    const hits = tokens.filter(t => author.includes(t)).length;
+                    score += (hits / tokens.length) * 20;
+                }
+
+                // Quality signals — prefer well-catalogued books
+                if (book.cover) score += 3;
+                if (book.isbn && book.isbn !== 'Not Available') score += 3;
+                if (book.pageCount > 0) score += 2;
+                if (book.rating > 0) score += book.rating; // 1–5 point boost
+
+                return score;
+            };
+
+            // Returns true if the query looks like an ISBN-10 or ISBN-13
+            const isIsbnQuery = (query) => {
+                const cleaned = query.replace(/[-\s]/g, '');
+                return /^\d{10}$/.test(cleaned) || /^\d{13}$/.test(cleaned);
+            };
+
             const searchBooks = async (query, fullSearch = false) => {
                 setSearchLoading(true);
                 if (!fullSearch) {
@@ -3214,24 +3257,29 @@
                 }
 
                 try {
-                    // FIX 3: If no query, show trending/popular books
+                    // If no query, show trending/popular books
                     let searchQuery = query;
                     if (!query || query.trim() === '') {
-                        // Default to showing trending fiction books
                         searchQuery = 'bestseller fiction 2024';
                     }
-                    
+
+                    // Route ISBN queries directly to the isbn: field for an exact lookup
+                    if (isIsbnQuery(query)) {
+                        const cleanIsbn = query.replace(/[-\s]/g, '');
+                        searchQuery = `isbn:${cleanIsbn}`;
+                    }
+
                     // Try Google Books API first with orderBy=relevance for popular results
                     // For full search, fetch multiple pages to get ALL results
                     let allResults = [];
                     const resultsPerPage = 40; // Google Books API max
                     let startIndex = 0;
                     let fetchMore = true;
-                    
+
                     // For dropdown: just 5 results
                     // For full search: keep fetching until no more results (up to 200 total to avoid too many API calls)
                     const maxResults = fullSearch ? 200 : 5;
-                    
+
                     while (fetchMore && allResults.length < maxResults) {
                         const googleResponse = await fetch(
                             `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&orderBy=relevance&maxResults=${resultsPerPage}&startIndex=${startIndex}`
@@ -3293,11 +3341,16 @@
                     }
                     
                     if (allResults.length > 0) {
+                        // Re-rank by our own relevance score so the best match is always first
+                        const ranked = allResults
+                            .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
+                            .sort((a, b) => b._score - a._score);
+
                         if (fullSearch) {
-                            setFullResults(allResults);
+                            setFullResults(ranked);
                             setShowFullResults(true);
                         } else {
-                            setSearchResults(allResults);
+                            setSearchResults(ranked.slice(0, 5));
                         }
                         setSearchLoading(false);
                         return;
@@ -6727,12 +6780,18 @@
                                                 {books
                                                     .filter(book => {
                                                         if (!selectorSearchQuery) return true;
-                                                        const query = selectorSearchQuery.toLowerCase();
-                                                        return (
-                                                            book.title.toLowerCase().includes(query) ||
-                                                            book.author.toLowerCase().includes(query)
+                                                        const q = selectorSearchQuery.toLowerCase();
+                                                        const title  = (book.title  || '').toLowerCase();
+                                                        const author = (book.author || '').toLowerCase();
+                                                        // Pass if any token from the query appears in title or author
+                                                        return q.split(/\s+/).some(t =>
+                                                            t.length > 0 && (title.includes(t) || author.includes(t))
                                                         );
                                                     })
+                                                    .sort((a, b) =>
+                                                        scoreBookRelevance(b, selectorSearchQuery || '') -
+                                                        scoreBookRelevance(a, selectorSearchQuery || '')
+                                                    )
                                                     .map(book => (
                                                     <div
                                                         key={book.id}

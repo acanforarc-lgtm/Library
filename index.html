@@ -81,12 +81,12 @@
 
         /* Search Bar - Center */
         .header-search {
-            position: relative; /* FIX #2: For absolute positioning of clear button */
+            position: relative;
             flex: 1;
             max-width: 600px;
             margin: 0 auto;
             display: flex;
-            gap: 0.75rem;
+            gap: 0.25rem;
             align-items: center;
             background: white;
             padding: 0.6rem 1.2rem;
@@ -154,8 +154,58 @@
         
         /* Scanner Button */
         .scanner-btn {
-            font-size: 1.3rem !important;
-            padding: 0.4rem 1rem !important;
+            width: 2.2rem !important;
+            height: 2.2rem !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.1rem !important;
+            flex-shrink: 0;
+        }
+
+        /* Scanner choice dropdown */
+        .scanner-choice-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .scanner-choice-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border: 1px solid #e8d5bb;
+            overflow: hidden;
+            z-index: 1000;
+            min-width: 200px;
+        }
+        .scanner-choice-dropdown button {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.75rem !important;
+            width: 100% !important;
+            padding: 0.85rem 1.2rem !important;
+            background: white !important;
+            color: #3d2817 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            cursor: pointer;
+            text-align: left !important;
+            transition: background 0.15s !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .scanner-choice-dropdown button:hover {
+            background: #fdf6ee !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        .scanner-choice-dropdown button + button {
+            border-top: 1px solid #f0e4d0 !important;
         }
         
         /* FIX #5: Search/Magnifying glass button - larger, no green background */
@@ -2763,6 +2813,7 @@
             const [scannerMode, setScannerMode] = useState(false);
             const [scannerInput, setScannerInput] = useState('');
             const [showScanModeSelector, setShowScanModeSelector] = useState(false);
+            const [showScannerChoice, setShowScannerChoice] = useState(false);
             const [scanMode, setScanMode] = useState(null); // 'rapid' or 'detail'
             
             // Rapid scan settings
@@ -5297,9 +5348,15 @@
                                 value={searchQuery}
                                 onChange={(e) => handleSearchChange(e.target.value)}
                                 onFocus={() => searchQuery.length >= 3 && setShowSearchDropdown(true)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && searchQuery.length >= 3) {
+                                        setShowSearchDropdown(false);
+                                        searchBooks(searchQuery, true);
+                                    }
+                                }}
                             />
                             {searchQuery && (
-                                <button 
+                                <button
                                     className="search-clear"
                                     onClick={() => {
                                         setSearchQuery('');
@@ -5311,25 +5368,32 @@
                                     ×
                                 </button>
                             )}
-                            <button 
-                                className="scanner-btn"
-                                onClick={startScanner}
-                                title="Scan barcode with camera"
-                            >
-                                📷
-                            </button>
-                            <button 
-                                className="scanner-btn"
-                                onClick={() => setShowScanModeSelector(true)}
-                                title="Bluetooth scanner mode"
-                                style={{
-                                    background: scannerMode ? '#4CAF50' : 'transparent',
-                                    color: scannerMode ? 'white' : '#8b6f47'
-                                }}
-                            >
-                                🔫
-                            </button>
-                            <button 
+                            <div className="scanner-choice-wrap" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowScannerChoice(false); }} tabIndex="-1">
+                                <button
+                                    className="scanner-btn"
+                                    onClick={() => setShowScannerChoice(v => !v)}
+                                    title="Scan barcode"
+                                    style={{
+                                        background: scannerMode ? 'linear-gradient(135deg,#4CAF50,#45a049)' : 'linear-gradient(135deg,#2d4a3e,#3d5a4d)',
+                                        color: 'white'
+                                    }}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                                        <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm2 0h1v16h-1V4zm2 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4z"/>
+                                    </svg>
+                                </button>
+                                {showScannerChoice && (
+                                    <div className="scanner-choice-dropdown">
+                                        <button onClick={() => { setShowScannerChoice(false); startScanner(); }}>
+                                            📷 Phone Camera
+                                        </button>
+                                        <button onClick={() => { setShowScannerChoice(false); setShowScanModeSelector(true); }}>
+                                            🔫 Physical Scanner
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <button
                                 onClick={() => searchQuery.length >= 3 && searchBooks(searchQuery, true)}
                                 title="Search"
                             >

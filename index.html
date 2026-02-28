@@ -3227,14 +3227,17 @@
                 let score = 0;
 
                 // Title match tiers (all comparisons on normalized strings)
-                if (title === q)              score += 100;
-                else if (title.startsWith(q)) score += 80;
-                else if (title.includes(q))   score += 60;
+                if (title === q)              score += 200;
+                else if (title.startsWith(q)) score += 160;
+                else if (title.includes(q))   score += 80;
 
                 // Token-based title scoring (handles "old man sea" → The Old Man and the Sea)
                 if (tokens.length > 0) {
                     const hits = tokens.filter(t => title.includes(t)).length;
-                    score += (hits / tokens.length) * 40;
+                    const ratio = hits / tokens.length;
+                    score += ratio * 40;
+                    // Extra boost when the title starts with ALL query tokens in order
+                    if (title.startsWith(tokens[0]) && ratio === 1) score += 40;
                 }
 
                 // Author match
@@ -3323,9 +3326,20 @@
                     // For full search: keep fetching until no more results (up to 200 total to avoid too many API calls)
                     const maxResults = fullSearch ? 200 : 5;
 
+                    // Build a title-focused query using intitle: operator so Google Books
+                    // actually returns books whose titles contain the query words, not just
+                    // loosely related results.
+                    const buildIntitleQuery = (q) => {
+                        if (isIsbnQuery(q)) return searchQuery; // already isbn:
+                        const words = q.trim().split(/\s+/).filter(Boolean);
+                        if (words.length === 0) return q;
+                        return words.map(w => `intitle:${w}`).join('+');
+                    };
+                    const intitleQuery = buildIntitleQuery(searchQuery);
+
                     while (fetchMore && allResults.length < maxResults) {
                         const googleResponse = await fetch(
-                            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&orderBy=relevance&maxResults=${resultsPerPage}&startIndex=${startIndex}`
+                            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(intitleQuery)}&orderBy=relevance&maxResults=${resultsPerPage}&startIndex=${startIndex}`
                         );
                         
                         if (!googleResponse.ok) break;
@@ -3404,9 +3418,7 @@
                                     return normTokens.some(t => title.includes(t) || author.includes(t));
                                   })
                                 : ranked;
-                            // YouTube-style fallback: if the strict filter returns nothing,
-                            // show the highest-scored results anyway rather than "no results"
-                            setSearchResults((filtered.length > 0 ? filtered : ranked).slice(0, 5));
+                            setSearchResults(filtered.slice(0, 5));
                         }
                         setSearchLoading(false);
                         return;

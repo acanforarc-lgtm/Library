@@ -135,17 +135,16 @@
         
         /* Clear Search Button (X) */
         .search-clear {
-            position: absolute; /* FIX #2: Absolute positioning so it doesn't move */
-            right: 8.5rem; /* Position relative to search bar */
             background: transparent !important;
             color: #8b6f47 !important;
             font-size: 1.5rem !important;
-            padding: 0.3rem 0.8rem !important;
+            padding: 0.3rem 0.5rem !important;
             opacity: 0.6;
             transition: opacity 0.2s;
             border-radius: 50%;
+            flex-shrink: 0;
         }
-        
+
         .search-clear:hover {
             opacity: 1;
             background: rgba(139, 111, 71, 0.1) !important;
@@ -2550,15 +2549,7 @@
             }
         }
 
-        .header-search input {
-            padding-right: 5rem;
-        }
-
         .search-clear {
-            position: absolute;
-            right: 110px;
-            top: 50%;
-            transform: translateY(-50%);
             background: none;
             border: none;
             color: #8b6f47;
@@ -2567,6 +2558,7 @@
             padding: 0.5rem;
             opacity: 0.6;
             transition: opacity 0.2s;
+            flex-shrink: 0;
         }
 
         .search-clear:hover {

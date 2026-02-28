@@ -3919,25 +3919,32 @@
             };
 
             // Remove book from library
-            const removeBookFromLibrary = async (bookId) => {
-                if (window.confirm('Remove this book from your library?')) {
-                    try {
-                        const { error } = await supabaseClient
-                            .from('books')
-                            .delete()
-                            .eq('id', bookId);
-                        
-                        if (error) throw error;
-                        
-                        setBooks(books.filter(b => b.id !== bookId));
-                        showMessage('Book removed from library');
-                        closeBookInfo();
-                        
-                    } catch (error) {
-                        console.error('Error removing book:', error);
-                        showMessage('❌ Failed to remove book');
+            const removeBookFromLibrary = (bookId) => {
+                const book = books.find(b => b.id === bookId);
+                const title = book ? `"${book.title}"` : 'this book';
+                setConfirmAction({
+                    title: 'Remove Book',
+                    message: `Remove ${title} from your library? This cannot be undone.`,
+                    onConfirm: async () => {
+                        try {
+                            const { error } = await supabaseClient
+                                .from('books')
+                                .delete()
+                                .eq('id', bookId);
+
+                            if (error) throw error;
+
+                            setBooks(books.filter(b => b.id !== bookId));
+                            showMessage('Book removed from library');
+                            closeBookInfo();
+
+                        } catch (error) {
+                            console.error('Error removing book:', error);
+                            showMessage('❌ Failed to remove book');
+                        }
                     }
-                }
+                });
+                setShowConfirm(true);
             };
 
             // Assign book to shelf from info popup

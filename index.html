@@ -3327,18 +3327,25 @@
                     const maxResults = fullSearch ? 200 : 5;
 
                     // Build a title-focused query using intitle: operator so Google Books
-                    // actually returns books whose titles contain the query words.
-                    // The LAST word is intentionally left without intitle: because the
-                    // user may still be typing it (e.g. "never spli" → intitle:never spli)
-                    // and intitle: requires exact word matches, causing zero results.
+                    // returns books whose titles contain the query words.
+                    //
+                    // Rules:
+                    //  • Single word → send as-is (may be partially typed, no intitle:)
+                    //  • Query ends with a space → all words are complete, wrap every one in intitle:
+                    //  • Otherwise the last word may be partially typed:
+                    //      – length >= 3 → include bare (Google can partial-match "Spli" → "Split")
+                    //      – length <  3 → omit entirely; a bare "M" matches author middle
+                    //        initials and other noise everywhere in the index, wrecking results.
+                    //        Client-side scoring handles ordering via title.startsWith(query).
                     const buildIntitleQuery = (q) => {
                         if (isIsbnQuery(q)) return searchQuery; // already isbn:
                         const words = q.trim().split(/\s+/).filter(Boolean);
                         if (words.length === 0) return q;
-                        if (words.length === 1) return words[0]; // single partial word — no intitle:
+                        if (words.length === 1) return words[0];
+                        if (q.endsWith(' ')) return words.map(w => `intitle:${w}`).join('+');
                         const completeWords = words.slice(0, -1).map(w => `intitle:${w}`).join('+');
                         const lastWord = words[words.length - 1];
-                        return `${completeWords}+${lastWord}`;
+                        return lastWord.length >= 3 ? `${completeWords}+${lastWord}` : completeWords;
                     };
                     const intitleQuery = buildIntitleQuery(searchQuery);
 

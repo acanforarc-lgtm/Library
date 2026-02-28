@@ -3350,7 +3350,18 @@
                             setFullResults(ranked);
                             setShowFullResults(true);
                         } else {
-                            setSearchResults(ranked.slice(0, 5));
+                            // Dropdown: only show books that actually contain a query
+                            // token in the title or author — no zero-match results
+                            const tokens = query.trim().toLowerCase()
+                                .split(/\s+/).filter(t => t.length > 1);
+                            const filtered = tokens.length > 0
+                                ? ranked.filter(b => {
+                                    const title  = (b.title  || '').toLowerCase();
+                                    const author = (b.author || '').toLowerCase();
+                                    return tokens.some(t => title.includes(t) || author.includes(t));
+                                  })
+                                : ranked;
+                            setSearchResults(filtered.slice(0, 5));
                         }
                         setSearchLoading(false);
                         return;

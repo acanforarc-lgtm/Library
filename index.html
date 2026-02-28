@@ -3337,16 +3337,41 @@
                     //      – length <  3 → omit entirely; a bare "M" matches author middle
                     //        initials and other noise everywhere in the index, wrecking results.
                     //        Client-side scoring handles ordering via title.startsWith(query).
+                    // Common words that create noise when used as intitle: terms
+                    const STOP_WORDS = new Set([
+                        'a','an','the','and','or','of','in','to','for','with',
+                        'on','at','by','from','is','it','its','as','be','but','so','than'
+                    ]);
+                    // Strip apostrophes and trailing punctuation from a word for use in the API query
+                    const cleanForApi = w => w.replace(/[\u2018\u2019\u201A\u201B\u02BC\u02BB'`]/g, '').replace(/[^a-zA-Z0-9.]+$/, '');
+                    const isStop = w => STOP_WORDS.has(w.toLowerCase().replace(/[^a-z]/g, ''));
+
                     const buildIntitleQuery = (q) => {
-                        if (isIsbnQuery(q)) return searchQuery; // already isbn:
+                        if (isIsbnQuery(q)) return searchQuery;
                         const words = q.trim().split(/\s+/).filter(Boolean);
                         if (words.length === 0) return q;
-                        if (words.length === 1) return words[0].length >= 3 ? `intitle:${words[0]}` : words[0];
-                        if (q.endsWith(' ')) return words.map(w => `intitle:${w}`).join('+');
-                        const completeWords = words.slice(0, -1).map(w => `intitle:${w}`).join('+');
-                        const lastWord = words[words.length - 1];
-                        const lastCore = lastWord.replace(/[^a-zA-Z0-9]+$/, ''); // strip only trailing punctuation
-                        return (lastCore.length >= 3 || /^\d/.test(lastCore)) ? `${completeWords}+${lastCore}` : completeWords;
+
+                        const endsWithSpace = q.endsWith(' ');
+                        const completeWords = endsWithSpace ? words : words.slice(0, -1);
+                        const lastWord = endsWithSpace ? null : words[words.length - 1];
+
+                        // Build intitle: terms from complete words, skipping stop words
+                        const parts = completeWords
+                            .filter(w => !isStop(w))
+                            .map(cleanForApi)
+                            .filter(w => w.length >= 2)
+                            .map(w => `intitle:${w}`);
+
+                        // Add the last (possibly still-being-typed) word if substantial
+                        if (lastWord) {
+                            const clean = cleanForApi(lastWord);
+                            if (!isStop(lastWord) && (clean.length >= 3 || /^\d/.test(clean))) {
+                                parts.push(`intitle:${clean}`);
+                            }
+                        }
+
+                        // Fallback: if every word was a stop word, send the raw query
+                        return parts.length > 0 ? parts.join('+') : q;
                     };
                     const intitleQuery = buildIntitleQuery(searchQuery);
 
@@ -3416,22 +3441,23 @@
                             .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
                             .sort((a, b) => b._score - a._score);
 
+                        // Filter tokens: normalized query words, skip stop words and single chars
+                        const normTokens = normalizeText(query)
+                            .split(/\s+/)
+                            .filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP_WORDS.has(t));
+                        const applyFilter = (list) => normTokens.length > 0
+                            ? list.filter(b => {
+                                const title  = normalizeText(b.title);
+                                const author = normalizeText(b.author);
+                                return normTokens.every(t => title.includes(t) || author.includes(t));
+                              })
+                            : list;
+
                         if (fullSearch) {
-                            setFullResults(ranked);
+                            setFullResults(applyFilter(ranked));
                             setShowFullResults(true);
                         } else {
-                            // Dropdown: normalize both tokens and titles so "cant"
-                            // matches "Can't", curly quotes, dashes, etc.
-                            const normTokens = normalizeText(query)
-                                .split(/\s+/).filter(t => t.length > 1 || /^\d+$/.test(t));
-                            const filtered = normTokens.length > 0
-                                ? ranked.filter(b => {
-                                    const title  = normalizeText(b.title);
-                                    const author = normalizeText(b.author);
-                                    return normTokens.every(t => title.includes(t) || author.includes(t));
-                                  })
-                                : ranked;
-                            setSearchResults(filtered.slice(0, 5));
+                            setSearchResults(applyFilter(ranked).slice(0, 5));
                         }
                         setSearchLoading(false);
                         return;

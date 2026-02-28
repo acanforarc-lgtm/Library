@@ -3207,16 +3207,26 @@
             // SEARCH & BOOK API FUNCTIONS
             // ==========================================
             
+            // Strip apostrophes, curly quotes, dashes and punctuation so
+            // "cant" matches "Can't" and "Cant Hurt Me" matches "Can't Hurt Me"
+            const normalizeText = (s) => (s || '')
+                .toLowerCase()
+                .replace(/[\u2018\u2019\u201A\u201B\u02BC\u02BB'`]/g, '') // curly + straight apostrophes → remove
+                .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\-]/g, ' ') // dashes → space
+                .replace(/[^\w\s]/g, ' ')  // remaining punctuation → space
+                .replace(/\s+/g, ' ')
+                .trim();
+
             // Score how relevant a book result is to the user's query.
             // Higher = better match. Used to re-rank API results client-side.
             const scoreBookRelevance = (book, query) => {
-                const q = query.trim().toLowerCase();
-                const title  = (book.title  || '').toLowerCase();
-                const author = (book.author || '').toLowerCase();
+                const q      = normalizeText(query);
+                const title  = normalizeText(book.title);
+                const author = normalizeText(book.author);
                 const tokens = q.split(/\s+/).filter(t => t.length > 1);
                 let score = 0;
 
-                // Title match tiers
+                // Title match tiers (all comparisons on normalized strings)
                 if (title === q)              score += 100;
                 else if (title.startsWith(q)) score += 80;
                 else if (title.includes(q))   score += 60;
@@ -3234,6 +3244,16 @@
                     const hits = tokens.filter(t => author.includes(t)).length;
                     score += (hits / tokens.length) * 20;
                 }
+
+                // Heavy penalty for summaries, abridgements, workbooks, etc.
+                const rawTitle = (book.title || '').toLowerCase();
+                const SUMMARY_WORDS = [
+                    'summarized', 'summary', 'abridged', 'abridgement', 'condensed',
+                    'workbook', 'study guide', 'key takeaways', 'for busy people',
+                    'cliffsnotes', 'cliff notes', 'book review', 'chapter by chapter',
+                    'quick read', 'speed read', 'shortcut edition', 'goldmine reads'
+                ];
+                if (SUMMARY_WORDS.some(kw => rawTitle.includes(kw))) score -= 50;
 
                 // Quality signals — prefer well-catalogued books
                 if (book.cover) score += 3;
@@ -3350,18 +3370,20 @@
                             setFullResults(ranked);
                             setShowFullResults(true);
                         } else {
-                            // Dropdown: only show books that actually contain a query
-                            // token in the title or author — no zero-match results
-                            const tokens = query.trim().toLowerCase()
+                            // Dropdown: normalize both tokens and titles so "cant"
+                            // matches "Can't", curly quotes, dashes, etc.
+                            const normTokens = normalizeText(query)
                                 .split(/\s+/).filter(t => t.length > 1);
-                            const filtered = tokens.length > 0
+                            const filtered = normTokens.length > 0
                                 ? ranked.filter(b => {
-                                    const title  = (b.title  || '').toLowerCase();
-                                    const author = (b.author || '').toLowerCase();
-                                    return tokens.some(t => title.includes(t) || author.includes(t));
+                                    const title  = normalizeText(b.title);
+                                    const author = normalizeText(b.author);
+                                    return normTokens.some(t => title.includes(t) || author.includes(t));
                                   })
                                 : ranked;
-                            setSearchResults(filtered.slice(0, 5));
+                            // YouTube-style fallback: if the strict filter returns nothing,
+                            // show the highest-scored results anyway rather than "no results"
+                            setSearchResults((filtered.length > 0 ? filtered : ranked).slice(0, 5));
                         }
                         setSearchLoading(false);
                         return;

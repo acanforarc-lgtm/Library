@@ -3287,7 +3287,8 @@
                 .replace(/\bive\b/gi,      "I've")
                 .replace(/\bId\b/g,        "I'd");
 
-
+            // Returns true if the query looks like an ISBN-10 or ISBN-13
+            const isIsbnQuery = (query) => {
                 const cleaned = query.replace(/[-\s]/g, '');
                 return /^\d{10}$/.test(cleaned) || /^\d{13}$/.test(cleaned);
             };

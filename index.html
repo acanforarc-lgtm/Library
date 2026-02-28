@@ -3522,14 +3522,6 @@
                     scene.add(w);
                 });
 
-                // Ceiling
-                const ceil = new THREE.Mesh(
-                    new THREE.PlaneGeometry(40, 40),
-                    new THREE.MeshLambertMaterial({ color: 0xf0e4d0, side: THREE.BackSide })
-                );
-                ceil.position.y = wallH;
-                ceil.rotation.x = Math.PI / 2;
-                scene.add(ceil);
 
                 // ── Shelves ──
                 const shelfMeshes = {};

@@ -35,6 +35,7 @@
             background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
             color: #3d2817;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         .container {
@@ -553,16 +554,40 @@
         @media (max-width: 767px) {
             .shelves-grid {
                 grid-template-columns: 1fr;
-                padding: 0 1rem;
+                padding: 0 0.5rem;
                 gap: 1.5rem;
             }
             .shelf {
                 width: 100%;
-                max-width: 400px;
+                max-width: 100%;
                 margin: 0 auto;
             }
             .shelf-board {
-                width: calc(100% - 64px); /* Account for margins */
+                width: calc(100% - 48px);
+            }
+
+            /* Tabs: shrink padding so all 3 fit on 360px */
+            .tabs {
+                gap: 0.35rem;
+                flex-wrap: wrap;
+            }
+            .tab {
+                padding: 0.55rem 0.7rem;
+                font-size: 0.9rem;
+                flex: 1;
+                text-align: center;
+                min-width: 0;
+            }
+
+            /* Shelf controls: allow wrapping on narrow screens */
+            .shelf-controls {
+                flex-wrap: wrap;
+                padding: 1rem;
+                gap: 0.6rem;
+            }
+            .shelf-controls h3 {
+                white-space: normal;
+                width: 100%;
             }
         }
 
@@ -2634,12 +2659,20 @@
                 align-items: center;
             }
 
+            .title-library {
+                font-size: 1.8rem;
+            }
+
+            .title-your {
+                font-size: 1.1rem;
+            }
+
             .header-search {
                 max-width: 100%;
             }
 
             .main-content {
-                padding: 1rem;
+                padding: 0.75rem;
             }
 
             .auth-container {
@@ -2655,6 +2688,27 @@
             .book-detail-cover-placeholder {
                 width: 120px;
                 height: 180px;
+            }
+
+            /* Book info popup: stack cover above text on small screens */
+            .book-info-content {
+                padding: 1.2rem;
+            }
+            .book-info-header {
+                flex-direction: column;
+                align-items: center;
+            }
+            .book-info-cover,
+            .book-info-cover-placeholder {
+                width: 100px;
+                height: 150px;
+            }
+            .book-info-title {
+                font-size: 1.2rem;
+                text-align: center;
+            }
+            .book-info-author {
+                text-align: center;
             }
         }
         /* =====================

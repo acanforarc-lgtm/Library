@@ -3264,8 +3264,30 @@
                 return score;
             };
 
-            // Returns true if the query looks like an ISBN-10 or ISBN-13
-            const isIsbnQuery = (query) => {
+            // Restore common missing apostrophes before sending to Google Books.
+            // "cant hurt me" → "can't hurt me" so Google returns the right book.
+            const restoreContractions = (q) => q
+                .replace(/\bcant\b/gi,     "can't")
+                .replace(/\bwont\b/gi,     "won't")
+                .replace(/\bdont\b/gi,     "don't")
+                .replace(/\bdoesnt\b/gi,   "doesn't")
+                .replace(/\bisnt\b/gi,     "isn't")
+                .replace(/\bwasnt\b/gi,    "wasn't")
+                .replace(/\bwerent\b/gi,   "weren't")
+                .replace(/\bhavent\b/gi,   "haven't")
+                .replace(/\bhasnt\b/gi,    "hasn't")
+                .replace(/\bwouldnt\b/gi,  "wouldn't")
+                .replace(/\bcouldnt\b/gi,  "couldn't")
+                .replace(/\bshouldnt\b/gi, "shouldn't")
+                .replace(/\bthats\b/gi,    "that's")
+                .replace(/\bwhats\b/gi,    "what's")
+                .replace(/\bwhos\b/gi,     "who's")
+                .replace(/\blets\b/gi,     "let's")
+                .replace(/\bim\b/gi,       "I'm")
+                .replace(/\bive\b/gi,      "I've")
+                .replace(/\bId\b/g,        "I'd");
+
+
                 const cleaned = query.replace(/[-\s]/g, '');
                 return /^\d{10}$/.test(cleaned) || /^\d{13}$/.test(cleaned);
             };
@@ -3278,7 +3300,7 @@
 
                 try {
                     // If no query, show trending/popular books
-                    let searchQuery = query;
+                    let searchQuery = restoreContractions(query);
                     if (!query || query.trim() === '') {
                         searchQuery = 'bestseller fiction 2024';
                     }

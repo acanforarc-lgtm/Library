@@ -3327,13 +3327,18 @@
                     const maxResults = fullSearch ? 200 : 5;
 
                     // Build a title-focused query using intitle: operator so Google Books
-                    // actually returns books whose titles contain the query words, not just
-                    // loosely related results.
+                    // actually returns books whose titles contain the query words.
+                    // The LAST word is intentionally left without intitle: because the
+                    // user may still be typing it (e.g. "never spli" → intitle:never spli)
+                    // and intitle: requires exact word matches, causing zero results.
                     const buildIntitleQuery = (q) => {
                         if (isIsbnQuery(q)) return searchQuery; // already isbn:
                         const words = q.trim().split(/\s+/).filter(Boolean);
                         if (words.length === 0) return q;
-                        return words.map(w => `intitle:${w}`).join('+');
+                        if (words.length === 1) return words[0]; // single partial word — no intitle:
+                        const completeWords = words.slice(0, -1).map(w => `intitle:${w}`).join('+');
+                        const lastWord = words[words.length - 1];
+                        return `${completeWords}+${lastWord}`;
                     };
                     const intitleQuery = buildIntitleQuery(searchQuery);
 

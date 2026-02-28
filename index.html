@@ -3345,8 +3345,8 @@
                         if (q.endsWith(' ')) return words.map(w => `intitle:${w}`).join('+');
                         const completeWords = words.slice(0, -1).map(w => `intitle:${w}`).join('+');
                         const lastWord = words[words.length - 1];
-                        const lastCore = lastWord.replace(/[^a-zA-Z0-9]/g, '');
-                        return (lastCore.length >= 3 || /^\d+$/.test(lastCore)) ? `${completeWords}+${lastCore}` : completeWords;
+                        const lastCore = lastWord.replace(/[^a-zA-Z0-9]+$/, ''); // strip only trailing punctuation
+                        return (lastCore.length >= 3 || /^\d/.test(lastCore)) ? `${completeWords}+${lastCore}` : completeWords;
                     };
                     const intitleQuery = buildIntitleQuery(searchQuery);
 

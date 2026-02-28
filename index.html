@@ -2951,6 +2951,7 @@
             const [authError, setAuthError] = useState('');
             const [authSuccess, setAuthSuccess] = useState('');
             const [showUserMenu, setShowUserMenu] = useState(false);
+            const [showWelcome, setShowWelcome] = useState(false);
 
             // Check for logged in user on mount - SUPABASE v7.0
             useEffect(() => {
@@ -3114,6 +3115,7 @@
                         setAuthEmail('');
                         setAuthPassword('');
                         setAuthName('');
+                        setShowWelcome(true);
                     }, 2000);
                     
                 } catch (error) {
@@ -7354,6 +7356,35 @@
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Welcome Modal - shown once after sign-up */}
+                    {showWelcome && (
+                        <div className="book-detail-overlay" onClick={() => setShowWelcome(false)}>
+                            <div className="book-info-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '520px'}}>
+                                <button className="book-detail-close" onClick={() => setShowWelcome(false)}>×</button>
+                                <div className="book-info-content" style={{textAlign: 'center'}}>
+                                    <div style={{fontSize: '2.5rem', marginBottom: '0.75rem'}}>📚</div>
+                                    <h2 style={{fontFamily: "'Libre Baskerville', serif", fontSize: '1.6rem', color: '#3d2817', marginBottom: '1.25rem'}}>
+                                        Welcome to YOUR Library
+                                    </h2>
+                                    <p style={{fontSize: '1rem', lineHeight: '1.7', color: '#555', marginBottom: '1.75rem'}}>
+                                        Welcome to <strong>YOUR Library</strong>, but virtually. This project was inspired by my girlfriend who accumulated too many books over her years of reading. It became tedious to type all her books into some ordinary library app. So I made this one.
+                                        <br/><br/>
+                                        Type, scan with your phone, or use your favorite handheld scanner to enter all your books into YOUR Library and display them virtually for others to see. Interact with the books, move them from shelf to shelf, leave notes or a rating, or maybe just queue the book for your next read.
+                                        <br/><br/>
+                                        Ultimately, it's your library — so do whatever you want. Thank you for supporting the project. 🙏
+                                    </p>
+                                    <button
+                                        className="btn-info btn-info-assign"
+                                        onClick={() => setShowWelcome(false)}
+                                        style={{width: '100%', justifyContent: 'center', fontSize: '1.05rem', padding: '0.85rem'}}
+                                    >
+                                        Let's build my library!
+                                    </button>
                                 </div>
                             </div>
                         </div>

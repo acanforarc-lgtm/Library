@@ -3341,9 +3341,22 @@
                         'a','an','the','and','or','of','in','to','for','with',
                         'on','at','by','from','is','it','its','as','be','but','so','than'
                     ]);
-                    // Send the raw query — Google finds the right books better than any
-                    // intitle: manipulation. The client filter enforces relevance.
-                    const searchApiQuery = isIsbnQuery(searchQuery) ? searchQuery : searchQuery.trim();
+                    const buildSearchQuery = (q) => {
+                        if (isIsbnQuery(q)) return searchQuery;
+                        const cleanWord = w => w
+                            .replace(/[\u2018\u2019\u201A\u201B\u02BC\u02BB'`]/g, '')
+                            .replace(/[^a-zA-Z0-9]/g, '');
+                        const words = q.trim().split(/\s+/).filter(Boolean);
+                        const contentWords = words
+                            .map(cleanWord)
+                            .filter(w => (w.length >= 3 || /^\d+$/.test(w)) && !STOP_WORDS.has(w.toLowerCase()));
+                        if (contentWords.length === 0) return q;
+                        // Individual intitle: terms (no phrase quotes) tells Google to return
+                        // books where ALL content words appear in the title, in ANY order.
+                        // The client-side phrase filter then enforces correct word order.
+                        return contentWords.map(w => `intitle:${w}`).join(' ');
+                    };
+                    const searchApiQuery = buildSearchQuery(searchQuery);
 
                     while (fetchMore && allResults.length < maxResults) {
                         const googleResponse = await fetch(

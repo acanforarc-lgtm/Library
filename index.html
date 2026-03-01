@@ -3337,47 +3337,17 @@
                     //      – length <  3 → omit entirely; a bare "M" matches author middle
                     //        initials and other noise everywhere in the index, wrecking results.
                     //        Client-side scoring handles ordering via title.startsWith(query).
-                    // Common words that create noise when used as intitle: terms
                     const STOP_WORDS = new Set([
                         'a','an','the','and','or','of','in','to','for','with',
                         'on','at','by','from','is','it','its','as','be','but','so','than'
                     ]);
-                    // Strip apostrophes and trailing punctuation from a word for use in the API query
-                    const cleanForApi = w => w.replace(/[\u2018\u2019\u201A\u201B\u02BC\u02BB'`]/g, '').replace(/[^a-zA-Z0-9.]+$/, '');
-                    const isStop = w => STOP_WORDS.has(w.toLowerCase().replace(/[^a-z]/g, ''));
-
-                    const buildIntitleQuery = (q) => {
-                        if (isIsbnQuery(q)) return searchQuery;
-                        const words = q.trim().split(/\s+/).filter(Boolean);
-                        if (words.length === 0) return q;
-
-                        const endsWithSpace = q.endsWith(' ');
-                        const completeWords = endsWithSpace ? words : words.slice(0, -1);
-                        const lastWord = endsWithSpace ? null : words[words.length - 1];
-
-                        // Clean complete content words (skip stop words)
-                        const contentComplete = completeWords
-                            .filter(w => !isStop(w))
-                            .map(cleanForApi)
-                            .filter(w => w.length >= 2);
-
-                        // Include the last word in the phrase if it's substantial
-                        const cleanLast = lastWord ? cleanForApi(lastWord) : null;
-                        const lastIsContent = cleanLast && !isStop(lastWord) && (cleanLast.length >= 3 || /^\d/.test(cleanLast));
-
-                        const phraseWords = [...contentComplete, ...(lastIsContent ? [cleanLast] : [])];
-
-                        if (phraseWords.length === 0) return q;
-                        if (phraseWords.length === 1) return `intitle:${phraseWords[0]}`;
-                        // Quoted phrase enforces word order — "Cannibals Guide" won't match
-                        // "The Lady's Guide to Escaping Cannibals" (wrong order)
-                        return `intitle:"${phraseWords.join(' ')}"`;
-                    };
-                    const intitleQuery = buildIntitleQuery(searchQuery);
+                    // Send the raw query — Google finds the right books better than any
+                    // intitle: manipulation. The client filter enforces relevance.
+                    const searchApiQuery = isIsbnQuery(searchQuery) ? searchQuery : searchQuery.trim();
 
                     while (fetchMore && allResults.length < maxResults) {
                         const googleResponse = await fetch(
-                            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(intitleQuery)}&orderBy=relevance&maxResults=${resultsPerPage}&startIndex=${startIndex}`
+                            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchApiQuery)}&orderBy=relevance&maxResults=${resultsPerPage}&startIndex=${startIndex}`
                         );
                         
                         if (!googleResponse.ok) break;
@@ -3441,17 +3411,30 @@
                             .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
                             .sort((a, b) => b._score - a._score);
 
-                        // Filter tokens: normalized query words, skip stop words and single chars
-                        const normTokens = normalizeText(query)
-                            .split(/\s+/)
-                            .filter(t => (t.length >= 3 || /^\d+$/.test(t)) && !STOP_WORDS.has(t));
-                        const applyFilter = (list) => normTokens.length > 0
-                            ? list.filter(b => {
-                                const title  = normalizeText(b.title);
-                                const author = normalizeText(b.author);
-                                return normTokens.every(t => title.includes(t) || author.includes(t));
-                              })
-                            : list;
+                        const nq = normalizeText(query);
+                        const nqTokens = nq.split(/\s+/).filter(t => t.length >= 3 && !STOP_WORDS.has(t));
+
+                        // Phase 1 — phrase match: normalized title/author contains the entire
+                        // normalized query as a substring. This enforces word order, so
+                        // "the cannibals guide" matches "The Cannibal's Guide to Fasting"
+                        // but NOT "The Lady's Guide to Escaping Cannibals".
+                        const byPhrase = b => {
+                            const nt = normalizeText(b.title);
+                            const na = normalizeText(b.author);
+                            return nt.includes(nq) || na.includes(nq);
+                        };
+                        // Phase 2 — token match: all meaningful words present anywhere in
+                        // title/author (any order). Fallback for queries like "Catcher Rye"
+                        // where the user skipped "in the".
+                        const byTokens = b => {
+                            const nt = normalizeText(b.title);
+                            const na = normalizeText(b.author);
+                            return nqTokens.length > 0 && nqTokens.every(t => nt.includes(t) || na.includes(t));
+                        };
+                        const applyFilter = (list) => {
+                            const phrase = list.filter(byPhrase);
+                            return phrase.length > 0 ? phrase : list.filter(byTokens);
+                        };
 
                         if (fullSearch) {
                             setFullResults(applyFilter(ranked));

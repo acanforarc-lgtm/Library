@@ -3355,23 +3355,23 @@
                         const completeWords = endsWithSpace ? words : words.slice(0, -1);
                         const lastWord = endsWithSpace ? null : words[words.length - 1];
 
-                        // Build intitle: terms from complete words, skipping stop words
-                        const parts = completeWords
+                        // Clean complete content words (skip stop words)
+                        const contentComplete = completeWords
                             .filter(w => !isStop(w))
                             .map(cleanForApi)
-                            .filter(w => w.length >= 2)
-                            .map(w => `intitle:${w}`);
+                            .filter(w => w.length >= 2);
 
-                        // Add the last (possibly still-being-typed) word if substantial
-                        if (lastWord) {
-                            const clean = cleanForApi(lastWord);
-                            if (!isStop(lastWord) && (clean.length >= 3 || /^\d/.test(clean))) {
-                                parts.push(`intitle:${clean}`);
-                            }
-                        }
+                        // Include the last word in the phrase if it's substantial
+                        const cleanLast = lastWord ? cleanForApi(lastWord) : null;
+                        const lastIsContent = cleanLast && !isStop(lastWord) && (cleanLast.length >= 3 || /^\d/.test(cleanLast));
 
-                        // Fallback: if every word was a stop word, send the raw query
-                        return parts.length > 0 ? parts.join('+') : q;
+                        const phraseWords = [...contentComplete, ...(lastIsContent ? [cleanLast] : [])];
+
+                        if (phraseWords.length === 0) return q;
+                        if (phraseWords.length === 1) return `intitle:${phraseWords[0]}`;
+                        // Quoted phrase enforces word order — "Cannibals Guide" won't match
+                        // "The Lady's Guide to Escaping Cannibals" (wrong order)
+                        return `intitle:"${phraseWords.join(' ')}"`;
                     };
                     const intitleQuery = buildIntitleQuery(searchQuery);
 
@@ -3444,7 +3444,7 @@
                         // Filter tokens: normalized query words, skip stop words and single chars
                         const normTokens = normalizeText(query)
                             .split(/\s+/)
-                            .filter(t => (t.length > 1 || /^\d+$/.test(t)) && !STOP_WORDS.has(t));
+                            .filter(t => (t.length >= 3 || /^\d+$/.test(t)) && !STOP_WORDS.has(t));
                         const applyFilter = (list) => normTokens.length > 0
                             ? list.filter(b => {
                                 const title  = normalizeText(b.title);

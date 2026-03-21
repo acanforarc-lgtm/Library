@@ -1,0 +1,14 @@
+{
+	"appId": "com.library.app",
+	"appName": "Library",
+	"webDir": "www",
+	"ios": {
+		"contentInset": "always"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 0
+		}
+	},
+	"packageClassList": []
+}

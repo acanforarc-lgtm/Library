@@ -1,0 +1,19 @@
+{
+  "name": "library-app",
+  "version": "1.0.0",
+  "description": "Personal library catalog app",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.js",
+    "sync": "npx cap sync",
+    "open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

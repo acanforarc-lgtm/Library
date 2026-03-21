@@ -28,7 +28,13 @@ workflows:
         script: npx cap sync ios
 
       - name: Set up code signing
-        script: xcode-project use-profiles
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files com.acanfora.yourlibrary \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Build IPA
         script: |
@@ -43,6 +49,6 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration        # uses the App Store Connect API key added in Codemagic UI
+        auth: integration
         submit_to_testflight: true
-        submit_to_app_store: false  # flip to true when ready for production
+        submit_to_app_store: false

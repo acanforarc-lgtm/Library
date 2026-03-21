@@ -8,12 +8,11 @@ workflows:
       app_store_connect: Codemagic
 
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.acanfora.yourlibrary
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.acanfora.yourlibrary"
+        TEAM_ID: "8X7KQVH29D"
       node: v22
       xcode: latest
 
@@ -28,13 +27,64 @@ workflows:
         script: npx cap sync ios
 
       - name: Set up code signing
-        script: xcode-project use-profiles
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
 
       - name: Build IPA
         script: |
-          xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME"
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_PATH=$(ls "$PROFILE_DIR"/*.mobileprovision 2>/dev/null | head -1)
+          if [ -z "$PROFILE_PATH" ]; then
+            echo "ERROR: No provisioning profile found in $PROFILE_DIR"
+            ls -la "$PROFILE_DIR" || true
+            exit 1
+          fi
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          echo "Using profile UUID: $PROFILE_UUID"
+
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath "/tmp/App.xcarchive" \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_IDENTITY="iPhone Distribution" \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+          cat > /tmp/ExportOptions.plist << PLIST_EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>$TEAM_ID</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>$BUNDLE_ID</key>
+                  <string>$PROFILE_UUID</string>
+              </dict>
+          </dict>
+          </plist>
+          PLIST_EOF
+
+          mkdir -p build/ios/ipa
+          xcodebuild \
+            -exportArchive \
+            -archivePath "/tmp/App.xcarchive" \
+            -exportPath "build/ios/ipa" \
+            -exportOptionsPlist /tmp/ExportOptions.plist
 
     artifacts:
       - build/ios/ipa/*.ipa

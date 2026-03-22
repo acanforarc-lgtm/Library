@@ -50,7 +50,7 @@ workflows:
             archive \
             COMPILER_INDEX_STORE_ENABLE=NO
 
-          PROFILE_UUID=$(security cms -D -i "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | plutil -extract UUID raw -)
+          PROFILE_UUID=$(security cms -D -i "/tmp/App.xcarchive/Products/Applications/App.app/embedded.mobileprovision" | plutil -extract UUID raw -)
           /usr/libexec/PlistBuddy -c "Clear dict" /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :teamID string $TEAM_ID" /tmp/ExportOptions.plist

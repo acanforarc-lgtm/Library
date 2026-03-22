@@ -50,25 +50,13 @@ workflows:
             archive \
             COMPILER_INDEX_STORE_ENABLE=NO
 
-          cat > /tmp/ExportOptions.plist << PLIST_EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>app-store-connect</string>
-    <key>teamID</key>
-    <string>$TEAM_ID</string>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>$BUNDLE_ID</key>
-        <string>$(security cms -D -i "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | plutil -extract UUID raw -)</string>
-    </dict>
-</dict>
-</plist>
-PLIST_EOF
+          PROFILE_UUID=$(security cms -D -i "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | plutil -extract UUID raw -)
+          /usr/libexec/PlistBuddy -c "Clear dict" /tmp/ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" /tmp/ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Add :teamID string $TEAM_ID" /tmp/ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" /tmp/ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" /tmp/ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$BUNDLE_ID string $PROFILE_UUID" /tmp/ExportOptions.plist
 
           mkdir -p build/ios/ipa
           xcodebuild \

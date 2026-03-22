@@ -29,10 +29,10 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          openssl genrsa -out /tmp/cert_key.pem 2048
+          export CERTIFICATE_PRIVATE_KEY=$(openssl genrsa 2048)
           app-store-connect certificates create \
             --type IOS_DISTRIBUTION \
-            --private-key "$(cat /tmp/cert_key.pem)" \
+            --certificate-key "$CERTIFICATE_PRIVATE_KEY" \
             --save
           keychain add-certificates
           app-store-connect fetch-signing-files "$BUNDLE_ID" \

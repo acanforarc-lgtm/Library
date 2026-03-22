@@ -32,6 +32,7 @@ workflows:
           export CERTIFICATE_PRIVATE_KEY=$(openssl genrsa 2048)
           app-store-connect certificates create \
             --type IOS_DISTRIBUTION \
+            --certificate-key "$CERTIFICATE_PRIVATE_KEY" \
             --save
           keychain add-certificates
           app-store-connect fetch-signing-files "$BUNDLE_ID" \

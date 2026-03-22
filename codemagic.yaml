@@ -29,10 +29,13 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
+          app-store-connect create-certificate \
+            --type IOS_DISTRIBUTION \
+            --save
+          keychain add-certificates
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
-          keychain add-certificates
 
       - name: Build IPA
         script: |

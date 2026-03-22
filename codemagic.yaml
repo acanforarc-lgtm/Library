@@ -29,16 +29,10 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          # Import distribution certificate (.p12 exported from your Mac)
-          # Store base64-encoded .p12 as CM_CERTIFICATE and password as CM_CERTIFICATE_PASSWORD
-          # in Codemagic environment variables (app or team settings)
-          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/dist_cert.p12
-          keychain add-certificates \
-            --certificate /tmp/dist_cert.p12 \
-            --certificate-password "$CM_CERTIFICATE_PASSWORD"
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
+          keychain add-certificates
 
       - name: Build IPA
         script: |

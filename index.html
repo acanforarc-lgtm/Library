@@ -3451,17 +3451,18 @@
                 try {
                     // ── 1. sessionStorage cache (1-hour TTL) ──────────────────────────
                     const cached = sessionStorage.getItem(cacheKey);
+                    let cacheHit = false;
                     if (cached) {
                         try {
                             const { results, ts } = JSON.parse(cached);
                             if (Date.now() - ts < 3_600_000) {
                                 if (fullSearch) { setFullResults(results); setShowFullResults(true); }
                                 else setSearchResults(results.slice(0, 5));
-                                setSearchLoading(false);
-                                return;
+                                cacheHit = true;
                             }
                         } catch (_) {}
                     }
+                    if (cacheHit) return;
 
                     // ── 2. ISBN query → Supabase cache first, then Google Books ───────
                     if (isIsbnQuery(query)) {
@@ -3470,7 +3471,6 @@
                         if (fromCache) {
                             if (fullSearch) { setFullResults([fromCache]); setShowFullResults(true); }
                             else setSearchResults([fromCache]);
-                            setSearchLoading(false);
                             return;
                         }
                         // Not cached — fall through to Google Books below

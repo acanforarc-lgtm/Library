@@ -2911,6 +2911,21 @@
             const [selectedShelfToMove, setSelectedShelfToMove] = useState('');
             const [showAssignModal, setShowAssignModal] = useState(false);
 
+            // Create Shelf modal state
+            const [showCreateShelfModal, setShowCreateShelfModal] = useState(false);
+            const [newShelfWoodType, setNewShelfWoodType] = useState('oak');
+            const [newShelfBoardCount, setNewShelfBoardCount] = useState(3);
+            const [newShelfBackground, setNewShelfBackground] = useState('#8b7355');
+
+            // Add-to-shelf modal state (from search)
+            const [showAddShelfModal, setShowAddShelfModal] = useState(false);
+            const [pendingSearchBook, setPendingSearchBook] = useState(null);
+            const [addToShelfId, setAddToShelfId] = useState('');
+            const [addToBoardIndex, setAddToBoardIndex] = useState('');
+
+            // Touch drag ref (avoids stale closure in touch handlers)
+            const touchDragRef = React.useRef(null);
+
             // 3D Room state
             const [roomViewMode, setRoomViewMode] = useState('perspective'); // 'perspective' | 'floorplan'
             const [roomPositions, setRoomPositions] = useState({});          // shelfId -> {x, z, rot}
@@ -3073,6 +3088,20 @@
                 document.addEventListener('mousedown', handleClickOutside);
                 return () => document.removeEventListener('mousedown', handleClickOutside);
             }, [showSearchDropdown]);
+
+            // Lock body scroll when any modal is open
+            useEffect(() => {
+                const anyModalOpen = showShelfBookPopup || showBookInfo || !!selectedBook ||
+                    showBookSelector || showScanner || showScannedBookPopup || showSettings ||
+                    showScanModeSelector || showConfirm || showMoveModal || showAssignModal ||
+                    showCreateShelfModal || showAddShelfModal ||
+                    (scanMode === 'rapid' && !scannerMode);
+                document.body.style.overflow = anyModalOpen ? 'hidden' : '';
+                return () => { document.body.style.overflow = ''; };
+            }, [showShelfBookPopup, showBookInfo, selectedBook, showBookSelector, showScanner,
+                showScannedBookPopup, showSettings, showScanModeSelector, showConfirm,
+                showMoveModal, showAssignModal, showCreateShelfModal, showAddShelfModal,
+                scanMode, scannerMode]);
 
             // Auth functions
             const handleSignup = async () => {
@@ -3425,36 +3454,11 @@
                             .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
                             .sort((a, b) => b._score - a._score);
 
-                        const nq = normalizeText(query);
-                        const nqTokens = nq.split(/\s+/).filter(t => t.length >= 3 && !STOP_WORDS.has(t));
-
-                        // Phase 1 — phrase match: normalized title/author contains the entire
-                        // normalized query as a substring. This enforces word order, so
-                        // "the cannibals guide" matches "The Cannibal's Guide to Fasting"
-                        // but NOT "The Lady's Guide to Escaping Cannibals".
-                        const byPhrase = b => {
-                            const nt = normalizeText(b.title);
-                            const na = normalizeText(b.author);
-                            return nt.includes(nq) || na.includes(nq);
-                        };
-                        // Phase 2 — token match: all meaningful words present anywhere in
-                        // title/author (any order). Fallback for queries like "Catcher Rye"
-                        // where the user skipped "in the".
-                        const byTokens = b => {
-                            const nt = normalizeText(b.title);
-                            const na = normalizeText(b.author);
-                            return nqTokens.length > 0 && nqTokens.every(t => nt.includes(t) || na.includes(t));
-                        };
-                        const applyFilter = (list) => {
-                            const phrase = list.filter(byPhrase);
-                            return phrase.length > 0 ? phrase : list.filter(byTokens);
-                        };
-
                         if (fullSearch) {
-                            setFullResults(applyFilter(ranked));
+                            setFullResults(ranked);
                             setShowFullResults(true);
                         } else {
-                            setSearchResults(applyFilter(ranked).slice(0, 5));
+                            setSearchResults(ranked.slice(0, 5));
                         }
                         setSearchLoading(false);
                         return;
@@ -3520,43 +3524,67 @@
                 setShowFullDescription(false);
             };
 
-            const addBookFromSearch = async () => {
+            // Opens the shelf/position picker modal (called from book detail popup)
+            const addBookFromSearch = () => {
                 if (!selectedBook) return;
+                setPendingSearchBook(selectedBook);
+                setAddToShelfId('');
+                setAddToBoardIndex('');
+                closeBookDetail();
+                setShowAddShelfModal(true);
+            };
+
+            // Called when user taps Finish in the add-to-shelf modal
+            const confirmAddBookFromSearch = async () => {
+                if (!pendingSearchBook) return;
 
                 try {
-                    const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (!user) return;
-                    
-                    const targetShelfId = selectedShelfForAdd || currentShelfForSearch;
-                    
+                    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+                    if (authError || !user) {
+                        showMessage('❌ Session expired — please log in again');
+                        return;
+                    }
+
+                    const targetShelfId = addToShelfId ? parseInt(addToShelfId) : null;
+                    let boardIndex = null;
+                    let position = null;
+
+                    if (targetShelfId) {
+                        boardIndex = addToBoardIndex !== '' ? parseInt(addToBoardIndex) : 0;
+                        position = findNextAvailablePosition(targetShelfId, boardIndex);
+                        if (position === null) {
+                            showMessage('❌ That shelf board is full — try another board');
+                            return;
+                        }
+                    }
+
                     const { data, error } = await supabaseClient
                         .from('books')
                         .insert([{
                             user_id: user.id,
-                            title: selectedBook.title,
-                            author: selectedBook.author,
-                            cover: selectedBook.cover,
+                            title: pendingSearchBook.title,
+                            author: pendingSearchBook.author,
+                            cover: pendingSearchBook.cover || null,
                             color: getRandomColor(),
-                            shelf_id: targetShelfId ? parseInt(targetShelfId) : null,
-                            board_index: null,
-                            position: null
+                            shelf_id: targetShelfId,
+                            board_index: boardIndex,
+                            position: position
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
-                    setBooks([...books, data[0]]);
-                    showMessage(`✅ Added "${data[0].title}" to library!`);
-                    closeBookDetail();
-                    
-                    if (showShelfSearch) {
-                        setShowShelfSearch(false);
-                        setCurrentShelfForSearch(null);
-                    }
-                    
+
+                    setBooks(prev => [...prev, data[0]]);
+                    const shelfName = targetShelfId ? shelves.find(s => s.id === targetShelfId)?.name : null;
+                    showMessage(`✅ Added "${data[0].title}"${shelfName ? ` to "${shelfName}"` : ' to Your Books'}!`);
+                    setShowAddShelfModal(false);
+                    setPendingSearchBook(null);
+                    setAddToShelfId('');
+                    setAddToBoardIndex('');
+
                 } catch (error) {
                     console.error('Error adding book:', error);
-                    showMessage('❌ Failed to add book');
+                    showMessage('❌ Failed to add book — please check your connection and try again');
                 }
             };
 
@@ -4471,34 +4499,38 @@
                     showMessage('Please enter a shelf name');
                     return;
                 }
-                
+
                 try {
-                    const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (!user) return;
-                    
-                    // Random wood type for variety
-                    const woodTypes = ['oak', 'walnut', 'mahogany', 'cherry', 'maple', 'pine'];
-                    const randomWood = woodTypes[Math.floor(Math.random() * woodTypes.length)];
-                    
+                    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+                    if (authError || !user) {
+                        showMessage('❌ Session expired — please log in again');
+                        return;
+                    }
+
                     const { data, error } = await supabaseClient
                         .from('shelves')
                         .insert([{
                             user_id: user.id,
-                            name: newShelfName,
-                            wood_type: randomWood,
-                            board_count: 3
+                            name: newShelfName.trim(),
+                            wood_type: newShelfWoodType,
+                            board_count: newShelfBoardCount,
+                            background_color: newShelfBackground
                         }])
                         .select();
-                    
+
                     if (error) throw error;
-                    
-                    setShelves([...shelves, data[0]]);
+
+                    setShelves(prev => [...prev, data[0]]);
                     setNewShelfName('');
-                    showMessage(`✅ Created shelf: ${newShelfName}`);
-                    
+                    setNewShelfWoodType('oak');
+                    setNewShelfBoardCount(3);
+                    setNewShelfBackground('#8b7355');
+                    setShowCreateShelfModal(false);
+                    showMessage(`✅ Created shelf: "${data[0].name}"`);
+
                 } catch (error) {
                     console.error('Error adding shelf:', error);
-                    showMessage('❌ Failed to create shelf');
+                    showMessage('❌ Failed to create shelf — please try again');
                 }
             };
             
@@ -4679,6 +4711,101 @@
                 setDropTargetShelf(null);
                 setSnapPreviewPosition(null);
                 setSnapPreviewBoard(null);
+            };
+
+            // Touch drag handlers for mobile
+            const handleTouchStart = (e, book) => {
+                e.currentTarget.style.opacity = '0.5';
+                touchDragRef.current = { book, moved: false };
+                setDraggedBook(book);
+            };
+
+            const handleTouchMove = (e) => {
+                if (!touchDragRef.current) return;
+                touchDragRef.current.moved = true;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                // Find the shelf-board element under the touch point
+                const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                const boardEl = el?.closest?.('.shelf-board');
+                if (!boardEl) {
+                    setSnapPreviewPosition(null);
+                    setSnapPreviewBoard(null);
+                    return;
+                }
+
+                // Read shelf/board from data attributes set on the board element
+                const shelfId = parseInt(boardEl.dataset.shelfId);
+                const boardIndex = parseInt(boardEl.dataset.boardIndex);
+                if (isNaN(shelfId) || isNaN(boardIndex)) return;
+
+                const fakeEvent = { clientX: touch.clientX };
+                const targetPosition = calculateDropPosition(fakeEvent, boardEl);
+                const snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, touchDragRef.current.book.id);
+                setSnapPreviewPosition(snapPosition);
+                setSnapPreviewBoard(`${shelfId}-${boardIndex}`);
+                setDropTargetShelf(shelfId);
+            };
+
+            const handleTouchEnd = async (e, bookEl) => {
+                if (!touchDragRef.current) return;
+                const { book, moved } = touchDragRef.current;
+                touchDragRef.current = null;
+
+                if (bookEl) bookEl.style.opacity = '1';
+
+                if (!moved) {
+                    // Treat as a tap — open popup
+                    setDraggedBook(null);
+                    setSnapPreviewPosition(null);
+                    setSnapPreviewBoard(null);
+                    setDropTargetShelf(null);
+                    return;
+                }
+
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                const boardEl = el?.closest?.('.shelf-board');
+
+                setDraggedBook(null);
+                setSnapPreviewPosition(null);
+                setSnapPreviewBoard(null);
+                setDropTargetShelf(null);
+
+                if (!boardEl) return;
+
+                const toShelfId = parseInt(boardEl.dataset.shelfId);
+                const toBoardIndex = parseInt(boardEl.dataset.boardIndex);
+                if (isNaN(toShelfId) || isNaN(toBoardIndex)) return;
+
+                const fakeEvent = { clientX: touch.clientX };
+                const targetPosition = calculateDropPosition(fakeEvent, boardEl);
+                const finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, book.id);
+
+                if (finalPosition === null) {
+                    showMessage('❌ This shelf board is full!');
+                    return;
+                }
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('books')
+                        .update({ shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition })
+                        .eq('id', book.id);
+                    if (error) throw error;
+                    setBooks(prev => prev.map(b =>
+                        b.id === book.id
+                            ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition }
+                            : b
+                    ));
+                    const shelfName = shelves.find(s => s.id === toShelfId)?.name;
+                    showMessage(`📚 Moved "${book.title}" to ${shelfName}`);
+                } catch (err) {
+                    console.error('Touch drop error:', err);
+                    showMessage('❌ Failed to move book');
+                }
             };
 
             const deleteShelf = async (shelfId) => {
@@ -6030,21 +6157,6 @@
                                         </div>
                                     )}
 
-                                    <div className="book-detail-shelf-select">
-                                        <label>Assign to shelf (optional)</label>
-                                        <select
-                                            value={selectedShelfForAdd}
-                                            onChange={(e) => setSelectedShelfForAdd(e.target.value)}
-                                        >
-                                            <option value="">No shelf (add to Your Books)</option>
-                                            {shelves.map(shelf => (
-                                                <option key={shelf.id} value={shelf.id}>
-                                                    {shelf.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
                                     <button className="book-detail-add-btn" onClick={addBookFromSearch}>
                                         ➕ Add to Library
                                     </button>
@@ -6486,8 +6598,28 @@
                             </div>
                         </div>
 
-                        {/* My Room - 3D Section */}
+                        {/* My Room - Coming Soon */}
                         {activeTab === 'room' && (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '6rem 2rem',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{fontSize: '4rem', marginBottom: '1rem'}}>🏠</div>
+                                <h2 style={{fontFamily: 'Libre Baskerville, serif', fontSize: '2rem', color: '#3d2817', marginBottom: '0.75rem'}}>
+                                    My Room
+                                </h2>
+                                <p style={{fontSize: '1.1rem', color: '#8b6f47', maxWidth: '400px'}}>
+                                    Coming soon — your personal 3D library room is under construction.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* My Room - 3D Section (disabled) */}
+                        {false && activeTab === 'room' && (
                             <div className="room-section">
                                 {/* Toolbar */}
                                 <div className="room-toolbar">
@@ -6561,15 +6693,24 @@
                         {/* Your Shelves Section */}
                         <div className={activeTab === 'shelves' ? 'shelves-section' : 'hidden'}>
                             <div className="shelf-controls">
-                                <h3>Create Shelf</h3>
-                                <input
-                                    type="text"
-                                    placeholder="Shelf name (e.g., Fantasy, Sci-Fi)"
-                                    value={newShelfName}
-                                    onChange={(e) => setNewShelfName(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && addShelf()}
-                                />
-                                <button onClick={addShelf}>➕ Create</button>
+                                <button
+                                    onClick={() => setShowCreateShelfModal(true)}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #8b6f47, #6d5538)',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '0.75rem 1.5rem',
+                                        borderRadius: '8px',
+                                        fontSize: '1rem',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    ➕ Create Shelf
+                                </button>
                             </div>
 
                             {shelves.length === 0 ? (
@@ -6583,7 +6724,7 @@
                                             key={shelf.id} 
                                             className="shelf"
                                             style={{
-                                                background: shelf.backgroundColor || '#8b7355'
+                                                background: shelf.background_color || '#8b7355'
                                             }}
                                         >
                                         <div className="shelf-header">
@@ -6628,7 +6769,7 @@
                                                                         width: '40px',
                                                                         height: '40px',
                                                                         background: color,
-                                                                        border: (shelf.backgroundColor || '#8b7355') === color ? '3px solid #fff' : '2px solid rgba(255,255,255,0.3)',
+                                                                        border: (shelf.background_color || '#8b7355') === color ? '3px solid #fff' : '2px solid rgba(255,255,255,0.3)',
                                                                         borderRadius: '6px',
                                                                         cursor: 'pointer',
                                                                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
@@ -6687,10 +6828,12 @@
                                             const showPreview = snapPreviewBoard === boardKey && snapPreviewPosition !== null;
                                             
                                             return (
-                                                <div 
-                                                    key={boardIndex} 
+                                                <div
+                                                    key={boardIndex}
                                                     className={`shelf-board wood-${shelf.wood_type || 'oak'}`}
                                                     style={{position: 'relative'}}
+                                                    data-shelf-id={shelf.id}
+                                                    data-board-index={boardIndex}
                                                     onDragOver={(e) => handleDragOver(e, shelf.id, boardIndex)}
                                                     onDragEnter={(e) => handleDragEnter(e, shelf.id)}
                                                     onDragLeave={handleDragLeave}
@@ -6735,17 +6878,20 @@
                                                                     draggable="true"
                                                                     onDragStart={(e) => handleDragStart(e, book, shelf.id)}
                                                                     onDragEnd={handleDragEnd}
-                                                                    style={{ 
+                                                                    onTouchStart={(e) => handleTouchStart(e, book)}
+                                                                    onTouchMove={handleTouchMove}
+                                                                    onTouchEnd={(e) => handleTouchEnd(e, e.currentTarget)}
+                                                                    style={{
                                                                         background: book.cover ? `url(${book.cover}) center/cover` : book.color,
                                                                         cursor: 'grab',
                                                                         opacity: draggedBook?.id === book.id ? '0.5' : '1',
                                                                         position: 'absolute',
-                                                                        left: `${percentagePosition}%`, // Use percentage instead of pixels
-                                                                        bottom: '0.5rem'
+                                                                        left: `${percentagePosition}%`,
+                                                                        bottom: '0.5rem',
+                                                                        touchAction: 'none'
                                                                     }}
                                                                     onClick={(e) => {
-                                                                        // Don't open popup if we just dragged
-                                                                        if (!e.defaultPrevented) {
+                                                                        if (!e.defaultPrevented && !touchDragRef.current?.moved) {
                                                                             openShelfBookPopup(book, shelf.id);
                                                                         }
                                                                     }}
@@ -6768,13 +6914,215 @@
                         </div>
                     </div>
 
+                    {/* ── Create Shelf Modal ── */}
+                    {showCreateShelfModal && (
+                        <div className="book-detail-overlay" onClick={() => setShowCreateShelfModal(false)}>
+                            <div className="book-detail-popup" onClick={e => e.stopPropagation()} style={{maxWidth: '500px'}}>
+                                <button className="book-detail-close" onClick={() => setShowCreateShelfModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h2 className="book-detail-title" style={{marginBottom: '1.5rem'}}>Create Shelf</h2>
+
+                                    {/* Name */}
+                                    <div style={{marginBottom: '1.5rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Shelf Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Fantasy, Sci-Fi, Favourites..."
+                                            value={newShelfName}
+                                            onChange={e => setNewShelfName(e.target.value)}
+                                            onKeyPress={e => e.key === 'Enter' && addShelf()}
+                                            style={{width: '100%', padding: '0.75rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem'}}
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {/* Background colour */}
+                                    <div style={{marginBottom: '1.5rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Background Colour</label>
+                                        <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                                            {['#8b7355','#6d5538','#a0826d','#5c4a3a','#8b6f47','#b8936d','#4a3728'].map(color => (
+                                                <div
+                                                    key={color}
+                                                    onClick={() => setNewShelfBackground(color)}
+                                                    style={{
+                                                        width: '40px', height: '40px',
+                                                        background: color,
+                                                        border: newShelfBackground === color ? '3px solid #3d2817' : '2px solid rgba(0,0,0,0.15)',
+                                                        borderRadius: '6px', cursor: 'pointer',
+                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Wood type */}
+                                    <div style={{marginBottom: '1.5rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Shelf Wood</label>
+                                        <div className="wood-selector">
+                                            {['oak','walnut','mahogany','cherry','maple','pine'].map(wood => (
+                                                <div
+                                                    key={wood}
+                                                    className={`wood-option wood-${wood} ${newShelfWoodType === wood ? 'selected' : ''}`}
+                                                    onClick={() => setNewShelfWoodType(wood)}
+                                                    title={wood.charAt(0).toUpperCase() + wood.slice(1)}
+                                                    style={{width: '40px', height: '40px'}}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Board count */}
+                                    <div style={{marginBottom: '2rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Number of Boards</label>
+                                        <div className="board-controls">
+                                            <button className="board-btn" onClick={() => setNewShelfBoardCount(c => Math.max(1, c - 1))} disabled={newShelfBoardCount <= 1}>−</button>
+                                            <span className="board-count">{newShelfBoardCount} {newShelfBoardCount === 1 ? 'shelf' : 'shelves'}</span>
+                                            <button className="board-btn" onClick={() => setNewShelfBoardCount(c => Math.min(8, c + 1))} disabled={newShelfBoardCount >= 8}>+</button>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        className="book-detail-add-btn"
+                                        onClick={addShelf}
+                                        disabled={!newShelfName.trim()}
+                                        style={{opacity: newShelfName.trim() ? 1 : 0.5}}
+                                    >
+                                        ➕ Create Shelf
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Add to Library Modal (from search) ── */}
+                    {showAddShelfModal && pendingSearchBook && (
+                        <div className="book-detail-overlay" onClick={() => setShowAddShelfModal(false)}>
+                            <div className="book-detail-popup" onClick={e => e.stopPropagation()} style={{maxWidth: '480px'}}>
+                                <button className="book-detail-close" onClick={() => setShowAddShelfModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    {/* Mini book preview */}
+                                    <div style={{display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem'}}>
+                                        {pendingSearchBook.cover
+                                            ? <img src={pendingSearchBook.cover} alt={pendingSearchBook.title} style={{width: '60px', height: '90px', objectFit: 'cover', borderRadius: '4px'}} />
+                                            : <div style={{width: '60px', height: '90px', background: '#c9a87c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem'}}>📚</div>
+                                        }
+                                        <div>
+                                            <div style={{fontWeight: '700', fontSize: '1.05rem', color: '#3d2817'}}>{pendingSearchBook.title}</div>
+                                            <div style={{color: '#8b6f47', fontSize: '0.9rem'}}>by {pendingSearchBook.author}</div>
+                                        </div>
+                                    </div>
+
+                                    <h2 className="book-detail-title" style={{marginBottom: '0.5rem', fontSize: '1.3rem'}}>Where should this go?</h2>
+                                    <p style={{color: '#8b6f47', fontSize: '0.9rem', marginBottom: '1.5rem'}}>
+                                        You can tap <strong>Finish</strong> without selecting anything — we'll add it to Your Books, or place it in the next available spot on your chosen shelf.
+                                    </p>
+
+                                    {/* Shelf picker */}
+                                    <div style={{marginBottom: '1rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Shelf (optional)</label>
+                                        <select
+                                            value={addToShelfId}
+                                            onChange={e => { setAddToShelfId(e.target.value); setAddToBoardIndex(''); }}
+                                            style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
+                                        >
+                                            <option value="">— No shelf (add to Your Books) —</option>
+                                            {shelves.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Board picker (only when shelf selected) */}
+                                    {addToShelfId && (
+                                        <div style={{marginBottom: '1.5rem'}}>
+                                            <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Board (optional)</label>
+                                            <select
+                                                value={addToBoardIndex}
+                                                onChange={e => setAddToBoardIndex(e.target.value)}
+                                                style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
+                                            >
+                                                <option value="">— Next available spot —</option>
+                                                {Array.from({length: shelves.find(s => s.id === parseInt(addToShelfId))?.board_count || 3}).map((_, i) => (
+                                                    <option key={i} value={i}>Board {i + 1}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <button className="book-detail-add-btn" onClick={confirmAddBookFromSearch}>
+                                        ✅ Finish
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Assign to Shelf Modal (from Your Books) ── */}
+                    {showAssignModal && bookInfoData && (
+                        <div className="book-detail-overlay" onClick={() => setShowAssignModal(false)}>
+                            <div className="book-detail-popup" onClick={e => e.stopPropagation()} style={{maxWidth: '480px'}}>
+                                <button className="book-detail-close" onClick={() => setShowAssignModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h2 className="book-detail-title" style={{marginBottom: '0.5rem', fontSize: '1.3rem'}}>Assign to Shelf</h2>
+                                    <p style={{color: '#8b6f47', fontSize: '0.9rem', marginBottom: '1.5rem'}}>
+                                        Pick a shelf and board, or just tap <strong>Finish</strong> — we'll place it in the next available spot.
+                                    </p>
+
+                                    <div style={{marginBottom: '1rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Shelf</label>
+                                        <select
+                                            value={selectedShelfForAdd}
+                                            onChange={e => setSelectedShelfForAdd(e.target.value)}
+                                            style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
+                                        >
+                                            <option value="">— Select a shelf —</option>
+                                            {shelves.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        className="book-detail-add-btn"
+                                        onClick={() => { assignBookToShelf(); setShowAssignModal(false); }}
+                                        disabled={!selectedShelfForAdd}
+                                        style={{opacity: selectedShelfForAdd ? 1 : 0.5}}
+                                    >
+                                        ✅ Finish
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Full Search Results Page */}
                     {showFullResults && (
                         <div className="full-results-overlay">
                             <div className="full-results-header">
-                                <button className="full-results-close" onClick={() => setShowFullResults(false)}>×</button>
-                                
-                                {/* FIX #3: Add search bar to results page */}
+                                {/* Tab navigation replaces the close button */}
+                                <div className="tabs" style={{marginBottom: '1rem'}}>
+                                    <div
+                                        className="tab"
+                                        onClick={() => { setShowFullResults(false); setActiveTab('books'); }}
+                                    >
+                                        📖 Your Books
+                                    </div>
+                                    <div
+                                        className="tab"
+                                        onClick={() => { setShowFullResults(false); setActiveTab('shelves'); }}
+                                    >
+                                        📚 Your Shelves
+                                    </div>
+                                    <div
+                                        className="tab"
+                                        onClick={() => { setShowFullResults(false); setActiveTab('room'); }}
+                                    >
+                                        🏠 My Room
+                                    </div>
+                                </div>
+
+                                {/* Search bar */}
                                 <div className="header-search" style={{marginBottom: '1.5rem', maxWidth: '600px'}}>
                                     <input
                                         type="text"

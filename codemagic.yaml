@@ -49,8 +49,8 @@ workflows:
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
             -archivePath "/tmp/App.xcarchive" \
+            -allowProvisioningUpdates \
             archive \
-            CODE_SIGN_STYLE=Manual \
             COMPILER_INDEX_STORE_ENABLE=NO
 
           PROFILE_UUID=$(security cms -D -i "/tmp/App.xcarchive/Products/Applications/App.app/embedded.mobileprovision" | plutil -extract UUID raw -)

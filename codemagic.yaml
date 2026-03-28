@@ -8,6 +8,9 @@ workflows:
       app_store_connect: Codemagic
 
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.acanfora.yourlibrary
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
@@ -25,23 +28,6 @@ workflows:
 
       - name: Capacitor sync
         script: npx cap sync ios
-
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect certificates list \
-            --type IOS_DISTRIBUTION \
-            --certificate-key "$CERTIFICATE_PRIVATE_KEY" \
-            --save || \
-          app-store-connect certificates create \
-            --type IOS_DISTRIBUTION \
-            --certificate-key "$CERTIFICATE_PRIVATE_KEY" \
-            --save
-          keychain add-certificates
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-          xcode-project use-profiles
 
       - name: Build IPA
         script: |

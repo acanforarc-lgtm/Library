@@ -44,7 +44,8 @@ workflows:
 
       - name: Build IPA
         script: |
-          PROFILE_UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | plutil -extract UUID raw -)
+          PROFILE_PATH=$(ls -t ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
 
           xcodebuild \
             -project "$XCODE_PROJECT" \
@@ -53,6 +54,7 @@ workflows:
             -archivePath "/tmp/App.xcarchive" \
             archive \
             CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="iPhone Distribution" \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             COMPILER_INDEX_STORE_ENABLE=NO
 

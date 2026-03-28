@@ -44,16 +44,18 @@ workflows:
 
       - name: Build IPA
         script: |
+          PROFILE_UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | plutil -extract UUID raw -)
+
           xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
             -archivePath "/tmp/App.xcarchive" \
-            -allowProvisioningUpdates \
             archive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
             COMPILER_INDEX_STORE_ENABLE=NO
 
-          PROFILE_UUID=$(security cms -D -i "/tmp/App.xcarchive/Products/Applications/App.app/embedded.mobileprovision" | plutil -extract UUID raw -)
           /usr/libexec/PlistBuddy -c "Clear dict" /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :teamID string $TEAM_ID" /tmp/ExportOptions.plist

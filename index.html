@@ -3138,20 +3138,12 @@
 
                     if (error) throw error;
 
-                    setAuthSuccess('Account created! Check your email to confirm (or you can login now).');
-                    
-                    // Auto-login after 2 seconds
-                    setTimeout(() => {
-                        setCurrentUser({
-                            email: authEmail,
-                            name: authName
-                        });
-                        setShowAuth(false);
-                        setAuthEmail('');
-                        setAuthPassword('');
-                        setAuthName('');
-                        setShowWelcome(true);
-                    }, 2000);
+                    if (!data.user) {
+                        setAuthError('An account with this email already exists. Please log in.');
+                        return;
+                    }
+
+                    setAuthSuccess('Account created! Check your email to confirm your account before logging in.');
                     
                 } catch (error) {
                     setAuthError(error.message || 'Signup failed');

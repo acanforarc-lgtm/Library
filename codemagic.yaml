@@ -45,6 +45,25 @@ workflows:
 
       - name: Build IPA
         script: |
+          # Find the provisioning profile installed by xcode-project use-profiles
+          PROFILE_UUID=$(
+            for f in "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision; do
+              info=$(security cms -D -i "$f" 2>/dev/null)
+              bundle=$(echo "$info" | plutil -extract Entitlements.application-identifier raw - 2>/dev/null)
+              uuid=$(echo "$info" | plutil -extract UUID raw - 2>/dev/null)
+              if [[ "$bundle" == *"$BUNDLE_ID"* ]] && [ -n "$uuid" ]; then
+                echo "$uuid"
+                break
+              fi
+            done
+          )
+          if [ -z "$PROFILE_UUID" ]; then
+            echo "Error: No provisioning profile found for bundle ID: $BUNDLE_ID"
+            ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
+            exit 1
+          fi
+          echo "Using provisioning profile UUID: $PROFILE_UUID"
+
           xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
@@ -53,14 +72,8 @@ workflows:
             archive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="iPhone Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
             COMPILER_INDEX_STORE_ENABLE=NO
-
-          PROFILE_UUID=$(security cms -D -i "/tmp/App.xcarchive/Products/Applications/App.app/embedded.mobileprovision" | plutil -extract UUID raw -)
-          if [ -z "$PROFILE_UUID" ]; then
-            echo "Error: Could not extract UUID from archived app's embedded.mobileprovision"
-            exit 1
-          fi
-          echo "Archived with provisioning profile UUID: $PROFILE_UUID"
 
           /usr/libexec/PlistBuddy -c "Clear dict" /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" /tmp/ExportOptions.plist

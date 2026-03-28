@@ -4557,7 +4557,7 @@
                     
                     if (error) throw error;
                     
-                    setShelves(shelves.map(shelf => 
+                    setShelves(prev => prev.map(shelf =>
                         shelf.id === shelfId ? { ...shelf, wood_type: woodType } : shelf
                     ));
                 } catch (error) {
@@ -4575,7 +4575,7 @@
                     
                     if (error) throw error;
                     
-                    setShelves(shelves.map(shelf => 
+                    setShelves(prev => prev.map(shelf =>
                         shelf.id === shelfId ? { ...shelf, background_color: color } : shelf
                     ));
                 } catch (error) {
@@ -6933,7 +6933,7 @@
                             <div className="book-detail-popup" onClick={e => e.stopPropagation()} style={{maxWidth: '500px'}}>
                                 <button className="book-detail-close" onClick={() => setShowCreateShelfModal(false)}>×</button>
                                 <div className="book-detail-content">
-                                    <h2 className="book-detail-title" style={{marginBottom: '1.5rem'}}>Create Shelf</h2>
+                                    <h2 className="book-detail-title" style={{marginBottom: '1.5rem'}}>Create Your Bookshelf</h2>
 
                                     {/* Name */}
                                     <div style={{marginBottom: '1.5rem'}}>
@@ -6976,10 +6976,14 @@
                                             {['oak','walnut','mahogany','cherry','maple','pine'].map(wood => (
                                                 <div
                                                     key={wood}
-                                                    className={`wood-option wood-${wood} ${newShelfWoodType === wood ? 'selected' : ''}`}
+                                                    className={`wood-option wood-${wood}`}
                                                     onClick={() => setNewShelfWoodType(wood)}
                                                     title={wood.charAt(0).toUpperCase() + wood.slice(1)}
-                                                    style={{width: '40px', height: '40px'}}
+                                                    style={{
+                                                        width: '40px', height: '40px',
+                                                        border: newShelfWoodType === wood ? '3px solid #3d2817' : '2px solid rgba(0,0,0,0.15)',
+                                                        boxShadow: newShelfWoodType === wood ? '0 0 0 2px rgba(61,40,23,0.25)' : 'none'
+                                                    }}
                                                 />
                                             ))}
                                         </div>

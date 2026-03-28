@@ -2981,19 +2981,19 @@
                     if (session?.user) {
                         setCurrentUser({
                             email: session.user.email,
-                            name: session.user.user_metadata?.name || session.user.email.split('@')[0]
+                            name: session.user.user_metadata?.name || session.user.email?.split('@')[0]
                         });
                         setShowAuth(false);
                         loadUserData(session.user.email);
                     }
-                });
+                }).catch(err => console.error('Session check failed:', err));
                 
                 // Listen for auth changes
                 const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
                     if (session?.user) {
                         setCurrentUser({
                             email: session.user.email,
-                            name: session.user.user_metadata?.name || session.user.email.split('@')[0]
+                            name: session.user.user_metadata?.name || session.user.email?.split('@')[0]
                         });
                         setShowAuth(false);
                     } else {
@@ -3190,7 +3190,11 @@
 
             const handleLogout = async () => {
                 if (window.confirm('Are you sure you want to logout?')) {
-                    await supabaseClient.auth.signOut();
+                    try {
+                        await supabaseClient.auth.signOut();
+                    } catch (err) {
+                        console.error('Sign out error:', err);
+                    }
                     setCurrentUser(null);
                     setBooks([]);
                     setShelves([]);
@@ -3563,7 +3567,7 @@
                     let position = null;
 
                     if (targetShelfId) {
-                        boardIndex = addToBoardIndex !== '' ? parseInt(addToBoardIndex) : 0;
+                        boardIndex = addToBoardIndex !== '' ? (parseInt(addToBoardIndex) || 0) : 0;
                         position = findNextAvailablePosition(targetShelfId, boardIndex);
                         if (position === null) {
                             showMessage('❌ That shelf board is full — try another board');

@@ -4587,41 +4587,41 @@
             const addBoardToShelf = async (shelfId) => {
                 const shelf = shelves.find(s => s.id === shelfId);
                 const newCount = (shelf?.board_count || 3) + 1;
-                
+
                 if (newCount > 8) return;
-                
+
                 try {
                     const { error } = await supabaseClient
                         .from('shelves')
                         .update({ board_count: newCount })
                         .eq('id', shelfId);
-                    
+
                     if (error) throw error;
-                    
-                    setShelves(shelves.map(s => 
+
+                    setShelves(prev => prev.map(s =>
                         s.id === shelfId ? { ...s, board_count: newCount } : s
                     ));
                 } catch (error) {
                     console.error('Error adding board:', error);
                 }
             };
-            
+
             // Remove board from shelf
             const removeBoardFromShelf = async (shelfId) => {
                 const shelf = shelves.find(s => s.id === shelfId);
                 const newCount = (shelf?.board_count || 3) - 1;
-                
+
                 if (newCount < 1) return;
-                
+
                 try {
                     const { error } = await supabaseClient
                         .from('shelves')
                         .update({ board_count: newCount })
                         .eq('id', shelfId);
-                    
+
                     if (error) throw error;
-                    
-                    setShelves(shelves.map(s => 
+
+                    setShelves(prev => prev.map(s =>
                         s.id === shelfId ? { ...s, board_count: newCount } : s
                     ));
                 } catch (error) {

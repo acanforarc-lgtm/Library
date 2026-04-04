@@ -6845,8 +6845,8 @@
                             ) : (
                                 <div className="shelves-grid">
                                     {shelves.map(shelf => (
+                                        <div key={shelf.id} style={{position: 'relative'}}>
                                         <div
-                                            key={shelf.id}
                                             className="shelf"
                                             style={{
                                                 background: shelf.background_color || '#8b7355',
@@ -6864,19 +6864,6 @@
                                                     >
                                                         ☰
                                                     </button>
-                                                    {openShelfMenu === shelf.id && (
-                                                        <div className="shelf-menu-dropdown">
-                                                            <button className="shelf-menu-item" onClick={() => { setEditingShelfId(editingShelfId === shelf.id ? null : shelf.id); setOpenShelfMenu(null); }}>
-                                                                🎨 Edit Appearance
-                                                            </button>
-                                                            <button className="shelf-menu-item" onClick={() => { openBookSelector(shelf.id); setOpenShelfMenu(null); }}>
-                                                                ➕ Add Books
-                                                            </button>
-                                                            <button className="shelf-menu-item danger" onClick={() => { deleteShelf(shelf.id); setOpenShelfMenu(null); }}>
-                                                                🗑 Delete Shelf
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -7042,6 +7029,20 @@
                                             );
                                         })}
                                     </div>
+                                    {openShelfMenu === shelf.id && (
+                                        <div className="shelf-menu-dropdown" style={{position: 'absolute', top: '56px', right: '16px', zIndex: 300}}>
+                                            <button className="shelf-menu-item" onClick={() => { setEditingShelfId(editingShelfId === shelf.id ? null : shelf.id); setOpenShelfMenu(null); }}>
+                                                🎨 Edit Appearance
+                                            </button>
+                                            <button className="shelf-menu-item" onClick={() => { openBookSelector(shelf.id); setOpenShelfMenu(null); }}>
+                                                ➕ Add Books
+                                            </button>
+                                            <button className="shelf-menu-item danger" onClick={() => { deleteShelf(shelf.id); setOpenShelfMenu(null); }}>
+                                                🗑 Delete Shelf
+                                            </button>
+                                        </div>
+                                    )}
+                                        </div>
                                 ))}
                                 </div>
                             )}

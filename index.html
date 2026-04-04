@@ -2965,6 +2965,7 @@
             const [openShelfMenu, setOpenShelfMenu] = useState(null);
             const [openColorDropdown, setOpenColorDropdown] = useState(null); // {shelfId, type:'bg'|'wood'}
             const [selectedBoardForAdd, setSelectedBoardForAdd] = useState('');
+            const [assignWizardStep, setAssignWizardStep] = useState(1); // 1 = pick shelf, 2 = pick board
             const rafIdRef = React.useRef(null);
             
             // Bluetooth scanner mode
@@ -6176,7 +6177,7 @@
                                         <div className="book-info-buttons">
                                             <button
                                                 className="btn-info btn-info-assign"
-                                                onClick={() => { setSelectedShelfForAdd(''); setShowAssignModal(true); }}
+                                                onClick={() => { setSelectedShelfForAdd(''); setSelectedBoardForAdd(''); setAssignWizardStep(1); setShowAssignModal(true); }}
                                             >
                                                 📚 Assign to Shelf
                                             </button>
@@ -7197,59 +7198,7 @@
                         </div>
                     )}
 
-                    {/* ── Assign to Shelf Modal (from Your Books) ── */}
-                    {showAssignModal && bookInfoData && (
-                        <div className="book-detail-overlay" onClick={() => setShowAssignModal(false)}>
-                            <div className="book-detail-popup" onClick={e => e.stopPropagation()} style={{maxWidth: '480px'}}>
-                                <button className="book-detail-close" onClick={() => setShowAssignModal(false)}>×</button>
-                                <div className="book-detail-content">
-                                    <h2 className="book-detail-title" style={{marginBottom: '0.5rem', fontSize: '1.3rem'}}>Assign to Shelf</h2>
-                                    <p style={{color: '#8b6f47', fontSize: '0.9rem', marginBottom: '1.5rem'}}>
-                                        Pick a shelf and board, or just tap <strong>Finish</strong> — we'll place it in the next available spot.
-                                    </p>
-
-                                    <div style={{marginBottom: '1rem'}}>
-                                        <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Shelf</label>
-                                        <select
-                                            value={selectedShelfForAdd}
-                                            onChange={e => { setSelectedShelfForAdd(e.target.value); setSelectedBoardForAdd(''); }}
-                                            style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
-                                        >
-                                            <option value="">— Select a shelf —</option>
-                                            {shelves.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {selectedShelfForAdd && (
-                                        <div style={{marginBottom: '1.5rem'}}>
-                                            <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Board (optional)</label>
-                                            <select
-                                                value={selectedBoardForAdd}
-                                                onChange={e => setSelectedBoardForAdd(e.target.value)}
-                                                style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
-                                            >
-                                                <option value="">— Next available spot —</option>
-                                                {Array.from({length: shelves.find(s => s.id === parseInt(selectedShelfForAdd))?.board_count || 3}).map((_, i) => (
-                                                    <option key={i} value={i}>Board {i + 1}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-
-                                    <button
-                                        className="book-detail-add-btn"
-                                        onClick={() => { assignBookToShelf(); setShowAssignModal(false); }}
-                                        disabled={!selectedShelfForAdd}
-                                        style={{opacity: selectedShelfForAdd ? 1 : 0.5}}
-                                    >
-                                        ✅ Finish
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* ── Assign to Shelf Modal removed (duplicate) — see radio-button wizard below ── */}
 
                     {/* Full Search Results Page */}
                     {showFullResults && (
@@ -7873,46 +7822,94 @@
                                 <button className="book-detail-close" onClick={() => setShowAssignModal(false)}>×</button>
 
                                 <div className="book-detail-content">
-                                    <h2 className="book-detail-title">Assign to Shelf</h2>
-                                    <p style={{marginBottom: '1rem', color: '#8b6f47'}}>
-                                        Select which shelf to assign "{bookInfoData.title}" to
-                                    </p>
+                                    {/* Step indicator */}
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem'}}>
+                                        <div style={{width: 24, height: 24, borderRadius: '50%', background: '#2d4a3e', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0}}>1</div>
+                                        <div style={{flex: 1, height: 2, background: assignWizardStep === 2 ? '#2d4a3e' : '#e0d5c5'}}></div>
+                                        <div style={{width: 24, height: 24, borderRadius: '50%', background: assignWizardStep === 2 ? '#2d4a3e' : '#e0d5c5', color: assignWizardStep === 2 ? 'white' : '#8b6f47', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0}}>2</div>
+                                    </div>
 
-                                    <div className="shelf-list">
-                                        {shelves.map(shelf => (
-                                            <div
-                                                key={shelf.id}
-                                                className={`shelf-option ${selectedShelfForAdd === shelf.id.toString() ? 'selected' : ''}`}
-                                                onClick={() => setSelectedShelfForAdd(shelf.id.toString())}
-                                            >
-                                                <div className="shelf-option-radio"></div>
-                                                <div style={{flex: 1}}>
-                                                    <div style={{fontWeight: '600'}}>{shelf.name}</div>
-                                                    <div style={{fontSize: '0.85rem', color: '#8b6f47'}}>
-                                                        {getBooksForShelf(shelf.id).length} {getBooksForShelf(shelf.id).length === 1 ? 'book' : 'books'}
+                                    {assignWizardStep === 1 ? (
+                                        <>
+                                            <h2 className="book-detail-title">Choose a Shelf</h2>
+                                            <p style={{marginBottom: '1rem', color: '#8b6f47'}}>
+                                                Where should "{bookInfoData.title}" go?
+                                            </p>
+                                            <div className="shelf-list">
+                                                {shelves.map(shelf => (
+                                                    <div
+                                                        key={shelf.id}
+                                                        className={`shelf-option ${selectedShelfForAdd === shelf.id.toString() ? 'selected' : ''}`}
+                                                        onClick={() => setSelectedShelfForAdd(shelf.id.toString())}
+                                                    >
+                                                        <div className="shelf-option-radio"></div>
+                                                        <div style={{flex: 1}}>
+                                                            <div style={{fontWeight: '600'}}>{shelf.name}</div>
+                                                            <div style={{fontSize: '0.85rem', color: '#8b6f47'}}>
+                                                                {getBooksForShelf(shelf.id).length} {getBooksForShelf(shelf.id).length === 1 ? 'book' : 'books'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+                                                <button
+                                                    className="btn-info btn-info-assign"
+                                                    onClick={() => { setSelectedBoardForAdd(''); setAssignWizardStep(2); }}
+                                                    disabled={!selectedShelfForAdd}
+                                                    style={{flex: 1, opacity: selectedShelfForAdd ? 1 : 0.5}}
+                                                >
+                                                    Next →
+                                                </button>
+                                                <button className="btn-info btn-info-close" onClick={() => setShowAssignModal(false)} style={{flex: 1}}>
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h2 className="book-detail-title">Choose a Board</h2>
+                                            <p style={{marginBottom: '1rem', color: '#8b6f47'}}>
+                                                Which board on "{shelves.find(s => s.id.toString() === selectedShelfForAdd)?.name}"?
+                                            </p>
+                                            <div className="shelf-list">
+                                                <div
+                                                    className={`shelf-option ${selectedBoardForAdd === '' ? 'selected' : ''}`}
+                                                    onClick={() => setSelectedBoardForAdd('')}
+                                                >
+                                                    <div className="shelf-option-radio"></div>
+                                                    <div style={{flex: 1}}>
+                                                        <div style={{fontWeight: '600'}}>Auto</div>
+                                                        <div style={{fontSize: '0.85rem', color: '#8b6f47'}}>Next available spot</div>
                                                     </div>
                                                 </div>
+                                                {Array.from({length: shelves.find(s => s.id.toString() === selectedShelfForAdd)?.board_count || 3}).map((_, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className={`shelf-option ${selectedBoardForAdd === i.toString() ? 'selected' : ''}`}
+                                                        onClick={() => setSelectedBoardForAdd(i.toString())}
+                                                    >
+                                                        <div className="shelf-option-radio"></div>
+                                                        <div style={{flex: 1}}>
+                                                            <div style={{fontWeight: '600'}}>Board {i + 1}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
-
-                                    <div style={{display: 'flex', gap: '1rem'}}>
-                                        <button
-                                            className="btn-info btn-info-assign"
-                                            onClick={() => { assignBookToShelf(); setShowAssignModal(false); }}
-                                            disabled={!selectedShelfForAdd}
-                                            style={{flex: 1}}
-                                        >
-                                            Assign to Shelf
-                                        </button>
-                                        <button
-                                            className="btn-info btn-info-close"
-                                            onClick={() => setShowAssignModal(false)}
-                                            style={{flex: 1}}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
+                                            <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+                                                <button className="btn-info btn-info-close" onClick={() => setAssignWizardStep(1)} style={{flex: 1}}>
+                                                    ← Back
+                                                </button>
+                                                <button
+                                                    className="btn-info btn-info-assign"
+                                                    onClick={() => { assignBookToShelf(); setShowAssignModal(false); }}
+                                                    style={{flex: 1}}
+                                                >
+                                                    ✅ Confirm
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

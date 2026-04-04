@@ -647,7 +647,7 @@
             box-shadow: 0 8px 24px rgba(212, 175, 55, 0.5);
         }
         
-        /* Wooden backing — uses --shelf-bg CSS variable so the user's chosen colour shows through */
+        /* Wooden backing — subtle texture overlay only; actual colour comes from the element's background */
         .shelf::before {
             content: '';
             position: absolute;
@@ -655,10 +655,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png'),
-                              linear-gradient(180deg, var(--shelf-bg, #d4a574) 0%, var(--shelf-bg, #b8845a) 100%);
-            background-blend-mode: multiply;
-            opacity: 0.9;
+            background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+            opacity: 0.12;
             z-index: 0;
         }
         

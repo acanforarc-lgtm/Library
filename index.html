@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Library v7.1 - Full Cloud Storage</title>
+    <title>Your Library v7.1 - Full Cloud Storage</title> <!-- Claude was here -->
     <!--
     ========================================
     YOUR LIBRARY - VERSION 7.1
@@ -647,7 +647,7 @@
             box-shadow: 0 8px 24px rgba(212, 175, 55, 0.5);
         }
         
-        /* Wooden backing */
+        /* Wooden backing — uses --shelf-bg CSS variable so the user's chosen colour shows through */
         .shelf::before {
             content: '';
             position: absolute;
@@ -656,7 +656,7 @@
             right: 0;
             bottom: 0;
             background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png'),
-                              linear-gradient(180deg, #d4a574 0%, #c99a6d 50%, #b8845a 100%);
+                              linear-gradient(180deg, var(--shelf-bg, #d4a574) 0%, var(--shelf-bg, #b8845a) 100%);
             background-blend-mode: multiply;
             opacity: 0.9;
             z-index: 0;
@@ -686,6 +686,110 @@
         .shelf-actions {
             display: flex;
             gap: 0.5rem;
+            align-items: center;
+        }
+
+        /* Hamburger shelf menu */
+        .shelf-menu-wrap {
+            position: relative;
+        }
+        .shelf-menu-btn {
+            padding: 0.45rem 0.75rem;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            transition: background 0.2s;
+        }
+        .shelf-menu-btn:hover { background: rgba(255,255,255,0.35); }
+        .shelf-menu-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            border: 1px solid #e8d5bb;
+            min-width: 175px;
+            z-index: 200;
+            overflow: hidden;
+        }
+        .shelf-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            cursor: pointer;
+            color: #3d2817;
+            font-size: 0.9rem;
+            background: white;
+            border: none;
+            width: 100%;
+            text-align: left;
+            transition: background 0.15s;
+            font-family: 'Work Sans', sans-serif;
+        }
+        .shelf-menu-item:hover { background: #fdf6ee; }
+        .shelf-menu-item + .shelf-menu-item { border-top: 1px solid #f0e4d0; }
+        .shelf-menu-item.danger:hover { background: #fff0f0; color: #c0392b; }
+
+        /* Color/Wood dropdown in edit panel */
+        .color-dropdown-wrap { position: relative; }
+        .color-dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.45rem 0.75rem;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.35);
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            font-size: 0.85rem;
+            min-width: 140px;
+            font-family: 'Work Sans', sans-serif;
+            transition: background 0.15s;
+        }
+        .color-dropdown-btn:hover { background: rgba(255,255,255,0.25); }
+        .color-dropdown-panel {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            border: 1px solid #e8d5bb;
+            z-index: 300;
+            overflow: hidden;
+            min-width: 160px;
+        }
+        .color-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.55rem 0.9rem;
+            cursor: pointer;
+            background: white;
+            border: none;
+            width: 100%;
+            text-align: left;
+            transition: background 0.15s;
+            color: #3d2817;
+            font-size: 0.88rem;
+            font-family: 'Work Sans', sans-serif;
+        }
+        .color-dropdown-item:hover { background: #fdf6ee; }
+        .color-dropdown-item.active { background: #f5e8d3; font-weight: 600; }
+        .color-dropdown-item + .color-dropdown-item { border-top: 1px solid #f5ede0; }
+        .color-swatch-sm {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.18);
+            flex-shrink: 0;
         }
 
         .btn-small {
@@ -1067,21 +1171,16 @@
         .user-button {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.2rem;
-            background: white;
-            border: 2px solid #c9a87c;
-            border-radius: 50px;
+            background: none;
+            border: none;
+            border-radius: 50%;
             cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Work Sans', sans-serif;
-            font-weight: 600;
-            color: #3d2817;
+            padding: 0;
+            transition: transform 0.2s;
         }
 
         .user-button:hover {
-            background: #faf8f3;
-            transform: translateY(-1px);
+            transform: scale(1.08);
         }
 
         .user-avatar {
@@ -1661,23 +1760,25 @@
             gap: 1rem;
             overflow-x: auto;
             overflow-y: hidden;
-            padding: 1rem 0.5rem;
+            padding: 1rem 0.5rem 1.25rem; /* extra bottom padding = larger scroll hit area */
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
+            cursor: grab;
         }
 
         .category-scroll::-webkit-scrollbar {
-            height: 8px;
+            height: 14px; /* bigger = easier to tap on touch screens */
         }
 
         .category-scroll::-webkit-scrollbar-track {
-            background: #f0f0f0;
-            border-radius: 4px;
+            background: #f0ece4;
+            border-radius: 8px;
         }
 
         .category-scroll::-webkit-scrollbar-thumb {
             background: #c9a87c;
-            border-radius: 4px;
+            border-radius: 8px;
+            border: 2px solid #f0ece4; /* creates padding around thumb for easier grabbing */
         }
 
         .category-scroll::-webkit-scrollbar-thumb:hover {
@@ -2690,25 +2791,14 @@
                 height: 180px;
             }
 
-            /* Book info popup: stack cover above text on small screens */
+            /* Book info popup: keep side-by-side layout on mobile (matches desktop) */
             .book-info-content {
                 padding: 1.2rem;
             }
-            .book-info-header {
-                flex-direction: column;
-                align-items: center;
-            }
             .book-info-cover,
             .book-info-cover-placeholder {
-                width: 100px;
-                height: 150px;
-            }
-            .book-info-title {
-                font-size: 1.2rem;
-                text-align: center;
-            }
-            .book-info-author {
-                text-align: center;
+                width: 80px;
+                height: 120px;
             }
         }
         /* =====================
@@ -2874,6 +2964,10 @@
             
             // Shelf editing state
             const [editingShelfId, setEditingShelfId] = useState(null);
+            const [openShelfMenu, setOpenShelfMenu] = useState(null);
+            const [openColorDropdown, setOpenColorDropdown] = useState(null); // {shelfId, type:'bg'|'wood'}
+            const [selectedBoardForAdd, setSelectedBoardForAdd] = useState('');
+            const rafIdRef = React.useRef(null);
             
             // Bluetooth scanner mode
             const [scannerMode, setScannerMode] = useState(false);
@@ -3143,7 +3237,22 @@
                         return;
                     }
 
-                    setAuthSuccess('Account created! Check your email to confirm your account before logging in.');
+                    // Email confirmation is disabled — auto-login immediately
+                    if (data.session) {
+                        setCurrentUser({
+                            email: data.user.email,
+                            name: data.user.user_metadata?.name || authName || data.user.email.split('@')[0]
+                        });
+                        loadUserData(data.user.email);
+                        setShowAuth(false);
+                        setAuthEmail('');
+                        setAuthPassword('');
+                        setAuthName('');
+                        showMessage('✅ Welcome to Your Library!');
+                        return;
+                    }
+
+                    setAuthSuccess('Account created! Please log in.');
                     
                 } catch (error) {
                     setAuthError(error.message || 'Signup failed');
@@ -4192,10 +4301,10 @@
                 if (!bookInfoData || !selectedShelfForAdd) return;
 
                 const targetShelfId = parseInt(selectedShelfForAdd);
-                const targetBoardIndex = 0; // Default to first board
+                const targetBoardIndex = selectedBoardForAdd !== '' ? parseInt(selectedBoardForAdd) : 0;
                 const bookId = bookInfoData.id; // capture before async
 
-                // Find next available position on the first board
+                // Find next available position on the chosen board
                 const nextPosition = findNextAvailablePosition(targetShelfId, targetBoardIndex);
 
                 if (nextPosition === null) {
@@ -4640,14 +4749,19 @@
                 e.preventDefault();
                 e.stopPropagation();
                 e.dataTransfer.dropEffect = 'move';
-                
+
                 // Calculate where book would snap if dropped here
                 if (draggedBook && e.currentTarget.classList.contains('shelf-board')) {
                     const targetPosition = calculateDropPosition(e, e.currentTarget);
                     const snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, draggedBook.id);
-                    
-                    setSnapPreviewPosition(snapPosition);
-                    setSnapPreviewBoard(`${shelfId}-${boardIndex}`);
+                    const boardKey = `${shelfId}-${boardIndex}`;
+
+                    // Throttle React state updates to animation frames to keep shadow in sync
+                    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+                    rafIdRef.current = requestAnimationFrame(() => {
+                        setSnapPreviewPosition(snapPosition);
+                        setSnapPreviewBoard(boardKey);
+                    });
                 }
             };
             
@@ -5816,14 +5930,14 @@
                         {/* User Menu */}
                         {currentUser && (
                             <div className="user-menu">
-                                <div 
+                                <div
                                     className="user-button"
                                     onClick={() => setShowUserMenu(!showUserMenu)}
+                                    title={currentUser.name}
                                 >
                                     <div className="user-avatar">
-                                        {currentUser.name.charAt(0).toUpperCase()}
+                                        {currentUser.name.split(' ').map(w => w.charAt(0)).slice(0,2).join('').toUpperCase()}
                                     </div>
-                                    <span>{currentUser.name.split(' ')[0]}</span>
                                 </div>
 
                                 {showUserMenu && (
@@ -5993,7 +6107,7 @@
                                             <h2 className="book-info-title">{bookInfoData.title}</h2>
                                             <div className="book-info-author">by {bookInfoData.author}</div>
                                             <div className="book-info-meta">
-                                                <div>📚 ISBN: {bookInfoData.isbn}</div>
+                                                {bookInfoData.isbn && <div>📚 ISBN: {bookInfoData.isbn}</div>}
                                                 {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
                                                 {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
                                             </div>
@@ -6733,106 +6847,115 @@
                             ) : (
                                 <div className="shelves-grid">
                                     {shelves.map(shelf => (
-                                        <div 
-                                            key={shelf.id} 
+                                        <div
+                                            key={shelf.id}
                                             className="shelf"
                                             style={{
-                                                background: shelf.background_color || '#8b7355'
+                                                background: shelf.background_color || '#8b7355',
+                                                '--shelf-bg': shelf.background_color || '#8b7355'
                                             }}
                                         >
                                         <div className="shelf-header">
                                             <h3 className="shelf-title">{shelf.name}</h3>
                                             <div className="shelf-actions">
-                                                <button 
-                                                    className="btn-small"
-                                                    onClick={() => setEditingShelfId(editingShelfId === shelf.id ? null : shelf.id)}
-                                                    title="Edit colors"
-                                                >
-                                                    🎨
-                                                </button>
-                                                <button 
-                                                    className="btn-small"
-                                                    onClick={() => openBookSelector(shelf.id)}
-                                                    title="Add books from your library"
-                                                >
-                                                    ➕
-                                                </button>
-                                                <button 
-                                                    className="btn-small"
-                                                    onClick={() => deleteShelf(shelf.id)}
-                                                    title="Delete shelf"
-                                                >
-                                                    🗑
-                                                </button>
+                                                <div className="shelf-menu-wrap">
+                                                    <button
+                                                        className="shelf-menu-btn"
+                                                        title="Shelf options"
+                                                        onClick={() => setOpenShelfMenu(openShelfMenu === shelf.id ? null : shelf.id)}
+                                                    >
+                                                        ☰
+                                                    </button>
+                                                    {openShelfMenu === shelf.id && (
+                                                        <div className="shelf-menu-dropdown">
+                                                            <button className="shelf-menu-item" onClick={() => { setEditingShelfId(editingShelfId === shelf.id ? null : shelf.id); setOpenShelfMenu(null); }}>
+                                                                🎨 Edit Appearance
+                                                            </button>
+                                                            <button className="shelf-menu-item" onClick={() => { openBookSelector(shelf.id); setOpenShelfMenu(null); }}>
+                                                                ➕ Add Books
+                                                            </button>
+                                                            <button className="shelf-menu-item danger" onClick={() => { deleteShelf(shelf.id); setOpenShelfMenu(null); }}>
+                                                                🗑 Delete Shelf
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         
                                         {/* Color Editing Panel */}
-                                        {editingShelfId === shelf.id && (
-                                            <div className="shelf-customize" style={{background: 'rgba(0,0,0,0.25)', padding: '1.5rem 2rem'}}>
-                                                <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%'}}>
-                                                    <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-                                                        <span className="shelf-customize-label" style={{minWidth: '120px'}}>Background:</span>
-                                                        <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
-                                                            {['#8b7355', '#6d5538', '#a0826d', '#5c4a3a', '#8b6f47', '#b8936d', '#4a3728'].map(color => (
-                                                                <div
-                                                                    key={color}
-                                                                    onClick={() => changeShelfBackground(shelf.id, color)}
-                                                                    style={{
-                                                                        width: '40px',
-                                                                        height: '40px',
-                                                                        background: color,
-                                                                        border: (shelf.background_color || '#8b7355') === color ? '3px solid #fff' : '2px solid rgba(255,255,255,0.3)',
-                                                                        borderRadius: '6px',
-                                                                        cursor: 'pointer',
-                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                                                                    }}
-                                                                    title={color}
-                                                                />
-                                                            ))}
+                                        {editingShelfId === shelf.id && (() => {
+                                            const BG_COLORS = [
+                                                { hex: '#8b7355', name: 'Tan' },
+                                                { hex: '#6d5538', name: 'Dark Brown' },
+                                                { hex: '#a0826d', name: 'Rosewood' },
+                                                { hex: '#5c4a3a', name: 'Mocha' },
+                                                { hex: '#8b6f47', name: 'Caramel' },
+                                                { hex: '#b8936d', name: 'Wheat' },
+                                                { hex: '#4a3728', name: 'Espresso' },
+                                            ];
+                                            const WOOD_NAMES = { oak: 'Oak', walnut: 'Walnut', mahogany: 'Mahogany', cherry: 'Cherry', maple: 'Maple', pine: 'Pine' };
+                                            const curBg = shelf.background_color || '#8b7355';
+                                            const curWood = shelf.wood_type || 'oak';
+                                            const bgLabel = BG_COLORS.find(c => c.hex === curBg)?.name || curBg;
+                                            const bgKey = `${shelf.id}-bg`;
+                                            const woodKey = `${shelf.id}-wood`;
+                                            return (
+                                            <div className="shelf-customize" style={{background: 'rgba(0,0,0,0.25)', padding: '1rem 1.5rem'}}>
+                                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center'}}>
+                                                    {/* Background dropdown */}
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                                        <span className="shelf-customize-label">Background:</span>
+                                                        <div className="color-dropdown-wrap">
+                                                            <button className="color-dropdown-btn" onClick={() => setOpenColorDropdown(openColorDropdown?.key === bgKey ? null : {key: bgKey, shelfId: shelf.id, type: 'bg'})}>
+                                                                <span className="color-swatch-sm" style={{background: curBg}} />
+                                                                {bgLabel} ▾
+                                                            </button>
+                                                            {openColorDropdown?.key === bgKey && (
+                                                                <div className="color-dropdown-panel">
+                                                                    {BG_COLORS.map(c => (
+                                                                        <button key={c.hex} className={`color-dropdown-item${curBg === c.hex ? ' active' : ''}`} onClick={() => { changeShelfBackground(shelf.id, c.hex); setOpenColorDropdown(null); }}>
+                                                                            <span className="color-swatch-sm" style={{background: c.hex}} />{c.name}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    
-                                                    <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-                                                        <span className="shelf-customize-label" style={{minWidth: '120px'}}>Shelf Wood:</span>
-                                                        <div className="wood-selector">
-                                                            {['oak', 'walnut', 'mahogany', 'cherry', 'maple', 'pine'].map(wood => (
-                                                                <div
-                                                                    key={wood}
-                                                                    className={`wood-option wood-${wood} ${(shelf.wood_type || 'oak') === wood ? 'selected' : ''}`}
-                                                                    onClick={() => changeShelfWood(shelf.id, wood)}
-                                                                    title={wood.charAt(0).toUpperCase() + wood.slice(1)}
-                                                                    style={{width: '40px', height: '40px'}}
-                                                                />
-                                                            ))}
+
+                                                    {/* Wood dropdown */}
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                                        <span className="shelf-customize-label">Wood:</span>
+                                                        <div className="color-dropdown-wrap">
+                                                            <button className="color-dropdown-btn" onClick={() => setOpenColorDropdown(openColorDropdown?.key === woodKey ? null : {key: woodKey, shelfId: shelf.id, type: 'wood'})}>
+                                                                <span className={`color-swatch-sm wood-${curWood}`} />
+                                                                {WOOD_NAMES[curWood]} ▾
+                                                            </button>
+                                                            {openColorDropdown?.key === woodKey && (
+                                                                <div className="color-dropdown-panel">
+                                                                    {Object.entries(WOOD_NAMES).map(([w, label]) => (
+                                                                        <button key={w} className={`color-dropdown-item${curWood === w ? ' active' : ''}`} onClick={() => { changeShelfWood(shelf.id, w); setOpenColorDropdown(null); }}>
+                                                                            <span className={`color-swatch-sm wood-${w}`} />{label}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    
-                                                    <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-                                                        <span className="shelf-customize-label" style={{minWidth: '120px'}}>Boards:</span>
+
+                                                    {/* Board count */}
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                                        <span className="shelf-customize-label">Boards:</span>
                                                         <div className="board-controls">
-                                                            <button 
-                                                                className="board-btn"
-                                                                onClick={() => removeBoardFromShelf(shelf.id)}
-                                                                disabled={(shelf.board_count || 3) <= 1}
-                                                                title="Remove board"
-                                                            >
-                                                                −
-                                                            </button>
-                                                            <span className="board-count">{shelf.board_count || 3} shelves</span>
-                                                            <button 
-                                                                className="board-btn"
-                                                                onClick={() => addBoardToShelf(shelf.id)}
-                                                                disabled={(shelf.board_count || 3) >= 8}
-                                                                title="Add board"
-                                                            >
-                                                                +
-                                                            </button>
+                                                            <button className="board-btn" onClick={() => removeBoardFromShelf(shelf.id)} disabled={(shelf.board_count || 3) <= 1}>−</button>
+                                                            <span className="board-count">{shelf.board_count || 3}</span>
+                                                            <button className="board-btn" onClick={() => addBoardToShelf(shelf.id)} disabled={(shelf.board_count || 3) >= 8}>+</button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
+                                            );
+                                        })()}
                                         
                                         {/* Individual Wood Boards */}
                                         {Array.from({ length: shelf.board_count || 3 }).map((_, boardIndex) => {
@@ -7090,7 +7213,7 @@
                                         <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Shelf</label>
                                         <select
                                             value={selectedShelfForAdd}
-                                            onChange={e => setSelectedShelfForAdd(e.target.value)}
+                                            onChange={e => { setSelectedShelfForAdd(e.target.value); setSelectedBoardForAdd(''); }}
                                             style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
                                         >
                                             <option value="">— Select a shelf —</option>
@@ -7099,6 +7222,22 @@
                                             ))}
                                         </select>
                                     </div>
+
+                                    {selectedShelfForAdd && (
+                                        <div style={{marginBottom: '1.5rem'}}>
+                                            <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Board (optional)</label>
+                                            <select
+                                                value={selectedBoardForAdd}
+                                                onChange={e => setSelectedBoardForAdd(e.target.value)}
+                                                style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
+                                            >
+                                                <option value="">— Next available spot —</option>
+                                                {Array.from({length: shelves.find(s => s.id === parseInt(selectedShelfForAdd))?.board_count || 3}).map((_, i) => (
+                                                    <option key={i} value={i}>Board {i + 1}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
 
                                     <button
                                         className="book-detail-add-btn"

@@ -3143,7 +3143,25 @@
                         return;
                     }
 
-                    setAuthSuccess('Account created! Check your email to confirm your account before logging in.');
+                    // Auto login after signup
+                    const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({
+                        email: authEmail,
+                        password: authPassword
+                    });
+
+                    if (loginError) throw loginError;
+
+                    setAuthSuccess('Account created!');
+                    setTimeout(() => {
+                        setCurrentUser({
+                            email: loginData.user.email,
+                            name: loginData.user.user_metadata?.name || loginData.user.email.split('@')[0]
+                        });
+                        loadUserData(loginData.user.email);
+                        setShowAuth(false);
+                        setAuthEmail('');
+                        setAuthPassword('');
+                    }, 500);
                     
                 } catch (error) {
                     setAuthError(error.message || 'Signup failed');

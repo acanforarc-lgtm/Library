@@ -4049,19 +4049,21 @@
                     ? activeConversation.participant2_id
                     : activeConversation.participant1_id;
                 try {
-                    const { error } = await supabaseClient.from('messages').insert({
+                    const content = newMessage.trim();
+                    const { data: inserted, error } = await supabaseClient.from('messages').insert({
                         conversation_id: activeConversation.id,
                         sender_id: currentUser.id,
                         recipient_id: otherId,
-                        content: newMessage.trim()
-                    });
+                        content
+                    }).select().single();
                     if (error) throw error;
-                    // Update conversation timestamp
-                    await supabaseClient.from('conversations')
+                    // Append optimistically — no reload needed
+                    setMessages(prev => prev.some(m => m.id === inserted.id) ? prev : [...prev, inserted]);
+                    setNewMessage('');
+                    // Update conversation timestamp in background
+                    supabaseClient.from('conversations')
                         .update({ last_message_at: new Date().toISOString() })
                         .eq('id', activeConversation.id);
-                    setNewMessage('');
-                    loadMessages(activeConversation.id);
                     loadConversations();
                 } catch (err) {
                     showMessage('Could not send message: ' + err.message);

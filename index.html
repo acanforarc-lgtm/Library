@@ -3433,6 +3433,7 @@
             const globalMsgSubRef = React.useRef(null);
             const activeConversationRef = React.useRef(null);
             const messagesEndRef = React.useRef(null);
+            const chatMessagesRef = React.useRef(null);
 
             // Social features state
             const [socialTab, setSocialTab] = useState('friends'); // 'friends' | 'requests' | 'find'
@@ -3545,8 +3546,8 @@
 
             // Scroll to bottom when messages update
             useEffect(() => {
-                if (messagesEndRef.current) {
-                    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                if (chatMessagesRef.current) {
+                    chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
                 }
             }, [messages]);
 
@@ -8444,7 +8445,7 @@
                                                 </div>
 
                                                 {/* Messages */}
-                                                <div className="chat-messages">
+                                                <div className="chat-messages" ref={chatMessagesRef}>
                                                     {messagesLoading ? (
                                                         <div style={{textAlign: 'center', padding: '2rem', color: '#8b6f47'}}>Loading...</div>
                                                     ) : messages.length === 0 ? (

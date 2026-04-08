@@ -3946,14 +3946,29 @@
                 try {
                     const { data } = await supabaseClient
                         .from('conversations')
-                        .select(`
-                            *,
-                            p1:user_profiles!conversations_participant1_id_fkey(id, username, display_name),
-                            p2:user_profiles!conversations_participant2_id_fkey(id, username, display_name)
-                        `)
+                        .select('*')
                         .or(`participant1_id.eq.${currentUser.id},participant2_id.eq.${currentUser.id}`)
                         .order('last_message_at', { ascending: false, nullsFirst: false });
-                    setConversations(data || []);
+
+                    if (data && data.length > 0) {
+                        const otherIds = [...new Set(data.map(c =>
+                            c.participant1_id === currentUser.id ? c.participant2_id : c.participant1_id
+                        ))];
+                        const { data: profiles } = await supabaseClient
+                            .from('user_profiles')
+                            .select('id, username, display_name')
+                            .in('id', otherIds);
+                        const profileMap = {};
+                        (profiles || []).forEach(p => { profileMap[p.id] = p; });
+                        const enriched = data.map(c => ({
+                            ...c,
+                            p1: profileMap[c.participant1_id] || null,
+                            p2: profileMap[c.participant2_id] || null
+                        }));
+                        setConversations(enriched);
+                    } else {
+                        setConversations([]);
+                    }
                     // Count unread
                     const { count } = await supabaseClient
                         .from('messages')
@@ -3972,10 +3987,7 @@
                 try {
                     const { data } = await supabaseClient
                         .from('messages')
-                        .select(`
-                            *,
-                            sender:user_profiles!messages_sender_id_fkey(id, username, display_name)
-                        `)
+                        .select('*')
                         .eq('conversation_id', conversationId)
                         .eq('is_deleted', false)
                         .order('created_at', { ascending: true });

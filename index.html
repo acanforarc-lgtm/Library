@@ -3443,6 +3443,7 @@
             const [friends, setFriends] = useState([]);
             const [friendRequests, setFriendRequests] = useState([]);
             const [sentRequests, setSentRequests] = useState([]);
+            const [requestCooldowns, setRequestCooldowns] = useState({});
             const [friendSearch, setFriendSearch] = useState('');
             const [friendSearchResults, setFriendSearchResults] = useState([]);
             const [friendSearchLoading, setFriendSearchLoading] = useState(false);
@@ -3562,6 +3563,22 @@
                     loadConversations();
                 }
             }, [currentUser?.id]);
+
+            // Tick down request cooldowns every second
+            useEffect(() => {
+                const hasActive = Object.values(requestCooldowns).some(exp => exp > Date.now());
+                if (!hasActive) return;
+                const interval = setInterval(() => {
+                    setRequestCooldowns(prev => {
+                        const now = Date.now();
+                        const next = { ...prev };
+                        let changed = false;
+                        Object.keys(next).forEach(id => { if (next[id] <= now) { delete next[id]; changed = true; } });
+                        return changed ? next : prev;
+                    });
+                }, 1000);
+                return () => clearInterval(interval);
+            }, [requestCooldowns]);
             
             // Initialize scanner when it opens and video ref is ready
             useEffect(() => {
@@ -3692,23 +3709,21 @@
                 try {
                     const { data, error } = await supabaseClient
                         .from('friendships')
-                        .select(`
-                            id,
-                            user_id,
-                            friend_id,
-                            status,
-                            requested_by,
-                            friend_profile:user_profiles!friendships_friend_id_fkey(id, username, display_name, avatar_url, is_public),
-                            user_profile:user_profiles!friendships_user_id_fkey(id, username, display_name, avatar_url, is_public)
-                        `)
+                        .select('id, user_id, friend_id, status, requested_by')
                         .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id}`)
                         .eq('status', 'accepted');
                     if (error) throw error;
-                    const friendList = (data || []).map(f => {
-                        const isUser = f.user_id === currentUser.id;
-                        return isUser ? f.friend_profile : f.user_profile;
-                    }).filter(Boolean);
-                    setFriends(friendList);
+
+                    const otherIds = (data || []).map(f => f.user_id === currentUser.id ? f.friend_id : f.user_id);
+                    if (otherIds.length > 0) {
+                        const { data: profiles } = await supabaseClient
+                            .from('user_profiles')
+                            .select('id, username, display_name, avatar_url, is_public')
+                            .in('id', otherIds);
+                        setFriends(profiles || []);
+                    } else {
+                        setFriends([]);
+                    }
                 } catch (err) {
                     console.error('loadFriends error:', err);
                 }
@@ -3720,15 +3735,22 @@
                     // Incoming requests (sent to me)
                     const { data: incoming } = await supabaseClient
                         .from('friendships')
-                        .select(`
-                            id,
-                            user_id,
-                            requested_by,
-                            user_profile:user_profiles!friendships_user_id_fkey(id, username, display_name, avatar_url)
-                        `)
+                        .select('id, user_id, requested_by')
                         .eq('friend_id', currentUser.id)
                         .eq('status', 'pending');
-                    setFriendRequests(incoming || []);
+
+                    if (incoming && incoming.length > 0) {
+                        const requesterIds = incoming.map(r => r.user_id);
+                        const { data: profiles } = await supabaseClient
+                            .from('user_profiles')
+                            .select('id, username, display_name, avatar_url')
+                            .in('id', requesterIds);
+                        const profileMap = {};
+                        (profiles || []).forEach(p => { profileMap[p.id] = p; });
+                        setFriendRequests(incoming.map(r => ({ ...r, user_profile: profileMap[r.user_id] || null })));
+                    } else {
+                        setFriendRequests([]);
+                    }
 
                     // Outgoing requests (sent by me)
                     const { data: outgoing } = await supabaseClient
@@ -3779,15 +3801,18 @@
 
             const sendFriendRequest = async (targetUserId) => {
                 if (!currentUser?.id) return;
+                const cooldownExpiry = requestCooldowns[targetUserId];
+                if (cooldownExpiry && cooldownExpiry > Date.now()) return;
                 try {
                     const { error } = await supabaseClient
                         .from('friendships')
-                        .insert({
+                        .upsert({
                             user_id: currentUser.id,
                             friend_id: targetUserId,
                             status: 'pending',
-                            requested_by: currentUser.id
-                        });
+                            requested_by: currentUser.id,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,friend_id' });
                     if (error) throw error;
 
                     await supabaseClient.from('notifications').insert({
@@ -3798,14 +3823,11 @@
                         related_user_id: currentUser.id
                     });
 
-                    setSentRequests(prev => [...prev, targetUserId]);
+                    setSentRequests(prev => [...new Set([...prev, targetUserId])]);
+                    setRequestCooldowns(prev => ({ ...prev, [targetUserId]: Date.now() + 60000 }));
                     showMessage('Friend request sent!');
                 } catch (err) {
-                    if (err.code === '23505') {
-                        showMessage('Friend request already sent.');
-                    } else {
-                        showMessage('Could not send request: ' + err.message);
-                    }
+                    showMessage('Could not send request: ' + err.message);
                 }
             };
 
@@ -8226,9 +8248,19 @@
                                                         <div className="friend-actions">
                                                             {isFriend ? (
                                                                 <span style={{color: '#2d4a3e', fontWeight: '600', fontSize: '0.9rem'}}>✓ Friends</span>
-                                                            ) : hasSent ? (
-                                                                <span style={{color: '#8b6f47', fontSize: '0.9rem'}}>Request sent</span>
-                                                            ) : (
+                                                            ) : hasSent ? (() => {
+                                                                const expiry = requestCooldowns[user.id];
+                                                                const remaining = expiry ? Math.ceil((expiry - Date.now()) / 1000) : 0;
+                                                                return remaining > 0 ? (
+                                                                    <button className="friend-btn" disabled style={{opacity: 0.5, cursor: 'not-allowed'}}>
+                                                                        Resend in {remaining}s
+                                                                    </button>
+                                                                ) : (
+                                                                    <button className="friend-btn accept" onClick={() => sendFriendRequest(user.id)}>
+                                                                        ↺ Resend
+                                                                    </button>
+                                                                );
+                                                            })() : (
                                                                 <button
                                                                     className="friend-btn accept"
                                                                     onClick={() => sendFriendRequest(user.id)}

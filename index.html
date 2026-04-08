@@ -3949,6 +3949,28 @@
                 setUnreadNotifications(0);
             };
 
+            const deleteNotification = async (notifId) => {
+                await supabaseClient.from('notifications').delete().eq('id', notifId);
+                setNotifications(prev => {
+                    const removed = prev.find(n => n.id === notifId);
+                    if (removed && !removed.is_read) setUnreadNotifications(p => Math.max(0, p - 1));
+                    return prev.filter(n => n.id !== notifId);
+                });
+            };
+
+            const clearAllNotifications = () => {
+                setConfirmAction({
+                    title: 'Clear All Notifications',
+                    message: 'Remove all notifications? This cannot be undone.',
+                    onConfirm: async () => {
+                        await supabaseClient.from('notifications').delete().eq('user_id', currentUser.id);
+                        setNotifications([]);
+                        setUnreadNotifications(0);
+                    }
+                });
+                setShowConfirm(true);
+            };
+
             // ==========================================
             // SOCIAL FEATURES - MESSAGING
             // ==========================================
@@ -4029,7 +4051,13 @@
                         .eq('conversation_id', conversationId)
                         .eq('recipient_id', currentUser.id)
                         .is('read_at', null);
-                    setUnreadMessages(prev => Math.max(0, prev - (data || []).filter(m => m.recipient_id === currentUser.id && !m.read_at).length));
+                    // Re-query accurate unread count after marking read
+                    const { count } = await supabaseClient.from('messages')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('recipient_id', currentUser.id)
+                        .is('read_at', null)
+                        .eq('is_deleted', false);
+                    setUnreadMessages(count || 0);
                 } catch (err) {
                     console.error('loadMessages error:', err);
                 } finally {
@@ -4054,6 +4082,15 @@
                     // Append optimistically — no reload needed
                     setMessages(prev => prev.some(m => m.id === inserted.id) ? prev : [...prev, inserted]);
                     setNewMessage('');
+                    // Notify recipient
+                    supabaseClient.from('notifications').insert({
+                        user_id: otherId,
+                        type: 'message',
+                        title: currentUser.name,
+                        content: content.length > 60 ? content.slice(0, 60) + '…' : content,
+                        related_user_id: currentUser.id,
+                        action_url: activeConversation.id
+                    });
                     // Update conversation timestamp in background
                     supabaseClient.from('conversations')
                         .update({ last_message_at: new Date().toISOString() })
@@ -4248,19 +4285,24 @@
                 }
             };
 
-            const handleLogout = async () => {
-                if (window.confirm('Are you sure you want to logout?')) {
-                    try {
-                        await supabaseClient.auth.signOut();
-                    } catch (err) {
-                        console.error('Sign out error:', err);
+            const handleLogout = () => {
+                setConfirmAction({
+                    title: 'Log Out',
+                    message: 'Are you sure you want to log out?',
+                    onConfirm: async () => {
+                        try {
+                            await supabaseClient.auth.signOut();
+                        } catch (err) {
+                            console.error('Sign out error:', err);
+                        }
+                        setCurrentUser(null);
+                        setBooks([]);
+                        setShelves([]);
+                        setShowAuth(true);
+                        setShowUserMenu(false);
                     }
-                    setCurrentUser(null);
-                    setBooks([]);
-                    setShelves([]);
-                    setShowAuth(true);
-                    setShowUserMenu(false);
-                }
+                });
+                setShowConfirm(true);
             };
 
             // ==========================================
@@ -5890,28 +5932,23 @@
                 const shelf = shelves.find(s => s.id === shelfId);
                 const shelfName = shelf ? shelf.name : 'this shelf';
                 
-                if (window.confirm(`Are you sure you want to delete "${shelfName}"? Books will return to "Your Books".`)) {
-                    try {
-                        // Delete shelf from Supabase (books will auto-update due to ON DELETE SET NULL)
-                        const { error } = await supabaseClient
-                            .from('shelves')
-                            .delete()
-                            .eq('id', shelfId);
-                        
-                        if (error) throw error;
-                        
-                        // Update local state
-                        setBooks(books.map(book => 
-                            book.shelf_id === shelfId ? { ...book, shelf_id: null } : book
-                        ));
-                        setShelves(shelves.filter(s => s.id !== shelfId));
-                        showMessage(`"${shelfName}" deleted`);
-                        
-                    } catch (error) {
-                        console.error('Error deleting shelf:', error);
-                        showMessage('❌ Failed to delete shelf');
+                setConfirmAction({
+                    title: 'Delete Shelf',
+                    message: `Delete "${shelfName}"? Books will return to "Your Books".`,
+                    onConfirm: async () => {
+                        try {
+                            const { error } = await supabaseClient.from('shelves').delete().eq('id', shelfId);
+                            if (error) throw error;
+                            setBooks(books.map(book => book.shelf_id === shelfId ? { ...book, shelf_id: null } : book));
+                            setShelves(shelves.filter(s => s.id !== shelfId));
+                            showMessage(`"${shelfName}" deleted`);
+                        } catch (error) {
+                            console.error('Error deleting shelf:', error);
+                            showMessage('❌ Failed to delete shelf');
+                        }
                     }
-                }
+                });
+                setShowConfirm(true);
             };
 
             // Open book selector for shelf
@@ -6956,9 +6993,14 @@
                                     <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
                                         <div className="notif-header">
                                             <span>Notifications</span>
-                                            {unreadNotifications > 0 && (
-                                                <button className="notif-mark-all" onClick={markAllNotificationsRead}>Mark all read</button>
-                                            )}
+                                            <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+                                                {unreadNotifications > 0 && (
+                                                    <button className="notif-mark-all" onClick={markAllNotificationsRead}>Mark all read</button>
+                                                )}
+                                                {notifications.length > 0 && (
+                                                    <button className="notif-mark-all" style={{color:'#c0392b'}} onClick={clearAllNotifications}>Clear all</button>
+                                                )}
+                                            </div>
                                         </div>
                                         {notifications.length === 0 ? (
                                             <div className="notif-empty">No notifications yet</div>
@@ -6967,17 +7009,31 @@
                                                 <div
                                                     key={n.id}
                                                     className={`notif-item${n.is_read ? '' : ' unread'}`}
-                                                    onClick={() => {
-                                                        markNotificationRead(n.id);
-                                                        if (n.type === 'friend_request' || n.type === 'friend_accepted') {
-                                                            setActiveTab('friends');
-                                                            setSocialTab(n.type === 'friend_request' ? 'requests' : 'friends');
-                                                        }
-                                                        setShowNotifications(false);
-                                                    }}
+                                                    style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}
                                                 >
-                                                    <div className="notif-title">{n.title}</div>
-                                                    <div className="notif-content">{n.content}</div>
+                                                    <div
+                                                        style={{flex:1,cursor:'pointer'}}
+                                                        onClick={() => {
+                                                            markNotificationRead(n.id);
+                                                            if (n.type === 'friend_request' || n.type === 'friend_accepted') {
+                                                                setActiveTab('friends');
+                                                                setSocialTab(n.type === 'friend_request' ? 'requests' : 'friends');
+                                                            } else if (n.type === 'message' && n.action_url) {
+                                                                setActiveTab('messages');
+                                                                const conv = conversations.find(c => c.id === n.action_url);
+                                                                if (conv) openConversation(conv);
+                                                            }
+                                                            setShowNotifications(false);
+                                                        }}
+                                                    >
+                                                        <div className="notif-title">{n.type === 'message' ? '💬 ' : ''}{n.title}</div>
+                                                        <div className="notif-content">{n.content}</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                                                        style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:'1rem',lineHeight:1,padding:'0 2px',flexShrink:0}}
+                                                        title="Dismiss"
+                                                    >×</button>
                                                 </div>
                                             ))
                                         )}
@@ -8176,9 +8232,8 @@
                                                         <button
                                                             className="friend-btn danger"
                                                             onClick={() => {
-                                                                if (window.confirm(`Remove ${friend.display_name || friend.username} as a friend?`)) {
-                                                                    removeFriend(friend.id);
-                                                                }
+                                                                setConfirmAction({ title: 'Remove Friend', message: `Remove ${friend.display_name || friend.username} as a friend?`, onConfirm: () => removeFriend(friend.id) });
+                                                                setShowConfirm(true);
                                                             }}
                                                         >
                                                             Remove
@@ -8187,9 +8242,8 @@
                                                             className="friend-btn"
                                                             style={{background: '#e0d5c5', color: '#3d2817'}}
                                                             onClick={() => {
-                                                                if (window.confirm(`Block ${friend.display_name || friend.username}?`)) {
-                                                                    blockUser(friend.id);
-                                                                }
+                                                                setConfirmAction({ title: 'Block User', message: `Block ${friend.display_name || friend.username}? They won't be able to find or message you.`, onConfirm: () => blockUser(friend.id) });
+                                                                setShowConfirm(true);
                                                             }}
                                                         >
                                                             Block

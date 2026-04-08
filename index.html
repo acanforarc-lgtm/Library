@@ -3103,6 +3103,199 @@
         .notif-title { font-weight: 600; color: #3d2817; font-size: 0.9rem; margin-bottom: 0.2rem; }
         .notif-content { color: #8b6f47; font-size: 0.82rem; }
         .notif-empty { padding: 2rem; text-align: center; color: #8b6f47; font-size: 0.9rem; }
+
+        /* ── Messaging ── */
+        .messages-page {
+            display: flex;
+            height: calc(100vh - 200px);
+            min-height: 500px;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 2px solid #e0d5c5;
+            margin: 1rem 0;
+        }
+
+        .conversations-panel {
+            width: 280px;
+            flex-shrink: 0;
+            border-right: 2px solid #f0ebe0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .conversations-header {
+            padding: 1rem 1.25rem;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #3d2817;
+            border-bottom: 2px solid #f0ebe0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .convs-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #8b6f47;
+            font-size: 0.9rem;
+        }
+
+        .conv-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1.25rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f5f1e8;
+            transition: background 0.15s;
+        }
+        .conv-item:hover { background: #fdf6e9; }
+        .conv-item.active { background: #f5ede0; border-left: 3px solid #8b6f47; }
+
+        .conv-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b6f47, #6d5538);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .conv-info { min-width: 0; }
+        .conv-name { font-weight: 600; color: #3d2817; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .conv-sub { color: #8b6f47; font-size: 0.8rem; }
+
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .chat-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #8b6f47;
+            text-align: center;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            border-bottom: 2px solid #f0ebe0;
+            flex-shrink: 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .msg-bubble-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            max-width: 70%;
+        }
+        .msg-bubble-wrap.mine { align-items: flex-end; align-self: flex-end; }
+
+        .msg-bubble {
+            background: #f5ede0;
+            color: #3d2817;
+            padding: 0.6rem 0.9rem;
+            border-radius: 16px 16px 16px 4px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            position: relative;
+            word-break: break-word;
+        }
+        .msg-bubble.mine {
+            background: linear-gradient(135deg, #2d4a3e, #3d5a4d);
+            color: white;
+            border-radius: 16px 16px 4px 16px;
+        }
+
+        .msg-delete {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            font-size: 1rem;
+            margin-left: 0.5rem;
+            padding: 0;
+            line-height: 1;
+            vertical-align: middle;
+        }
+        .msg-delete:hover { color: #ff6b6b; }
+
+        .msg-time {
+            font-size: 0.72rem;
+            color: #8b6f47;
+            margin-top: 0.2rem;
+            padding: 0 0.2rem;
+        }
+        .msg-time.mine { color: #8b6f47; }
+
+        .chat-input-area {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            border-top: 2px solid #f0ebe0;
+            flex-shrink: 0;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.7rem 1rem;
+            border: 2px solid #c9a87c;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            outline: none;
+            font-family: 'Work Sans', sans-serif;
+            background: #fdf6e9;
+            color: #3d2817;
+        }
+        .chat-input:focus { border-color: #8b6f47; }
+
+        .chat-send-btn {
+            padding: 0.7rem 1.4rem;
+            background: linear-gradient(135deg, #2d4a3e, #3d5a4d);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .chat-send-btn:hover { opacity: 0.9; }
+        .chat-send-btn:disabled { opacity: 0.4; cursor: default; }
+
+        @media (max-width: 600px) {
+            .messages-page { flex-direction: column; height: auto; }
+            .conversations-panel { width: 100%; max-height: 200px; border-right: none; border-bottom: 2px solid #f0ebe0; }
+            .chat-messages { min-height: 300px; }
+            .msg-bubble-wrap { max-width: 90%; }
+        }
     </style>
     <!-- QuaggaJS for Barcode Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
@@ -3235,6 +3428,16 @@
             const [addToShelfId, setAddToShelfId] = useState('');
             const [addToBoardIndex, setAddToBoardIndex] = useState('');
 
+            // Messaging state
+            const [activeConversation, setActiveConversation] = useState(null);
+            const [conversations, setConversations] = useState([]);
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const [messagesLoading, setMessagesLoading] = useState(false);
+            const [unreadMessages, setUnreadMessages] = useState(0);
+            const msgSubscriptionRef = React.useRef(null);
+            const messagesEndRef = React.useRef(null);
+
             // Social features state
             const [socialTab, setSocialTab] = useState('friends'); // 'friends' | 'requests' | 'find'
             const [friends, setFriends] = useState([]);
@@ -3263,8 +3466,25 @@
             const [userProfile, setUserProfile] = useState({
                 name: currentUser?.name || '',
                 email: currentUser?.email || '',
-                bio: ''
+                bio: '',
+                username: ''
             });
+
+            // Load username from DB when settings opens
+            useEffect(() => {
+                if (showSettings && currentUser?.id) {
+                    supabaseClient
+                        .from('user_profiles')
+                        .select('username, bio')
+                        .eq('id', currentUser.id)
+                        .maybeSingle()
+                        .then(({ data }) => {
+                            if (data) {
+                                setUserProfile(p => ({ ...p, username: data.username || '', bio: data.bio || '' }));
+                            }
+                        });
+                }
+            }, [showSettings]);
             
             // Barcode Scanner state
             const [showScanner, setShowScanner] = useState(false);
@@ -3287,6 +3507,7 @@
             const [authEmail, setAuthEmail] = useState('');
             const [authPassword, setAuthPassword] = useState('');
             const [authName, setAuthName] = useState('');
+            const [authUsername, setAuthUsername] = useState('');
             const [authError, setAuthError] = useState('');
             const [authSuccess, setAuthSuccess] = useState('');
             const [showUserMenu, setShowUserMenu] = useState(false);
@@ -3325,12 +3546,20 @@
                 return () => subscription.unsubscribe();
             }, []);
 
+            // Scroll to bottom when messages update
+            useEffect(() => {
+                if (messagesEndRef.current) {
+                    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, [messages]);
+
             // Load social data when user logs in
             useEffect(() => {
                 if (currentUser?.id) {
                     loadFriends();
                     loadFriendRequests();
                     loadNotifications();
+                    loadConversations();
                 }
             }, [currentUser?.id]);
             
@@ -3667,6 +3896,148 @@
                 setUnreadNotifications(0);
             };
 
+            // ==========================================
+            // SOCIAL FEATURES - MESSAGING
+            // ==========================================
+
+            const getOrCreateConversation = async (otherUserId) => {
+                // Enforce participant1_id < participant2_id ordering
+                const [p1, p2] = [currentUser.id, otherUserId].sort();
+                const { data: existing } = await supabaseClient
+                    .from('conversations')
+                    .select('*')
+                    .eq('participant1_id', p1)
+                    .eq('participant2_id', p2)
+                    .maybeSingle();
+                if (existing) return existing;
+                const { data: created, error } = await supabaseClient
+                    .from('conversations')
+                    .insert({ participant1_id: p1, participant2_id: p2 })
+                    .select()
+                    .single();
+                if (error) throw error;
+                return created;
+            };
+
+            const loadConversations = async () => {
+                if (!currentUser?.id) return;
+                try {
+                    const { data } = await supabaseClient
+                        .from('conversations')
+                        .select(`
+                            *,
+                            p1:user_profiles!conversations_participant1_id_fkey(id, username, display_name),
+                            p2:user_profiles!conversations_participant2_id_fkey(id, username, display_name)
+                        `)
+                        .or(`participant1_id.eq.${currentUser.id},participant2_id.eq.${currentUser.id}`)
+                        .order('last_message_at', { ascending: false, nullsFirst: false });
+                    setConversations(data || []);
+                    // Count unread
+                    const { count } = await supabaseClient
+                        .from('messages')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('recipient_id', currentUser.id)
+                        .is('read_at', null)
+                        .eq('is_deleted', false);
+                    setUnreadMessages(count || 0);
+                } catch (err) {
+                    console.error('loadConversations error:', err);
+                }
+            };
+
+            const loadMessages = async (conversationId) => {
+                setMessagesLoading(true);
+                try {
+                    const { data } = await supabaseClient
+                        .from('messages')
+                        .select(`
+                            *,
+                            sender:user_profiles!messages_sender_id_fkey(id, username, display_name)
+                        `)
+                        .eq('conversation_id', conversationId)
+                        .eq('is_deleted', false)
+                        .order('created_at', { ascending: true });
+                    setMessages(data || []);
+                    // Mark received messages as read
+                    await supabaseClient.from('messages')
+                        .update({ read_at: new Date().toISOString() })
+                        .eq('conversation_id', conversationId)
+                        .eq('recipient_id', currentUser.id)
+                        .is('read_at', null);
+                    setUnreadMessages(prev => Math.max(0, prev - (data || []).filter(m => m.recipient_id === currentUser.id && !m.read_at).length));
+                } catch (err) {
+                    console.error('loadMessages error:', err);
+                } finally {
+                    setMessagesLoading(false);
+                }
+            };
+
+            const sendMessage = async () => {
+                if (!newMessage.trim() || !activeConversation) return;
+                const otherId = activeConversation.participant1_id === currentUser.id
+                    ? activeConversation.participant2_id
+                    : activeConversation.participant1_id;
+                try {
+                    const { error } = await supabaseClient.from('messages').insert({
+                        conversation_id: activeConversation.id,
+                        sender_id: currentUser.id,
+                        recipient_id: otherId,
+                        content: newMessage.trim()
+                    });
+                    if (error) throw error;
+                    // Update conversation timestamp
+                    await supabaseClient.from('conversations')
+                        .update({ last_message_at: new Date().toISOString() })
+                        .eq('id', activeConversation.id);
+                    setNewMessage('');
+                    loadMessages(activeConversation.id);
+                    loadConversations();
+                } catch (err) {
+                    showMessage('Could not send message: ' + err.message);
+                }
+            };
+
+            const deleteMessage = async (msgId) => {
+                await supabaseClient.from('messages').update({ is_deleted: true }).eq('id', msgId);
+                setMessages(prev => prev.filter(m => m.id !== msgId));
+            };
+
+            const openConversation = async (conv) => {
+                setActiveConversation(conv);
+                // Unsubscribe from previous subscription
+                if (msgSubscriptionRef.current) {
+                    msgSubscriptionRef.current.unsubscribe();
+                }
+                await loadMessages(conv.id);
+                // Subscribe to new messages in this conversation
+                msgSubscriptionRef.current = supabaseClient
+                    .channel(`conv-${conv.id}`)
+                    .on('postgres_changes', {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `conversation_id=eq.${conv.id}`
+                    }, (payload) => {
+                        setMessages(prev => {
+                            if (prev.some(m => m.id === payload.new.id)) return prev;
+                            return [...prev, payload.new];
+                        });
+                        if (payload.new.recipient_id === currentUser.id) {
+                            supabaseClient.from('messages')
+                                .update({ read_at: new Date().toISOString() })
+                                .eq('id', payload.new.id);
+                        }
+                    })
+                    .subscribe();
+            };
+
+            const openMessagesWith = async (friendId) => {
+                const conv = await getOrCreateConversation(friendId);
+                await loadConversations();
+                await openConversation(conv);
+                setActiveTab('messages');
+            };
+
             const ensureUserProfile = async (userId, name, email) => {
                 const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
                 await supabaseClient.from('user_profiles').upsert({
@@ -3682,8 +4053,13 @@
                 setAuthError('');
                 setAuthSuccess('');
 
-                if (!authName || !authEmail || !authPassword) {
+                if (!authName || !authEmail || !authPassword || !authUsername) {
                     setAuthError('Please fill in all fields');
+                    return;
+                }
+
+                if (authUsername.length < 3) {
+                    setAuthError('Username must be at least 3 characters');
                     return;
                 }
 
@@ -3693,6 +4069,17 @@
                 }
 
                 try {
+                    // Check username availability
+                    const { data: existingUser } = await supabaseClient
+                        .from('user_profiles')
+                        .select('id')
+                        .eq('username', authUsername)
+                        .maybeSingle();
+                    if (existingUser) {
+                        setAuthError('That username is already taken. Please choose another.');
+                        return;
+                    }
+
                     // Sign up with Supabase
                     const { data, error } = await supabaseClient.auth.signUp({
                         email: authEmail,
@@ -3719,8 +4106,13 @@
                             email: data.user.email,
                             name: userName
                         });
-                        // Create user profile and encryption keys
-                        await ensureUserProfile(data.user.id, userName, data.user.email);
+                        // Create user profile with chosen username and encryption keys
+                        await supabaseClient.from('user_profiles').upsert({
+                            id: data.user.id,
+                            username: authUsername,
+                            display_name: userName,
+                            is_public: true
+                        }, { onConflict: 'id' });
                         const kp = generateKeyPair();
                         storeSecretKey(kp.secretKey);
                         await supabaseClient.from('user_profiles').update({ encryption_public_key: kp.publicKey }).eq('id', data.user.id);
@@ -3729,6 +4121,7 @@
                         setAuthEmail('');
                         setAuthPassword('');
                         setAuthName('');
+                        setAuthUsername('');
                         showMessage('✅ Welcome to Your Library!');
                         return;
                     }
@@ -6295,16 +6688,32 @@
 
                                 <div className="auth-form">
                                     {authMode === 'signup' && (
-                                        <div className="form-group">
-                                            <label className="form-label">Full Name</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="John Doe"
-                                                value={authName}
-                                                onChange={(e) => setAuthName(e.target.value)}
-                                            />
-                                        </div>
+                                        <>
+                                            <div className="form-group">
+                                                <label className="form-label">Full Name</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-input"
+                                                    placeholder="John Doe"
+                                                    value={authName}
+                                                    onChange={(e) => setAuthName(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Username</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-input"
+                                                    placeholder="e.g. booklover42"
+                                                    value={authUsername}
+                                                    onChange={(e) => setAuthUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                                    maxLength={30}
+                                                />
+                                                <div style={{fontSize: '0.78rem', color: '#8b6f47', marginTop: '0.3rem'}}>
+                                                    Letters, numbers and underscores only. This is how others find you.
+                                                </div>
+                                            </div>
+                                        </>
                                     )}
 
                                     <div className="form-group">
@@ -6537,6 +6946,18 @@
                                         </div>
                                         <div className="dropdown-item" onClick={() => { setShowSettings(true); setSettingsTab('preferences'); setShowUserMenu(false); }}>
                                             🎨 Preferences
+                                        </div>
+                                        <div className="dropdown-item" onClick={() => { setActiveTab('messages'); setShowUserMenu(false); }} style={{ borderTop: '2px solid #f0f0f0', marginTop: '0.5rem', paddingTop: '1rem', position: 'relative' }}>
+                                            💬 Messages
+                                            {unreadMessages > 0 && (
+                                                <span className="tab-badge" style={{marginLeft: '0.5rem'}}>{unreadMessages}</span>
+                                            )}
+                                        </div>
+                                        <div className="dropdown-item" onClick={() => { setActiveTab('friends'); setSocialTab('friends'); setShowUserMenu(false); }} style={{position: 'relative'}}>
+                                            👥 Friends
+                                            {friendRequests.length > 0 && (
+                                                <span className="tab-badge" style={{marginLeft: '0.5rem'}}>{friendRequests.length}</span>
+                                            )}
                                         </div>
                                         <div className="dropdown-item" onClick={handleLogout} style={{ borderTop: '2px solid #f0f0f0', marginTop: '0.5rem', paddingTop: '1rem' }}>
                                             🚪 Logout
@@ -7187,16 +7608,6 @@
                             >
                                 🏠 My Room
                             </div>
-                            <div
-                                className={`tab ${activeTab === 'friends' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('friends')}
-                                style={{position: 'relative'}}
-                            >
-                                👥 Friends
-                                {friendRequests.length > 0 && (
-                                    <span className="tab-badge">{friendRequests.length}</span>
-                                )}
-                            </div>
                         </div>
 
                         {/* Your Books Section - Netflix Style */}
@@ -7690,6 +8101,12 @@
                                                     </div>
                                                     <div className="friend-actions">
                                                         <button
+                                                            className="friend-btn accept"
+                                                            onClick={() => openMessagesWith(friend.id)}
+                                                        >
+                                                            💬 Message
+                                                        </button>
+                                                        <button
                                                             className="friend-btn danger"
                                                             onClick={() => {
                                                                 if (window.confirm(`Remove ${friend.display_name || friend.username} as a friend?`)) {
@@ -7826,6 +8243,131 @@
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Messages Section */}
+                        {activeTab === 'messages' && (
+                            <div className="messages-page">
+                                {/* Conversation List */}
+                                <div className="conversations-panel">
+                                    <div className="conversations-header">
+                                        <span>Messages</span>
+                                        {unreadMessages > 0 && (
+                                            <span className="tab-badge">{unreadMessages}</span>
+                                        )}
+                                    </div>
+
+                                    {conversations.length === 0 ? (
+                                        <div className="convs-empty">
+                                            <div style={{fontSize: '2.5rem', marginBottom: '0.75rem'}}>💬</div>
+                                            <div>No conversations yet.</div>
+                                            <div style={{fontSize: '0.85rem', marginTop: '0.4rem', color: '#c9a87c'}}>Go to Friends → Message a friend to start chatting.</div>
+                                        </div>
+                                    ) : (
+                                        conversations.map(conv => {
+                                            const other = conv.participant1_id === currentUser.id ? conv.p2 : conv.p1;
+                                            const isActive = activeConversation?.id === conv.id;
+                                            return (
+                                                <div
+                                                    key={conv.id}
+                                                    className={`conv-item${isActive ? ' active' : ''}`}
+                                                    onClick={() => openConversation(conv)}
+                                                >
+                                                    <div className="conv-avatar">
+                                                        {(other?.display_name || other?.username || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="conv-info">
+                                                        <div className="conv-name">{other?.display_name || other?.username}</div>
+                                                        <div className="conv-sub">@{other?.username}</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {/* Chat Area */}
+                                <div className="chat-panel">
+                                    {!activeConversation ? (
+                                        <div className="chat-empty">
+                                            <div style={{fontSize: '3rem', marginBottom: '1rem'}}>💬</div>
+                                            <div style={{fontSize: '1.1rem', fontWeight: '600', color: '#3d2817'}}>Select a conversation</div>
+                                            <div style={{color: '#8b6f47', marginTop: '0.4rem', fontSize: '0.9rem'}}>Or message a friend from the Friends page</div>
+                                        </div>
+                                    ) : (() => {
+                                        const other = activeConversation.participant1_id === currentUser.id
+                                            ? activeConversation.p2
+                                            : activeConversation.p1;
+                                        return (
+                                            <>
+                                                {/* Chat header */}
+                                                <div className="chat-header">
+                                                    <div className="conv-avatar" style={{width: 36, height: 36, fontSize: '1rem'}}>
+                                                        {(other?.display_name || other?.username || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{fontWeight: '600', color: '#3d2817'}}>{other?.display_name || other?.username}</div>
+                                                        <div style={{fontSize: '0.8rem', color: '#8b6f47'}}>@{other?.username}</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Messages */}
+                                                <div className="chat-messages">
+                                                    {messagesLoading ? (
+                                                        <div style={{textAlign: 'center', padding: '2rem', color: '#8b6f47'}}>Loading...</div>
+                                                    ) : messages.length === 0 ? (
+                                                        <div style={{textAlign: 'center', padding: '3rem', color: '#8b6f47'}}>
+                                                            No messages yet. Say hello! 👋
+                                                        </div>
+                                                    ) : (
+                                                        messages.map(msg => {
+                                                            const isMine = msg.sender_id === currentUser.id;
+                                                            return (
+                                                                <div key={msg.id} className={`msg-bubble-wrap${isMine ? ' mine' : ''}`}>
+                                                                    <div className={`msg-bubble${isMine ? ' mine' : ''}`}>
+                                                                        {msg.content}
+                                                                        {isMine && (
+                                                                            <button
+                                                                                className="msg-delete"
+                                                                                onClick={() => deleteMessage(msg.id)}
+                                                                                title="Delete"
+                                                                            >×</button>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className={`msg-time${isMine ? ' mine' : ''}`}>
+                                                                        {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                                                                        {isMine && msg.read_at && ' ✓✓'}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                    <div ref={messagesEndRef} />
+                                                </div>
+
+                                                {/* Input */}
+                                                <div className="chat-input-area">
+                                                    <input
+                                                        className="chat-input"
+                                                        type="text"
+                                                        placeholder="Type a message..."
+                                                        value={newMessage}
+                                                        onChange={(e) => setNewMessage(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                                                    />
+                                                    <button
+                                                        className="chat-send-btn"
+                                                        onClick={sendMessage}
+                                                        disabled={!newMessage.trim()}
+                                                    >
+                                                        Send
+                                                    </button>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -8429,17 +8971,28 @@
                                                 <h3 className="settings-card-title">Profile Information</h3>
                                                 <div className="settings-form-group">
                                                     <label>Name</label>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={userProfile.name}
                                                         onChange={(e) => setUserProfile({...userProfile, name: e.target.value})}
                                                         placeholder="Your name"
                                                     />
                                                 </div>
                                                 <div className="settings-form-group">
+                                                    <label>Username</label>
+                                                    <input
+                                                        type="text"
+                                                        value={userProfile.username}
+                                                        onChange={(e) => setUserProfile({...userProfile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')})}
+                                                        placeholder="e.g. booklover42"
+                                                        maxLength={30}
+                                                    />
+                                                    <div style={{fontSize: '0.78rem', color: '#8b6f47', marginTop: '0.3rem'}}>This is how other users find you to send friend requests.</div>
+                                                </div>
+                                                <div className="settings-form-group">
                                                     <label>Email</label>
-                                                    <input 
-                                                        type="email" 
+                                                    <input
+                                                        type="email"
                                                         value={userProfile.email}
                                                         disabled
                                                         style={{background: '#f5f5f5', cursor: 'not-allowed'}}
@@ -8447,13 +9000,35 @@
                                                 </div>
                                                 <div className="settings-form-group">
                                                     <label>Bio</label>
-                                                    <textarea 
+                                                    <textarea
                                                         value={userProfile.bio}
                                                         onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
                                                         placeholder="Tell us about yourself..."
                                                     />
                                                 </div>
-                                                <button className="settings-btn">Save Changes</button>
+                                                <button className="settings-btn" onClick={async () => {
+                                                    if (!userProfile.username || userProfile.username.length < 3) {
+                                                        showMessage('Username must be at least 3 characters');
+                                                        return;
+                                                    }
+                                                    // Check uniqueness (allow keeping same username)
+                                                    const { data: existing } = await supabaseClient
+                                                        .from('user_profiles')
+                                                        .select('id')
+                                                        .eq('username', userProfile.username)
+                                                        .neq('id', currentUser.id)
+                                                        .maybeSingle();
+                                                    if (existing) {
+                                                        showMessage('That username is already taken.');
+                                                        return;
+                                                    }
+                                                    await supabaseClient.from('user_profiles').update({
+                                                        username: userProfile.username,
+                                                        display_name: userProfile.name,
+                                                        bio: userProfile.bio
+                                                    }).eq('id', currentUser.id);
+                                                    showMessage('✅ Profile saved!');
+                                                }}>Save Changes</button>
                                             </div>
                                         </>
                                     )}

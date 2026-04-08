@@ -3436,6 +3436,8 @@
             const [messagesLoading, setMessagesLoading] = useState(false);
             const [unreadMessages, setUnreadMessages] = useState(0);
             const msgSubscriptionRef = React.useRef(null);
+            const globalMsgSubRef = React.useRef(null);
+            const activeConversationRef = React.useRef(null);
             const messagesEndRef = React.useRef(null);
 
             // Social features state
@@ -3554,14 +3556,49 @@
                 }
             }, [messages]);
 
-            // Load social data when user logs in
+            // Keep activeConversationRef in sync so global subscription can access it
             useEffect(() => {
-                if (currentUser?.id) {
-                    loadFriends();
-                    loadFriendRequests();
-                    loadNotifications();
-                    loadConversations();
-                }
+                activeConversationRef.current = activeConversation;
+            }, [activeConversation]);
+
+            // Load social data + start global message subscription when user logs in
+            useEffect(() => {
+                if (!currentUser?.id) return;
+                loadFriends();
+                loadFriendRequests();
+                loadNotifications();
+                loadConversations();
+
+                // Global subscription: fires for any new message sent to this user
+                if (globalMsgSubRef.current) globalMsgSubRef.current.unsubscribe();
+                globalMsgSubRef.current = supabaseClient
+                    .channel(`inbox-${currentUser.id}`)
+                    .on('postgres_changes', {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `recipient_id=eq.${currentUser.id}`
+                    }, (payload) => {
+                        const msg = payload.new;
+                        const activeCon = activeConversationRef.current;
+                        if (activeCon && activeCon.id === msg.conversation_id) {
+                            // Already viewing this conversation — message subscription handles it,
+                            // but add as fallback if per-conv sub missed it
+                            setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+                            // Mark as read immediately
+                            supabaseClient.from('messages').update({ read_at: new Date().toISOString() }).eq('id', msg.id);
+                        } else {
+                            // Not viewing this conversation — show toast + bump badge
+                            setUnreadMessages(prev => prev + 1);
+                            showMessage('New message received');
+                        }
+                        loadConversations();
+                    })
+                    .subscribe();
+
+                return () => {
+                    if (globalMsgSubRef.current) globalMsgSubRef.current.unsubscribe();
+                };
             }, [currentUser?.id]);
 
             // Tick down request cooldowns every second

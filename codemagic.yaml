@@ -29,11 +29,6 @@ workflows:
       - name: Capacitor sync
         script: npx cap sync ios
 
-      - name: Set build number
-        script: |
-          cd ios/App
-          agvtool new-version -all $BUILD_NUMBER
-
       - name: Set up code signing
         script: |
           keychain initialize
@@ -45,9 +40,13 @@ workflows:
 
       - name: Build IPA
         script: |
+          LATEST=$(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID" --platform=IOS 2>/dev/null || echo 7)
+          NEXT_BUILD=$((LATEST + 1))
+          echo "Setting build number to $NEXT_BUILD (previous was $LATEST)"
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME"
+            --scheme "$XCODE_SCHEME" \
+            --xcargs "CURRENT_PROJECT_VERSION=$NEXT_BUILD"
 
     artifacts:
       - build/ios/ipa/*.ipa

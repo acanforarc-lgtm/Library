@@ -55,6 +55,11 @@
             display: contents; /* invisible wrapper on desktop — no effect on layout */
         }
 
+        .header-avatar-slot,
+        .header-bell-slot {
+            display: none; /* hidden on desktop — desktop uses its own bell/avatar positions */
+        }
+
         /* Stacked Title - Left */
         .site-title {
             display: flex;
@@ -2761,8 +2766,30 @@
                 gap: 0.5rem;
             }
 
+            .header-avatar-slot,
+            .header-bell-slot {
+                display: flex;
+                align-items: center;
+                flex-shrink: 0;
+            }
+
+            /* Hide the original bell and avatar on mobile — replaced by slots in top row */
+            .header-bell-desktop,
+            .user-menu:not(.header-avatar-mobile) {
+                display: none;
+            }
+
+            /* Notification dropdown: stretch full width on mobile */
+            .notif-dropdown {
+                top: 60px;
+                right: 8px;
+                left: 8px;
+                width: auto;
+            }
+
             .site-title {
-                align-items: flex-start;
+                align-items: center;
+                flex: 1;
                 min-width: unset;
             }
 
@@ -3063,9 +3090,9 @@
         }
 
         .notif-dropdown {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
+            position: fixed;
+            top: 70px;
+            right: 1.5rem;
             width: 320px;
             background: white;
             border: 2px solid #e0d5c5;
@@ -6872,6 +6899,35 @@
                     {/* Header Section with Title and Search */}
                     <div className="header-section">
                         <div className="header-top-row">
+                        <div className="header-avatar-slot">
+                            {currentUser && (
+                                <div className="user-menu header-avatar-mobile">
+                                    <div className="user-button" onClick={() => setShowUserMenu(!showUserMenu)} title={currentUser.name}>
+                                        <div className="user-avatar">
+                                            {currentUser.name.split(' ').map(w => w.charAt(0)).slice(0,2).join('').toUpperCase()}
+                                        </div>
+                                    </div>
+                                    {showUserMenu && (
+                                        <div className="user-dropdown">
+                                            <div className="dropdown-email">{currentUser.email}</div>
+                                            <div className="dropdown-item" onClick={() => { setShowSettings(true); setSettingsTab('account'); setShowUserMenu(false); }}>⚙️ Account</div>
+                                            <div className="dropdown-item" onClick={() => { setShowSettings(true); setSettingsTab('security'); setShowUserMenu(false); }}>🔒 Security</div>
+                                            <div className="dropdown-item" onClick={() => { setShowSettings(true); setSettingsTab('stats'); setShowUserMenu(false); }}>📊 Library Stats</div>
+                                            <div className="dropdown-item" onClick={() => { setShowSettings(true); setSettingsTab('preferences'); setShowUserMenu(false); }}>🎨 Preferences</div>
+                                            <div className="dropdown-item" onClick={() => { setActiveTab('messages'); setShowUserMenu(false); }} style={{borderTop:'2px solid #f0f0f0',marginTop:'0.5rem',paddingTop:'1rem',position:'relative'}}>
+                                                💬 Messages
+                                                {unreadMessages > 0 && <span className="tab-badge" style={{marginLeft:'0.5rem'}}>{unreadMessages}</span>}
+                                            </div>
+                                            <div className="dropdown-item" onClick={() => { setActiveTab('friends'); setSocialTab('friends'); setShowUserMenu(false); }} style={{position:'relative'}}>
+                                                👥 Friends
+                                                {friendRequests.length > 0 && <span className="tab-badge" style={{marginLeft:'0.5rem'}}>{friendRequests.length}</span>}
+                                            </div>
+                                            <div className="dropdown-item" onClick={handleLogout} style={{borderTop:'2px solid #f0f0f0',marginTop:'0.5rem',paddingTop:'1rem'}}>🚪 Logout</div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                         <div
                             className="site-title"
                             onClick={() => {
@@ -6885,6 +6941,16 @@
                             <div className="title-library">Library</div>
                         </div>
 
+                        <div className="header-bell-slot">
+                            {currentUser && (
+                                <div style={{position:'relative'}}>
+                                    <button className="notif-bell header-bell-mobile" onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }} title="Notifications">
+                                        🔔
+                                        {unreadNotifications > 0 && <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         </div>{/* end header-top-row */}
                         <div className="header-search">
                             <input
@@ -6992,9 +7058,9 @@
                             )}
                         </div>
 
-                        {/* Notification Bell */}
+                        {/* Notification Bell — desktop only, mobile version is in header-top-row */}
                         {currentUser && (
-                            <div style={{position: 'relative'}}>
+                            <div className="header-bell-desktop" style={{position:'relative'}}>
                                 <button
                                     className="notif-bell"
                                     onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }}
@@ -7005,55 +7071,56 @@
                                         <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>
                                     )}
                                 </button>
-                                {showNotifications && (
-                                    <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
-                                        <div className="notif-header">
-                                            <span>Notifications</span>
-                                            <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                                                {unreadNotifications > 0 && (
-                                                    <button className="notif-mark-all" onClick={markAllNotificationsRead}>Mark all read</button>
-                                                )}
-                                                {notifications.length > 0 && (
-                                                    <button className="notif-mark-all" style={{color:'#c0392b'}} onClick={clearAllNotifications}>Clear all</button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {notifications.length === 0 ? (
-                                            <div className="notif-empty">No notifications yet</div>
-                                        ) : (
-                                            notifications.map(n => (
-                                                <div
-                                                    key={n.id}
-                                                    className={`notif-item${n.is_read ? '' : ' unread'}`}
-                                                    style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}
-                                                >
-                                                    <div
-                                                        style={{flex:1,cursor:'pointer'}}
-                                                        onClick={() => {
-                                                            markNotificationRead(n.id);
-                                                            if (n.type === 'friend_request' || n.type === 'friend_accepted') {
-                                                                setActiveTab('friends');
-                                                                setSocialTab(n.type === 'friend_request' ? 'requests' : 'friends');
-                                                            } else if (n.type === 'message' && n.action_url) {
-                                                                setActiveTab('messages');
-                                                                const conv = conversations.find(c => c.id === n.action_url);
-                                                                if (conv) openConversation(conv);
-                                                            }
-                                                            setShowNotifications(false);
-                                                        }}
-                                                    >
-                                                        <div className="notif-title">{n.type === 'message' ? '💬 ' : ''}{n.title}</div>
-                                                        <div className="notif-content">{n.content}</div>
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
-                                                        style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:'1rem',lineHeight:1,padding:'0 2px',flexShrink:0}}
-                                                        title="Dismiss"
-                                                    >×</button>
-                                                </div>
-                                            ))
+                            </div>
+                        )}
+                        {/* Notification Dropdown — rendered outside bell so it works on both mobile and desktop */}
+                        {currentUser && showNotifications && (
+                            <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
+                                <div className="notif-header">
+                                    <span>Notifications</span>
+                                    <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+                                        {unreadNotifications > 0 && (
+                                            <button className="notif-mark-all" onClick={markAllNotificationsRead}>Mark all read</button>
+                                        )}
+                                        {notifications.length > 0 && (
+                                            <button className="notif-mark-all" style={{color:'#c0392b'}} onClick={clearAllNotifications}>Clear all</button>
                                         )}
                                     </div>
+                                </div>
+                                {notifications.length === 0 ? (
+                                    <div className="notif-empty">No notifications yet</div>
+                                ) : (
+                                    notifications.map(n => (
+                                        <div
+                                            key={n.id}
+                                            className={`notif-item${n.is_read ? '' : ' unread'}`}
+                                            style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}
+                                        >
+                                            <div
+                                                style={{flex:1,cursor:'pointer'}}
+                                                onClick={() => {
+                                                    markNotificationRead(n.id);
+                                                    if (n.type === 'friend_request' || n.type === 'friend_accepted') {
+                                                        setActiveTab('friends');
+                                                        setSocialTab(n.type === 'friend_request' ? 'requests' : 'friends');
+                                                    } else if (n.type === 'message' && n.action_url) {
+                                                        setActiveTab('messages');
+                                                        const conv = conversations.find(c => c.id === n.action_url);
+                                                        if (conv) openConversation(conv);
+                                                    }
+                                                    setShowNotifications(false);
+                                                }}
+                                            >
+                                                <div className="notif-title">{n.type === 'message' ? '💬 ' : ''}{n.title}</div>
+                                                <div className="notif-content">{n.content}</div>
+                                            </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                                                style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:'1rem',lineHeight:1,padding:'0 2px',flexShrink:0}}
+                                                title="Dismiss"
+                                            >×</button>
+                                        </div>
+                                    ))
                                 )}
                             </div>
                         )}

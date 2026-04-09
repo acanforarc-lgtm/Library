@@ -2783,17 +2783,19 @@
             .notif-dropdown {
                 top: 60px;
                 right: 8px;
-                left: 8px;
-                width: auto;
+                left: auto;
+                width: 260px;
+                max-width: calc(100vw - 16px);
             }
 
-            /* Account dropdown: fix to top-left on mobile (avatar is top-left) */
+            /* Account dropdown: anchor to top-left on mobile (avatar is top-left) */
             .header-avatar-mobile .user-dropdown {
                 position: fixed;
                 top: 60px;
                 left: 8px;
-                right: 8px;
-                width: auto;
+                right: auto;
+                width: 230px;
+                max-width: calc(100vw - 16px);
                 min-width: unset;
             }
 
@@ -3103,7 +3105,7 @@
             position: fixed;
             top: 70px;
             right: 1.5rem;
-            width: 320px;
+            width: 280px;
             background: white;
             border: 2px solid #e0d5c5;
             border-radius: 14px;

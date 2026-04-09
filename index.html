@@ -2175,6 +2175,10 @@
             height: calc(100vh - 60px);
         }
 
+        .settings-tab-bar {
+            display: none; /* desktop: hidden, use sidebar */
+        }
+
         .settings-sidebar {
             width: 280px;
             background: #f5f5f5;
@@ -2830,6 +2834,56 @@
 
             .auth-container {
                 padding: 2rem 1.5rem;
+            }
+
+            /* Settings mobile layout */
+            .settings-sidebar {
+                display: none;
+            }
+
+            .settings-tab-bar {
+                display: flex;
+                gap: 0.4rem;
+                padding: 0.6rem 0.75rem;
+                background: #f5f5f5;
+                border-bottom: 1px solid #e0e0e0;
+                overflow-x: auto;
+                flex-shrink: 0;
+            }
+
+            .settings-tab-pill {
+                flex-shrink: 0;
+                padding: 0.45rem 1rem;
+                border-radius: 20px;
+                border: 1.5px solid #c9a87c;
+                background: white;
+                color: #3d2817;
+                font-size: 0.85rem;
+                font-family: 'Work Sans', sans-serif;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .settings-tab-pill.active {
+                background: #3d2817;
+                color: white;
+                border-color: #3d2817;
+                font-weight: 600;
+            }
+
+            .settings-container {
+                flex-direction: column;
+                height: calc(100vh - 110px);
+            }
+
+            .settings-content {
+                padding: 1.25rem;
+                flex: 1;
+                overflow-y: auto;
+            }
+
+            .settings-header {
+                padding: 0.85rem 1rem;
             }
 
             .book-detail-header {
@@ -9226,7 +9280,16 @@
                         <div className="settings-overlay">
                             <div className="settings-header">
                                 <button className="settings-back" onClick={() => setShowSettings(false)}>←</button>
-                                <div className="settings-title">Settings</div>
+                                <div style={{flex: 1}}>
+                                    <div className="settings-title">Settings</div>
+                                    {currentUser && <div style={{fontSize: '0.85rem', color: '#8b6f47'}}>{currentUser.name}</div>}
+                                </div>
+                            </div>
+                            {/* Mobile tab bar */}
+                            <div className="settings-tab-bar">
+                                {[['account','Account'],['security','Security'],['stats','Stats'],['preferences','Prefs']].map(([id, label]) => (
+                                    <button key={id} className={`settings-tab-pill${settingsTab === id ? ' active' : ''}`} onClick={() => setSettingsTab(id)}>{label}</button>
+                                ))}
                             </div>
                             <div className="settings-container">
                                 <div className="settings-sidebar">

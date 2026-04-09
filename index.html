@@ -3251,6 +3251,36 @@
             flex-shrink: 0;
         }
 
+        .chat-back-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: #8b6f47;
+            padding: 0 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .chat-info-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #8b6f47;
+            margin-left: auto;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #c9a87c;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -3341,9 +3371,45 @@
         .chat-send-btn:disabled { opacity: 0.4; cursor: default; }
 
         @media (max-width: 600px) {
-            .messages-page { flex-direction: column; height: auto; }
-            .conversations-panel { width: 100%; max-height: 200px; border-right: none; border-bottom: 2px solid #f0ebe0; }
-            .chat-messages { min-height: 300px; }
+            .messages-page {
+                flex-direction: column;
+                height: calc(100vh - 160px);
+                min-height: unset;
+                position: relative;
+                overflow: hidden;
+            }
+            .conversations-panel {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                max-height: unset;
+                border-right: none;
+                transition: transform 0.3s ease;
+                z-index: 1;
+                background: white;
+            }
+            .conversations-panel.conv-hidden {
+                transform: translateX(-100%);
+                pointer-events: none;
+            }
+            .chat-panel {
+                position: absolute;
+                inset: 0;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                z-index: 2;
+                background: white;
+            }
+            .chat-panel.chat-visible {
+                transform: translateX(0);
+            }
+            .chat-back-btn {
+                display: flex;
+            }
+            .chat-info-btn {
+                display: flex;
+            }
+            .chat-messages { min-height: unset; }
             .msg-bubble-wrap { max-width: 90%; }
         }
     </style>
@@ -8459,7 +8525,7 @@
                         {activeTab === 'messages' && (
                             <div className="messages-page">
                                 {/* Conversation List */}
-                                <div className="conversations-panel">
+                                <div className={`conversations-panel${activeConversation ? ' conv-hidden' : ''}`}>
                                     <div className="conversations-header">
                                         <span>Messages</span>
                                         {unreadMessages > 0 && (
@@ -8497,7 +8563,7 @@
                                 </div>
 
                                 {/* Chat Area */}
-                                <div className="chat-panel">
+                                <div className={`chat-panel${activeConversation ? ' chat-visible' : ''}`}>
                                     {!activeConversation ? (
                                         <div className="chat-empty">
                                             <div style={{fontSize: '3rem', marginBottom: '1rem'}}>💬</div>
@@ -8512,13 +8578,18 @@
                                             <>
                                                 {/* Chat header */}
                                                 <div className="chat-header">
+                                                    <button className="chat-back-btn" onClick={() => setActiveConversation(null)}>‹</button>
                                                     <div className="conv-avatar" style={{width: 36, height: 36, fontSize: '1rem'}}>
                                                         {(other?.display_name || other?.username || '?').charAt(0).toUpperCase()}
                                                     </div>
-                                                    <div>
+                                                    <div style={{flex: 1}}>
                                                         <div style={{fontWeight: '600', color: '#3d2817'}}>{other?.display_name || other?.username}</div>
                                                         <div style={{fontSize: '0.8rem', color: '#8b6f47'}}>@{other?.username}</div>
                                                     </div>
+                                                    <button className="chat-info-btn" onClick={() => {
+                                                        const friend = friends.find(f => f.id === other?.id);
+                                                        if (friend) setSelectedFriend(friend);
+                                                    }} title="Info">ⓘ</button>
                                                 </div>
 
                                                 {/* Messages */}

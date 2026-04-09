@@ -3176,6 +3176,11 @@
             overflow-y: auto;
         }
 
+        @media (min-width: 601px) {
+            .conversations-panel.conv-hidden { transform: none; pointer-events: auto; }
+            .chat-panel { transform: none !important; position: relative; }
+        }
+
         .conversations-header {
             padding: 1rem 1.25rem;
             font-weight: 700;
@@ -3384,9 +3389,10 @@
                 width: 100%;
                 max-height: unset;
                 border-right: none;
-                transition: transform 0.3s ease;
+                transition: transform 0.28s ease;
                 z-index: 1;
                 background: white;
+                transform: translateX(0);
             }
             .conversations-panel.conv-hidden {
                 transform: translateX(-100%);
@@ -3396,9 +3402,12 @@
                 position: absolute;
                 inset: 0;
                 transform: translateX(100%);
-                transition: transform 0.3s ease;
+                transition: transform 0.28s ease;
                 z-index: 2;
                 background: white;
+                /* Override desktop flex */
+                display: flex;
+                flex-direction: column;
             }
             .chat-panel.chat-visible {
                 transform: translateX(0);
@@ -8587,8 +8596,13 @@
                                                         <div style={{fontSize: '0.8rem', color: '#8b6f47'}}>@{other?.username}</div>
                                                     </div>
                                                     <button className="chat-info-btn" onClick={() => {
-                                                        const friend = friends.find(f => f.id === other?.id);
-                                                        if (friend) setSelectedFriend(friend);
+                                                        const otherId = activeConversation.participant1_id === currentUser.id
+                                                            ? activeConversation.participant2_id
+                                                            : activeConversation.participant1_id;
+                                                        const profile = other
+                                                            ? { ...other, id: other.id || otherId }
+                                                            : friends.find(f => f.id === otherId) || { id: otherId, username: 'Unknown' };
+                                                        setSelectedFriend(profile);
                                                     }} title="Info">ⓘ</button>
                                                 </div>
 

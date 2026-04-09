@@ -8216,47 +8216,19 @@
                                             </div>
                                         ) : (
                                             friends.map(friend => (
-                                                <div key={friend.id}>
-                                                    <div
-                                                        className="friend-card"
-                                                        style={{cursor: 'pointer'}}
-                                                        onClick={() => setSelectedFriend(selectedFriend?.id === friend.id ? null : friend)}
-                                                    >
-                                                        <div className="friend-avatar">
-                                                            {(friend.display_name || friend.username || '?').charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div className="friend-info">
-                                                            <div className="friend-name">{friend.display_name || friend.username}</div>
-                                                            <div className="friend-username">@{friend.username}</div>
-                                                        </div>
-                                                        <div style={{color: '#8b6f47', fontSize: '1.1rem', paddingRight: '0.5rem'}}>
-                                                            {selectedFriend?.id === friend.id ? '▲' : '▼'}
-                                                        </div>
+                                                <div
+                                                    key={friend.id}
+                                                    className="friend-card"
+                                                    style={{cursor: 'pointer'}}
+                                                    onClick={() => setSelectedFriend(friend)}
+                                                >
+                                                    <div className="friend-avatar">
+                                                        {(friend.display_name || friend.username || '?').charAt(0).toUpperCase()}
                                                     </div>
-                                                    {selectedFriend?.id === friend.id && (
-                                                        <div style={{display: 'flex', gap: '0.5rem', padding: '0.5rem 1rem 1rem', flexWrap: 'wrap'}}>
-                                                            <button className="friend-btn accept" onClick={() => { openMessagesWith(friend.id); setSelectedFriend(null); }}>
-                                                                💬 Message
-                                                            </button>
-                                                            <button className="friend-btn" style={{background: '#e8f0e8', color: '#2d4a3e'}} onClick={() => { showMessage('View Library coming soon'); setSelectedFriend(null); }}>
-                                                                📚 View Library
-                                                            </button>
-                                                            <button className="friend-btn danger" onClick={() => {
-                                                                setSelectedFriend(null);
-                                                                setConfirmAction({ title: 'Remove Friend', message: `Remove ${friend.display_name || friend.username} as a friend?`, onConfirm: () => removeFriend(friend.id) });
-                                                                setShowConfirm(true);
-                                                            }}>
-                                                                Remove
-                                                            </button>
-                                                            <button className="friend-btn" style={{background: '#e0d5c5', color: '#3d2817'}} onClick={() => {
-                                                                setSelectedFriend(null);
-                                                                setConfirmAction({ title: 'Block User', message: `Block ${friend.display_name || friend.username}? They won't be able to find or message you.`, onConfirm: () => blockUser(friend.id) });
-                                                                setShowConfirm(true);
-                                                            }}>
-                                                                Block
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    <div className="friend-info">
+                                                        <div className="friend-name">{friend.display_name || friend.username}</div>
+                                                        <div className="friend-username">@{friend.username}</div>
+                                                    </div>
                                                 </div>
                                             ))
                                         )}
@@ -9484,6 +9456,44 @@
                         </div>
                     )}
                     
+                    {/* Friend Profile Modal */}
+                    {selectedFriend && (
+                        <div className="book-detail-overlay" onClick={() => setSelectedFriend(null)}>
+                            <div className="book-info-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '360px', textAlign: 'center'}}>
+                                <button className="book-detail-close" onClick={() => setSelectedFriend(null)}>×</button>
+                                <div style={{width: '72px', height: '72px', borderRadius: '50%', background: '#3d2817', color: '#f5f0e8', fontSize: '2rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '1.5rem auto 1rem'}}>
+                                    {(selectedFriend.display_name || selectedFriend.username || '?').charAt(0).toUpperCase()}
+                                </div>
+                                <div style={{fontSize: '1.3rem', fontWeight: '700', color: '#3d2817'}}>{selectedFriend.display_name || selectedFriend.username}</div>
+                                <div style={{color: '#8b6f47', marginBottom: '1.5rem'}}>@{selectedFriend.username}</div>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '0.6rem', padding: '0 1rem 1.5rem'}}>
+                                    <button className="friend-btn accept" style={{width: '100%', justifyContent: 'center'}} onClick={() => { setSelectedFriend(null); openMessagesWith(selectedFriend.id); }}>
+                                        💬 Message
+                                    </button>
+                                    <button className="friend-btn" style={{width: '100%', justifyContent: 'center', background: '#e8f0e8', color: '#2d4a3e'}} onClick={() => { showMessage('View Library coming soon'); setSelectedFriend(null); }}>
+                                        📚 View Library
+                                    </button>
+                                    <button className="friend-btn danger" style={{width: '100%', justifyContent: 'center'}} onClick={() => {
+                                        const f = selectedFriend;
+                                        setSelectedFriend(null);
+                                        setConfirmAction({ title: 'Remove Friend', message: `Remove ${f.display_name || f.username} as a friend?`, onConfirm: () => removeFriend(f.id) });
+                                        setShowConfirm(true);
+                                    }}>
+                                        Remove Friend
+                                    </button>
+                                    <button className="friend-btn" style={{width: '100%', justifyContent: 'center', background: '#e0d5c5', color: '#3d2817'}} onClick={() => {
+                                        const f = selectedFriend;
+                                        setSelectedFriend(null);
+                                        setConfirmAction({ title: 'Block User', message: `Block ${f.display_name || f.username}? They won't be able to find or message you.`, onConfirm: () => blockUser(f.id) });
+                                        setShowConfirm(true);
+                                    }}>
+                                        Block
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* FIX #4: Custom Confirm Modal */}
                     {showConfirm && confirmAction && (
                         <div className="book-detail-overlay" onClick={() => setShowConfirm(false)}>

@@ -2779,12 +2779,22 @@
                 display: none;
             }
 
-            /* Notification dropdown: stretch full width on mobile */
+            /* Notification dropdown: anchor to top-right on mobile */
             .notif-dropdown {
                 top: 60px;
                 right: 8px;
                 left: 8px;
                 width: auto;
+            }
+
+            /* Account dropdown: fix to top-left on mobile (avatar is top-left) */
+            .header-avatar-mobile .user-dropdown {
+                position: fixed;
+                top: 60px;
+                left: 8px;
+                right: 8px;
+                width: auto;
+                min-width: unset;
             }
 
             .site-title {

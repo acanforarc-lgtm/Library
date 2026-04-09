@@ -51,6 +51,10 @@
             gap: 3rem;
         }
 
+        .header-top-row {
+            display: contents; /* invisible wrapper on desktop — no effect on layout */
+        }
+
         /* Stacked Title - Left */
         .site-title {
             display: flex;
@@ -2745,21 +2749,29 @@
             .header-section {
                 flex-direction: column;
                 height: auto;
-                padding: 1rem;
-                gap: 1rem;
+                padding: 0.75rem 1rem;
+                gap: 0.6rem;
                 align-items: stretch;
             }
 
-            .site-title {
+            .header-top-row {
+                display: flex;
                 align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+
+            .site-title {
+                align-items: flex-start;
+                min-width: unset;
             }
 
             .title-library {
-                font-size: 1.8rem;
+                font-size: 1.6rem;
             }
 
             .title-your {
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
 
             .header-search {
@@ -6859,8 +6871,9 @@
 
                     {/* Header Section with Title and Search */}
                     <div className="header-section">
-                        <div 
-                            className="site-title" 
+                        <div className="header-top-row">
+                        <div
+                            className="site-title"
                             onClick={() => {
                                 setActiveTab('books');
                                 setShowSettings(false);
@@ -6872,6 +6885,7 @@
                             <div className="title-library">Library</div>
                         </div>
 
+                        </div>{/* end header-top-row */}
                         <div className="header-search">
                             <input
                                 type="text"

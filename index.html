@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.1.1
+    YOUR LIBRARY - VERSION 2.2.1
     ========================================
+    v2.2.1: Group chat — private groups, public groups, tiered chats, roles, moderation
     v2.1.1: Bug fixes — messaging, notifications, mobile UI polish
     v2.1.0: Mobile UI redesign — iMessage layout, responsive header
     v2.0.0: Social features — friends, messaging, notifications
@@ -3477,6 +3478,268 @@
             .chat-messages { min-height: unset; }
             .msg-bubble-wrap { max-width: 90%; }
         }
+
+        /* ══════════════════════════════════════════════════════
+           GROUPS v2.2.1
+           ══════════════════════════════════════════════════════ */
+        .groups-container { display: flex; flex-direction: column; gap: 1.5rem; padding: 1rem 0; }
+        .groups-section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        .groups-section-title { font-size: 1.1rem; font-weight: 700; color: #3d2817; }
+        .groups-create-btn {
+            background: #8b6f47; color: #fff; border: none; border-radius: 8px;
+            padding: 0.55rem 1.1rem; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: opacity 0.15s;
+        }
+        .groups-create-btn:hover { opacity: 0.85; }
+        .groups-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+        .group-card {
+            background: #fdf6ee; border: 1.5px solid #e0c9a6; border-radius: 12px;
+            padding: 1rem 1.1rem; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s;
+            position: relative;
+        }
+        .group-card:hover { box-shadow: 0 4px 16px rgba(139,111,71,0.18); transform: translateY(-2px); }
+        .group-card-title { font-size: 1rem; font-weight: 700; color: #3d2817; margin-bottom: 0.3rem; }
+        .group-card-meta { font-size: 0.82rem; color: #8b6f47; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .group-card-desc { font-size: 0.85rem; color: #5a3e28; margin-top: 0.4rem; line-height: 1.4; }
+        .group-type-badge {
+            display: inline-block; font-size: 0.72rem; font-weight: 700; border-radius: 5px;
+            padding: 0.1rem 0.45rem; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .group-type-badge.private { background: #eee3d3; color: #7a5230; }
+        .group-type-badge.public  { background: #d6edd9; color: #2d6a4f; }
+
+        /* Group Detail */
+        .group-detail-header {
+            display: flex; align-items: center; gap: 0.75rem; padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e0c9a6; margin-bottom: 1rem;
+        }
+        .group-back-btn {
+            background: none; border: none; cursor: pointer; font-size: 1.3rem;
+            color: #8b6f47; padding: 0.2rem 0.4rem; border-radius: 6px;
+            transition: background 0.15s;
+        }
+        .group-back-btn:hover { background: #f0e4d0; }
+        .group-detail-title { font-size: 1.2rem; font-weight: 700; color: #3d2817; flex: 1; }
+        .group-detail-tabs {
+            display: flex; gap: 0; border-bottom: 2px solid #e0c9a6; margin-bottom: 1rem;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+        }
+        .group-detail-tab {
+            padding: 0.6rem 1rem; font-size: 0.88rem; font-weight: 600; color: #8b6f47;
+            border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent;
+            white-space: nowrap; transition: color 0.15s, border-color 0.15s;
+        }
+        .group-detail-tab.active { color: #3d2817; border-bottom-color: #8b6f47; }
+        .group-detail-tab:hover:not(.active) { color: #5a3e28; }
+
+        /* Chat channels list */
+        .chat-channels { display: flex; flex-direction: column; gap: 0.6rem; }
+        .chat-channel-card {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #fdf6ee; border: 1.5px solid #e0c9a6; border-radius: 10px;
+            padding: 0.8rem 1rem; cursor: pointer; transition: box-shadow 0.15s;
+        }
+        .chat-channel-card:hover { box-shadow: 0 2px 10px rgba(139,111,71,0.15); }
+        .chat-channel-info { flex: 1; }
+        .chat-channel-title { font-weight: 700; color: #3d2817; font-size: 0.95rem; }
+        .chat-channel-meta { font-size: 0.78rem; color: #8b6f47; margin-top: 0.15rem; display: flex; gap: 0.5rem; align-items: center; }
+        .tier-badge {
+            display: inline-block; font-size: 0.7rem; font-weight: 700; border-radius: 4px;
+            padding: 0.1rem 0.4rem; text-transform: uppercase;
+        }
+        .tier-badge.t1 { background: #e8f4e8; color: #2d6a4f; }
+        .tier-badge.t2 { background: #fff3e0; color: #e65100; }
+        .tier-badge.t3 { background: #fce4ec; color: #880e4f; }
+        .chat-rating-stars { color: #c9a87c; font-size: 0.8rem; }
+
+        /* Group Chat View */
+        .group-chat-header {
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
+            background: #fdf6ee; border-bottom: 2px solid #e0c9a6; position: sticky; top: 0; z-index: 10;
+        }
+        .group-chat-title { font-size: 1rem; font-weight: 700; color: #3d2817; flex: 1; }
+        .group-chat-messages {
+            display: flex; flex-direction: column; gap: 0.5rem;
+            padding: 1rem; min-height: 300px; max-height: 450px;
+            overflow-y: auto;
+        }
+        .group-msg { display: flex; flex-direction: column; max-width: 70%; }
+        .group-msg.mine { align-self: flex-end; align-items: flex-end; }
+        .group-msg.theirs { align-self: flex-start; align-items: flex-start; }
+        .group-msg-sender { font-size: 0.72rem; color: #8b6f47; margin-bottom: 0.15rem; font-weight: 600; }
+        .group-msg-bubble {
+            padding: 0.55rem 0.85rem; border-radius: 14px; font-size: 0.9rem; line-height: 1.45;
+            word-break: break-word;
+        }
+        .group-msg.mine .group-msg-bubble { background: #8b6f47; color: #fff; border-bottom-right-radius: 4px; }
+        .group-msg.theirs .group-msg-bubble { background: #f0e4d0; color: #3d2817; border-bottom-left-radius: 4px; }
+        .group-msg-time { font-size: 0.68rem; color: #aaa; margin-top: 0.15rem; }
+        .group-chat-input-area {
+            display: flex; gap: 0.5rem; padding: 0.75rem 1rem;
+            background: #fdf6ee; border-top: 2px solid #e0c9a6;
+        }
+        .group-chat-input {
+            flex: 1; padding: 0.6rem 0.85rem; border: 1.5px solid #c9a87c;
+            border-radius: 20px; font-size: 0.9rem; outline: none; background: #fff;
+        }
+        .group-chat-input:focus { border-color: #8b6f47; }
+        .group-chat-send {
+            background: #8b6f47; color: #fff; border: none; border-radius: 20px;
+            padding: 0.6rem 1.1rem; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+        }
+        .group-chat-send:disabled { opacity: 0.4; cursor: default; }
+
+        /* Members list */
+        .group-members-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .group-member-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            background: #fdf6ee; border: 1.5px solid #e0c9a6; border-radius: 10px;
+            padding: 0.65rem 0.9rem;
+        }
+        .group-member-avatar {
+            width: 36px; height: 36px; border-radius: 50%; background: #c9a87c;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; color: #3d2817; font-size: 0.9rem; flex-shrink: 0;
+        }
+        .group-member-name { font-weight: 600; color: #3d2817; font-size: 0.9rem; }
+        .group-member-role { font-size: 0.75rem; color: #8b6f47; }
+        .group-member-actions { margin-left: auto; display: flex; gap: 0.4rem; }
+        .group-member-btn {
+            font-size: 0.75rem; padding: 0.25rem 0.55rem; border-radius: 5px;
+            border: 1.5px solid; cursor: pointer; font-weight: 600; background: none;
+        }
+        .group-member-btn.remove { border-color: #e74c3c; color: #e74c3c; }
+        .group-member-btn.ban    { border-color: #e67e22; color: #e67e22; }
+        .group-member-btn.report { border-color: #8b6f47; color: #8b6f47; }
+        .group-member-btn:hover { opacity: 0.7; }
+        .banned-badge {
+            font-size: 0.7rem; background: #fce4ec; color: #c0392b; border-radius: 4px;
+            padding: 0.1rem 0.4rem; font-weight: 700;
+        }
+
+        /* Roles panel */
+        .group-roles-list { display: flex; flex-direction: column; gap: 0.65rem; }
+        .group-role-row {
+            background: #fdf6ee; border: 1.5px solid #e0c9a6; border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+        }
+        .group-role-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+        .group-role-name { font-weight: 700; color: #3d2817; font-size: 0.9rem; }
+        .role-type-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .group-role-privs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+        .priv-chip {
+            font-size: 0.72rem; background: #ede0cc; color: #5a3e28;
+            border-radius: 5px; padding: 0.1rem 0.45rem; font-weight: 600;
+        }
+
+        /* Create Group Wizard */
+        .create-group-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            padding: 1rem;
+        }
+        .create-group-panel {
+            background: #fff; border-radius: 16px; width: 100%; max-width: 480px;
+            max-height: 85vh; overflow-y: auto; padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .create-group-title { font-size: 1.25rem; font-weight: 700; color: #3d2817; margin-bottom: 1.25rem; }
+        .create-group-step-indicator {
+            display: flex; gap: 0.4rem; margin-bottom: 1.25rem;
+        }
+        .step-dot {
+            height: 5px; border-radius: 3px; flex: 1;
+        }
+        .step-dot.done    { background: #8b6f47; }
+        .step-dot.current { background: #c9a87c; }
+        .step-dot.future  { background: #e0c9a6; }
+        .type-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+        .type-choice-btn {
+            border: 2px solid #e0c9a6; border-radius: 12px; padding: 1rem;
+            cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s;
+            background: #fdf6ee;
+        }
+        .type-choice-btn.selected { border-color: #8b6f47; background: #f7ede0; }
+        .type-choice-btn:hover:not(.selected) { border-color: #c9a87c; }
+        .type-choice-icon { font-size: 1.8rem; display: block; margin-bottom: 0.35rem; }
+        .type-choice-label { font-weight: 700; color: #3d2817; font-size: 0.9rem; }
+        .type-choice-desc { font-size: 0.75rem; color: #8b6f47; margin-top: 0.2rem; }
+        .cg-field { margin-bottom: 1rem; }
+        .cg-label { display: block; font-weight: 600; color: #3d2817; margin-bottom: 0.35rem; font-size: 0.9rem; }
+        .cg-input {
+            width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #c9a87c;
+            border-radius: 8px; font-size: 0.95rem; outline: none; box-sizing: border-box;
+            background: #fdf6ee; color: #3d2817;
+        }
+        .cg-input:focus { border-color: #8b6f47; }
+        .cg-textarea { resize: vertical; min-height: 70px; }
+        .cg-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+        .cg-btn-primary {
+            flex: 1; background: #8b6f47; color: #fff; border: none;
+            border-radius: 8px; padding: 0.7rem; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer;
+        }
+        .cg-btn-primary:disabled { opacity: 0.45; cursor: default; }
+        .cg-btn-secondary {
+            background: none; border: 1.5px solid #c9a87c; color: #8b6f47;
+            border-radius: 8px; padding: 0.7rem 1rem; font-size: 0.95rem;
+            font-weight: 600; cursor: pointer;
+        }
+
+        /* Privilege checkbox grid */
+        .priv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+        .priv-check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #3d2817; cursor: pointer; }
+        .priv-check input[type="checkbox"] { accent-color: #8b6f47; cursor: pointer; }
+
+        /* Rating widget */
+        .rating-widget { display: flex; align-items: center; gap: 0.25rem; }
+        .rating-star { font-size: 1.1rem; cursor: pointer; transition: transform 0.1s; color: #e0c9a6; }
+        .rating-star.filled { color: #c9a87c; }
+        .rating-star:hover { transform: scale(1.25); }
+
+        /* Empty state */
+        .groups-empty {
+            text-align: center; padding: 3rem 1rem; color: #8b6f47;
+        }
+        .groups-empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+        .groups-empty-text { font-size: 1rem; font-weight: 600; color: #3d2817; margin-bottom: 0.35rem; }
+        .groups-empty-sub { font-size: 0.85rem; }
+
+        /* Role-request pending badge */
+        .pending-requests-banner {
+            background: #fff8e1; border: 1.5px solid #ffe082; border-radius: 8px;
+            padding: 0.6rem 0.9rem; font-size: 0.85rem; color: #856404;
+            display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;
+        }
+
+        /* Shelf list in group */
+        .group-shelves-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .group-shelf-row {
+            background: #fdf6ee; border: 1.5px solid #e0c9a6; border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+        }
+        .group-shelf-title { font-weight: 700; color: #3d2817; font-size: 0.9rem; margin-bottom: 0.4rem; }
+        .group-shelf-books { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .group-shelf-book-chip {
+            background: #e8d5ba; color: #3d2817; border-radius: 5px;
+            padding: 0.15rem 0.5rem; font-size: 0.75rem; font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .groups-grid { grid-template-columns: 1fr; }
+            .type-choice { grid-template-columns: 1fr; }
+            .priv-grid { grid-template-columns: 1fr; }
+            .group-chat-messages { max-height: 320px; }
+            .group-msg { max-width: 85%; }
+        }
     </style>
     <!-- QuaggaJS for Barcode Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
@@ -3635,6 +3898,40 @@
             const [notifications, setNotifications] = useState([]);
             const [unreadNotifications, setUnreadNotifications] = useState(0);
             const [showNotifications, setShowNotifications] = useState(false);
+
+            // ── Groups v2.2.1 state ────────────────────────────────────────────
+            const [groups, setGroups] = useState([]);
+            const [groupsLoading, setGroupsLoading] = useState(false);
+            // 'list' | 'detail' | 'chat' | 'create'
+            const [groupsView, setGroupsView] = useState('list');
+            const [selectedGroup, setSelectedGroup] = useState(null);
+            const [selectedGroupChat, setSelectedGroupChat] = useState(null);
+            const [groupMessages, setGroupMessages] = useState([]);
+            const [groupMessagesLoading, setGroupMessagesLoading] = useState(false);
+            const [groupMsgInput, setGroupMsgInput] = useState('');
+            const [groupDetailTab, setGroupDetailTab] = useState('chats'); // 'chats'|'members'|'shelves'|'roles'
+            const [pendingRoleRequests, setPendingRoleRequests] = useState([]);
+            const [groupsError, setGroupsError] = useState('');
+            const groupsMsgEndRef = React.useRef(null);
+            // Create wizard
+            const [showCreateGroup, setShowCreateGroup] = useState(false);
+            const [createGroupStep, setCreateGroupStep] = useState(1);
+            const [createGroupForm, setCreateGroupForm] = useState({
+                type: 'private', title: '', description: '', relatedBookId: '', relatedShelfId: ''
+            });
+            const [createGroupLoading, setCreateGroupLoading] = useState(false);
+            // Add-chat modal
+            const [showAddChat, setShowAddChat] = useState(false);
+            const [addChatForm, setAddChatForm] = useState({ title: '', tier: 1 });
+            // Add-shelf modal
+            const [showAddGroupShelf, setShowAddGroupShelf] = useState(false);
+            const [addGroupShelfTitle, setAddGroupShelfTitle] = useState('');
+            // Add-role modal
+            const [showAddRole, setShowAddRole] = useState(false);
+            const [addRoleForm, setAddRoleForm] = useState({ name: '', privileges: [] });
+            // Hover stars for rating
+            const [ratingHover, setRatingHover] = useState(0);
+            const [myRatings, setMyRatings] = useState({}); // chatId -> myRating
 
             // Touch drag ref (avoids stale closure in touch handlers)
             const touchDragRef = React.useRef(null);
@@ -4501,6 +4798,448 @@
             const showMessage = (text) => {
                 setMessage(text);
                 setTimeout(() => setMessage(''), 4000);
+            };
+
+            // ─── Groups v2.2.1 ────────────────────────────────────────────────
+
+            const PRIV_LABELS = {
+                add_member: 'Add members', remove_member: 'Remove members',
+                ban_member: 'Ban members', report_member: 'Report members',
+                assign_role: 'Assign roles', start_discussion: 'Start discussions',
+                manage_books: 'Manage books',
+            };
+            const ALL_PRIVILEGES = Object.keys(PRIV_LABELS);
+
+            const ROLE_COLORS = {
+                admin: '#8b6f47', assistant_admin: '#5c7a3e',
+                manager: '#3a6ea5', member: '#888', custom: '#9b59b6',
+            };
+            const ROLE_LABELS = {
+                admin: 'Admin', assistant_admin: 'Asst. Admin',
+                manager: 'Manager', member: 'Member', custom: 'Custom',
+            };
+            const TIER_INFO = {
+                1: { label: 'General',      icon: '📖', cls: 't1' },
+                2: { label: 'Intermediate', icon: '📚', cls: 't2' },
+                3: { label: 'Deep Dive',    icon: '🔍', cls: 't3' },
+            };
+
+            /** Return current user's role object within a group, or null. */
+            function myGroupRole(group) {
+                if (!group || !currentUser) return null;
+                const me = (group.members || []).find(m =>
+                    (m.user_id || m.userId) === currentUser.id && !m.banned_at && !m.bannedAt
+                );
+                if (!me) return null;
+                const roleId = me.role_id || me.roleId;
+                return (group.roles || []).find(r => r.id === roleId) || null;
+            }
+
+            function hasPriv(group, priv) {
+                const role = myGroupRole(group);
+                if (!role) return false;
+                const rt = role.role_type || role.roleType;
+                if (rt === 'admin') return true;
+                return (role.privileges || []).includes(priv);
+            }
+
+            function isGroupAdmin(group) {
+                const role = myGroupRole(group);
+                return (role?.role_type || role?.roleType) === 'admin';
+            }
+
+            function isMemberOfGroup(group) {
+                if (!group || !currentUser) return false;
+                return (group.members || []).some(m =>
+                    (m.user_id || m.userId) === currentUser.id && !m.banned_at && !m.bannedAt
+                );
+            }
+
+            function formatStars(rating, count) {
+                if (!count) return 'No ratings';
+                const full = Math.round(rating);
+                return '★'.repeat(full) + '☆'.repeat(5 - full) + ` ${Number(rating).toFixed(1)} (${count})`;
+            }
+
+            function relTime(iso) {
+                if (!iso) return '';
+                const d = Date.now() - new Date(iso).getTime();
+                const s = Math.floor(d / 1000);
+                if (s < 60) return `${s}s`;
+                const m = Math.floor(s / 60);
+                if (m < 60) return `${m}m`;
+                const h = Math.floor(m / 60);
+                if (h < 24) return `${h}h`;
+                return `${Math.floor(h / 24)}d`;
+            }
+
+            // ── Load groups (mine + public) ───────────────────────────────────
+            const loadGroups = async () => {
+                if (!currentUser) return;
+                setGroupsLoading(true);
+                setGroupsError('');
+                try {
+                    // My groups (member of)
+                    const { data: memberRows } = await supabaseClient
+                        .from('group_members')
+                        .select('group_id')
+                        .eq('user_id', currentUser.id)
+                        .is('banned_at', null);
+                    const myGroupIds = (memberRows || []).map(r => r.group_id);
+
+                    // Fetch private groups I'm in + all active public groups
+                    const { data: grps, error } = await supabaseClient
+                        .from('book_groups')
+                        .select(`
+                            *,
+                            roles:group_roles(*),
+                            members:group_members(*, role:group_roles(name, role_type)),
+                            shelves:group_shelves(*),
+                            chats:group_chats(id, title, tier, rating, rating_count, is_active, created_at)
+                        `)
+                        .eq('is_active', true)
+                        .or(`type.eq.public,id.in.(${myGroupIds.length ? myGroupIds.join(',') : 'null'})`);
+                    if (error) throw error;
+                    setGroups(grps || []);
+                } catch (err) {
+                    setGroupsError('Could not load groups. Make sure the v2.2.1 schema is applied.');
+                    console.error('loadGroups:', err);
+                } finally {
+                    setGroupsLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                if (activeTab === 'groups' && currentUser) loadGroups();
+            }, [activeTab, currentUser]);
+
+            // ── Open a group (refresh its data) ──────────────────────────────
+            const openGroup = async (group) => {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('book_groups')
+                        .select(`
+                            *,
+                            roles:group_roles(*),
+                            members:group_members(*, role:group_roles(name, role_type)),
+                            shelves:group_shelves(*),
+                            chats:group_chats(id, title, tier, rating, rating_count, is_active, created_at)
+                        `)
+                        .eq('id', group.id)
+                        .single();
+                    if (error) throw error;
+                    setSelectedGroup(data);
+                    setGroupDetailTab('chats');
+                    setGroupsView('detail');
+                    // Load pending role requests if admin
+                    if ((data.roles || []).some(r =>
+                        (r.role_type || r.roleType) === 'admin' &&
+                        (data.members || []).find(m => (m.user_id || m.userId) === currentUser?.id)?.role_id === r.id
+                    )) {
+                        loadPendingRequests(data.id);
+                    }
+                } catch (err) {
+                    console.error('openGroup:', err);
+                }
+            };
+
+            const loadPendingRequests = async (groupId) => {
+                const { data } = await supabaseClient
+                    .from('role_change_requests')
+                    .select('*, requester:requested_by(id), target:target_user_id(id), role:requested_role_id(name)')
+                    .eq('group_id', groupId)
+                    .eq('status', 'pending');
+                setPendingRoleRequests(data || []);
+            };
+
+            // ── Create group ──────────────────────────────────────────────────
+            const createGroup = async () => {
+                if (!currentUser || !createGroupForm.title.trim()) return;
+                setCreateGroupLoading(true);
+                try {
+                    const { data: newGroup, error } = await supabaseClient
+                        .from('book_groups')
+                        .insert({
+                            title:            createGroupForm.title.trim(),
+                            description:      createGroupForm.description.trim() || null,
+                            type:             createGroupForm.type,
+                            related_book_id:  createGroupForm.relatedBookId.trim() || null,
+                            related_shelf_id: createGroupForm.relatedShelfId.trim() || null,
+                            owner_id:         currentUser.id,
+                            max_members:      createGroupForm.type === 'public' ? 100 : 40,
+                            max_shelves:      10,
+                        })
+                        .select()
+                        .single();
+                    if (error) throw error;
+                    setShowCreateGroup(false);
+                    setCreateGroupStep(1);
+                    setCreateGroupForm({ type: 'private', title: '', description: '', relatedBookId: '', relatedShelfId: '' });
+                    await loadGroups();
+                    // Open the newly created group
+                    await openGroup(newGroup);
+                } catch (err) {
+                    alert('Error creating group: ' + (err.message || err));
+                } finally {
+                    setCreateGroupLoading(false);
+                }
+            };
+
+            // ── Join public group ──────────────────────────────────────────────
+            const joinGroup = async (group) => {
+                if (!currentUser) return;
+                try {
+                    // Get the 'member' role id for this group
+                    const memberRole = (group.roles || []).find(r => (r.role_type || r.roleType) === 'member');
+                    const { error } = await supabaseClient
+                        .from('group_members')
+                        .insert({ group_id: group.id, user_id: currentUser.id, role_id: memberRole?.id || null });
+                    if (error) throw error;
+                    await openGroup(group);
+                } catch (err) {
+                    alert('Error joining group: ' + (err.message || err));
+                }
+            };
+
+            // ── Add member (by user profile lookup) ───────────────────────────
+            const addMemberToGroup = async (group, targetUserId) => {
+                const memberRole = (group.roles || []).find(r => (r.role_type || r.roleType) === 'member');
+                const { error } = await supabaseClient
+                    .from('group_members')
+                    .insert({ group_id: group.id, user_id: targetUserId, role_id: memberRole?.id || null });
+                if (error) { alert(error.message); return; }
+                await openGroup(group);
+            };
+
+            // ── Remove member ─────────────────────────────────────────────────
+            const removeMember = async (group, targetUserId) => {
+                if (!window.confirm('Remove this member?')) return;
+                const { error } = await supabaseClient
+                    .from('group_members')
+                    .delete()
+                    .eq('group_id', group.id)
+                    .eq('user_id', targetUserId);
+                if (error) { alert(error.message); return; }
+                await openGroup(group);
+            };
+
+            // ── Ban / unban member ────────────────────────────────────────────
+            const banMember = async (group, targetUserId, ban) => {
+                const reason = ban ? window.prompt('Reason for ban (optional):') : undefined;
+                if (ban && reason === null) return; // cancelled
+                const { error } = await supabaseClient
+                    .from('group_members')
+                    .update({
+                        banned_at:  ban ? new Date().toISOString() : null,
+                        ban_reason: ban ? (reason || null) : null,
+                        banned_by:  ban ? currentUser.id : null,
+                    })
+                    .eq('group_id', group.id)
+                    .eq('user_id', targetUserId);
+                if (error) { alert(error.message); return; }
+                await openGroup(group);
+            };
+
+            // ── Report member ─────────────────────────────────────────────────
+            const reportMember = async (group, targetUserId) => {
+                const reason = window.prompt('Reason for report:');
+                if (!reason) return;
+                const { error } = await supabaseClient
+                    .from('member_reports')
+                    .insert({ group_id: group.id, reporter_id: currentUser.id, target_id: targetUserId, reason });
+                if (error) { alert(error.message); return; }
+                alert('Report submitted. Thank you.');
+            };
+
+            // ── Add custom role ───────────────────────────────────────────────
+            const addGroupRole = async (group) => {
+                if (!addRoleForm.name.trim()) return;
+                const { error } = await supabaseClient
+                    .from('group_roles')
+                    .insert({
+                        group_id:   group.id,
+                        name:       addRoleForm.name.trim(),
+                        role_type:  'custom',
+                        privileges: addRoleForm.privileges,
+                        sort_order: 99,
+                    });
+                if (error) { alert(error.message); return; }
+                setShowAddRole(false);
+                setAddRoleForm({ name: '', privileges: [] });
+                await openGroup(group);
+            };
+
+            // ── Update role privileges ────────────────────────────────────────
+            const updateRolePrivileges = async (group, role, privileges) => {
+                const { error } = await supabaseClient
+                    .from('group_roles')
+                    .update({ privileges })
+                    .eq('id', role.id);
+                if (error) { alert(error.message); return; }
+                await openGroup(group);
+            };
+
+            // ── Request role change ───────────────────────────────────────────
+            const requestRoleChange = async (group, targetUserId, roleId) => {
+                const { error } = await supabaseClient
+                    .from('role_change_requests')
+                    .insert({
+                        group_id:          group.id,
+                        requested_by:      currentUser.id,
+                        target_user_id:    targetUserId,
+                        requested_role_id: roleId,
+                    });
+                if (error) { alert(error.message); return; }
+                alert('Role change request submitted for admin approval.');
+            };
+
+            // ── Approve/reject role request ───────────────────────────────────
+            const reviewRoleRequest = async (group, reqId, approve) => {
+                const { data: req, error: fetchErr } = await supabaseClient
+                    .from('role_change_requests')
+                    .update({ status: approve ? 'approved' : 'rejected', reviewed_by: currentUser.id })
+                    .eq('id', reqId)
+                    .select()
+                    .single();
+                if (fetchErr) { alert(fetchErr.message); return; }
+                if (approve && req) {
+                    await supabaseClient.from('group_members')
+                        .update({ role_id: req.requested_role_id })
+                        .eq('group_id', group.id)
+                        .eq('user_id', req.target_user_id);
+                }
+                await loadPendingRequests(group.id);
+                await openGroup(group);
+            };
+
+            // ── Add shelf to group ────────────────────────────────────────────
+            const addGroupShelf = async (group) => {
+                if (!addGroupShelfTitle.trim()) return;
+                const { error } = await supabaseClient
+                    .from('group_shelves')
+                    .insert({ group_id: group.id, title: addGroupShelfTitle.trim() });
+                if (error) { alert(error.message); return; }
+                setShowAddGroupShelf(false);
+                setAddGroupShelfTitle('');
+                await openGroup(group);
+            };
+
+            // ── Create chat channel ───────────────────────────────────────────
+            const createGroupChat = async (group) => {
+                if (!addChatForm.title.trim()) return;
+                const { error } = await supabaseClient
+                    .from('group_chats')
+                    .insert({
+                        group_id:   group.id,
+                        title:      addChatForm.title.trim(),
+                        tier:       Number(addChatForm.tier) || 1,
+                        created_by: currentUser.id,
+                    });
+                if (error) { alert(error.message); return; }
+                setShowAddChat(false);
+                setAddChatForm({ title: '', tier: 1 });
+                await openGroup(group);
+            };
+
+            // ── Open chat and load messages ───────────────────────────────────
+            const openGroupChat = async (group, chat) => {
+                setSelectedGroup(group);
+                setSelectedGroupChat(chat);
+                setGroupMessages([]);
+                setGroupsView('chat');
+                setGroupMsgInput('');
+                await loadGroupMessages(chat.id);
+            };
+
+            const loadGroupMessages = async (chatId) => {
+                setGroupMessagesLoading(true);
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('group_chat_messages')
+                        .select('*, sender:sender_id(id, email, user_metadata)')
+                        .eq('chat_id', chatId)
+                        .eq('is_deleted', false)
+                        .order('created_at', { ascending: true })
+                        .limit(100);
+                    if (error) throw error;
+                    setGroupMessages(data || []);
+                } catch (err) {
+                    console.error('loadGroupMessages:', err);
+                } finally {
+                    setGroupMessagesLoading(false);
+                }
+            };
+
+            // Scroll to bottom when messages change
+            useEffect(() => {
+                if (groupsMsgEndRef.current && groupsView === 'chat') {
+                    groupsMsgEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, [groupMessages, groupsView]);
+
+            // Real-time subscription for group messages
+            const groupMsgSubRef = React.useRef(null);
+            useEffect(() => {
+                if (groupsView !== 'chat' || !selectedGroupChat) {
+                    if (groupMsgSubRef.current) {
+                        supabaseClient.removeChannel(groupMsgSubRef.current);
+                        groupMsgSubRef.current = null;
+                    }
+                    return;
+                }
+                const channel = supabaseClient
+                    .channel('group_chat_' + selectedGroupChat.id)
+                    .on('postgres_changes', {
+                        event: 'INSERT', schema: 'public', table: 'group_chat_messages',
+                        filter: `chat_id=eq.${selectedGroupChat.id}`,
+                    }, payload => {
+                        const msg = payload.new;
+                        if (!msg.is_deleted) {
+                            setGroupMessages(prev =>
+                                prev.some(m => m.id === msg.id) ? prev : [...prev, msg]
+                            );
+                        }
+                    })
+                    .subscribe();
+                groupMsgSubRef.current = channel;
+                return () => {
+                    supabaseClient.removeChannel(channel);
+                    groupMsgSubRef.current = null;
+                };
+            }, [groupsView, selectedGroupChat?.id]);
+
+            // ── Send a group message ──────────────────────────────────────────
+            const sendGroupMessage = async () => {
+                const content = groupMsgInput.trim();
+                if (!content || !selectedGroupChat || !currentUser) return;
+                setGroupMsgInput('');
+                const { error } = await supabaseClient
+                    .from('group_chat_messages')
+                    .insert({ chat_id: selectedGroupChat.id, sender_id: currentUser.id, content });
+                if (error) {
+                    setGroupMsgInput(content);
+                    alert('Error sending message: ' + error.message);
+                }
+            };
+
+            // ── Delete (soft) a message ───────────────────────────────────────
+            const deleteGroupMessage = async (msgId) => {
+                await supabaseClient
+                    .from('group_chat_messages')
+                    .update({ is_deleted: true, content: '' })
+                    .eq('id', msgId);
+                setGroupMessages(prev => prev.filter(m => m.id !== msgId));
+            };
+
+            // ── Rate a chat ───────────────────────────────────────────────────
+            const rateChat = async (chat, rating) => {
+                const { error } = await supabaseClient
+                    .from('chat_ratings')
+                    .upsert({ chat_id: chat.id, user_id: currentUser.id, rating }, { onConflict: 'chat_id,user_id' });
+                if (error) { alert(error.message); return; }
+                setMyRatings(r => ({ ...r, [chat.id]: rating }));
+                // Refresh group to update displayed rating
+                if (selectedGroup) await openGroup(selectedGroup);
             };
 
             // ─── Supabase book cache helpers ──────────────────────────────────
@@ -7070,6 +7809,9 @@
                                                 👥 Friends
                                                 {friendRequests.length > 0 && <span className="tab-badge" style={{marginLeft:'0.5rem'}}>{friendRequests.length}</span>}
                                             </div>
+                                            <div className="dropdown-item" onClick={() => { setActiveTab('groups'); setGroupsView('list'); setShowUserMenu(false); }}>
+                                                💬 Groups
+                                            </div>
                                             <div className="dropdown-item" onClick={handleLogout} style={{borderTop:'2px solid #f0f0f0',marginTop:'0.5rem',paddingTop:'1rem'}}>🚪 Logout</div>
                                         </div>
                                     )}
@@ -7312,6 +8054,9 @@
                                             {friendRequests.length > 0 && (
                                                 <span className="tab-badge" style={{marginLeft: '0.5rem'}}>{friendRequests.length}</span>
                                             )}
+                                        </div>
+                                        <div className="dropdown-item" onClick={() => { setActiveTab('groups'); setGroupsView('list'); setShowUserMenu(false); }}>
+                                            💬 Groups
                                         </div>
                                         <div className="dropdown-item" onClick={handleLogout} style={{ borderTop: '2px solid #f0f0f0', marginTop: '0.5rem', paddingTop: '1rem' }}>
                                             🚪 Logout
@@ -7961,6 +8706,12 @@
                                 onClick={() => setActiveTab('room')}
                             >
                                 🏠 My Room
+                            </div>
+                            <div
+                                className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
+                                onClick={() => { setActiveTab('groups'); setGroupsView('list'); }}
+                            >
+                                💬 Groups
                             </div>
                         </div>
 
@@ -8720,6 +9471,713 @@
                                 </div>
                             </div>
                         )}
+
+                        {/* ═══════════════════════════════════════════════
+                            GROUPS SECTION v2.2.1
+                            ═══════════════════════════════════════════════ */}
+                        {activeTab === 'groups' && currentUser && (() => {
+
+                            /* ── Helpers (inline so they close over state) ── */
+                            const myGroups   = groups.filter(g => isMemberOfGroup(g));
+                            const publicOnly = groups.filter(g => g.type === 'public' && !isMemberOfGroup(g));
+
+                            /* ── Star rating renderer ─────────────────────── */
+                            const StarRating = ({ chat }) => {
+                                const [hover, setHover] = React.useState(0);
+                                const my = myRatings[chat.id] || 0;
+                                return (
+                                    <div className="rating-widget">
+                                        {[1,2,3,4,5].map(n => (
+                                            <span
+                                                key={n}
+                                                className={`rating-star${(hover || my) >= n ? ' filled' : ''}`}
+                                                onMouseEnter={() => setHover(n)}
+                                                onMouseLeave={() => setHover(0)}
+                                                onClick={() => rateChat(chat, n)}
+                                                title={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                                            >★</span>
+                                        ))}
+                                        <span style={{fontSize:'0.75rem', color:'#8b6f47', marginLeft:'0.25rem'}}>
+                                            {chat.rating_count ? `${Number(chat.rating).toFixed(1)} (${chat.rating_count})` : ''}
+                                        </span>
+                                    </div>
+                                );
+                            };
+
+                            /* ── VIEW: Chat messages ─────────────────────── */
+                            if (groupsView === 'chat' && selectedGroupChat && selectedGroup) {
+                                const isAdmin = isGroupAdmin(selectedGroup);
+                                return (
+                                    <div style={{display:'flex', flexDirection:'column', height:'100%'}}>
+                                        <div className="group-chat-header">
+                                            <button className="group-back-btn" onClick={() => { setGroupsView('detail'); loadGroupMessages && null; }}>←</button>
+                                            <div>
+                                                <div className="group-chat-title">
+                                                    {TIER_INFO[selectedGroupChat.tier]?.icon} {selectedGroupChat.title}
+                                                </div>
+                                                <div style={{fontSize:'0.75rem', color:'#8b6f47'}}>
+                                                    {selectedGroup.title} · {TIER_INFO[selectedGroupChat.tier]?.label}
+                                                </div>
+                                            </div>
+                                            <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                                <StarRating chat={selectedGroupChat} />
+                                            </div>
+                                        </div>
+
+                                        <div className="group-chat-messages" ref={groupsMsgEndRef}>
+                                            {groupMessagesLoading && (
+                                                <div style={{textAlign:'center', color:'#8b6f47', padding:'2rem'}}>Loading…</div>
+                                            )}
+                                            {!groupMessagesLoading && groupMessages.length === 0 && (
+                                                <div style={{textAlign:'center', color:'#8b6f47', padding:'2rem'}}>
+                                                    No messages yet. Start the discussion!
+                                                </div>
+                                            )}
+                                            {groupMessages.map(msg => {
+                                                const mine = msg.sender_id === currentUser.id;
+                                                const senderName = msg.sender?.user_metadata?.name || msg.senderName || 'User';
+                                                return (
+                                                    <div key={msg.id} className={`group-msg ${mine ? 'mine' : 'theirs'}`}>
+                                                        {!mine && <div className="group-msg-sender">{senderName}</div>}
+                                                        <div className="group-msg-bubble">
+                                                            {msg.content}
+                                                            {msg.ai_flagged && (
+                                                                <span title="AI flagged" style={{marginLeft:'0.4rem', fontSize:'0.7rem', color:'#e67e22'}}>⚠️</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="group-msg-time" style={{display:'flex', gap:'0.5rem'}}>
+                                                            {relTime(msg.created_at)}
+                                                            {(mine || isAdmin) && (
+                                                                <span
+                                                                    style={{cursor:'pointer', color:'#c0392b'}}
+                                                                    onClick={() => deleteGroupMessage(msg.id)}
+                                                                    title="Delete message"
+                                                                >🗑</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            <div ref={groupsMsgEndRef} />
+                                        </div>
+
+                                        <div className="group-chat-input-area">
+                                            <input
+                                                className="group-chat-input"
+                                                placeholder="Type a message…"
+                                                value={groupMsgInput}
+                                                onChange={e => setGroupMsgInput(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendGroupMessage()}
+                                                maxLength={2000}
+                                            />
+                                            <button
+                                                className="group-chat-send"
+                                                onClick={sendGroupMessage}
+                                                disabled={!groupMsgInput.trim()}
+                                            >Send</button>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            /* ── VIEW: Group detail ───────────────────────── */
+                            if (groupsView === 'detail' && selectedGroup) {
+                                const group = selectedGroup;
+                                const amAdmin = isGroupAdmin(group);
+                                const amMod = amAdmin || hasPriv(group, 'ban_member');
+                                const canAddMember = hasPriv(group, 'add_member');
+                                const canManageBooks = hasPriv(group, 'manage_books');
+                                const canStartDiscussion = hasPriv(group, 'start_discussion');
+                                const activeChats = (group.chats || []).filter(c => c.is_active);
+                                const members = group.members || [];
+                                const shelves = group.shelves || [];
+                                const roles   = (group.roles || []).slice().sort((a,b) => (a.sort_order||99) - (b.sort_order||99));
+
+                                return (
+                                    <div className="groups-container">
+                                        {/* Header */}
+                                        <div className="group-detail-header">
+                                            <button className="group-back-btn" onClick={() => { setGroupsView('list'); loadGroups(); }}>←</button>
+                                            <div style={{flex:1}}>
+                                                <div className="group-detail-title">{group.title}</div>
+                                                <div style={{display:'flex', gap:'0.5rem', alignItems:'center', marginTop:'0.15rem'}}>
+                                                    <span className={`group-type-badge ${group.type}`}>{group.type}</span>
+                                                    <span style={{fontSize:'0.8rem', color:'#8b6f47'}}>
+                                                        {members.filter(m => !m.banned_at).length}/{group.max_members} members
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Pending role requests banner */}
+                                        {amAdmin && pendingRoleRequests.length > 0 && (
+                                            <div className="pending-requests-banner">
+                                                ⏳ {pendingRoleRequests.length} pending role request{pendingRoleRequests.length > 1 ? 's' : ''}
+                                                <button
+                                                    style={{marginLeft:'auto', background:'none', border:'none', color:'#856404', cursor:'pointer', fontWeight:700, fontSize:'0.85rem'}}
+                                                    onClick={() => setGroupDetailTab('roles')}
+                                                >Review →</button>
+                                            </div>
+                                        )}
+
+                                        {/* Sub-tabs */}
+                                        <div className="group-detail-tabs">
+                                            {['chats','members','shelves','roles'].map(t => (
+                                                <button
+                                                    key={t}
+                                                    className={`group-detail-tab${groupDetailTab === t ? ' active' : ''}`}
+                                                    onClick={() => setGroupDetailTab(t)}
+                                                >
+                                                    {t === 'chats'   && `💬 Chats (${activeChats.length})`}
+                                                    {t === 'members' && `👥 Members (${members.filter(m => !m.banned_at).length})`}
+                                                    {t === 'shelves' && `📚 Shelves (${shelves.length})`}
+                                                    {t === 'roles'   && `🎖 Roles`}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* ── Tab: Chats ── */}
+                                        {groupDetailTab === 'chats' && (
+                                            <div>
+                                                {canStartDiscussion && (
+                                                    <button className="groups-create-btn" style={{marginBottom:'0.75rem'}} onClick={() => setShowAddChat(true)}>
+                                                        + New Discussion
+                                                    </button>
+                                                )}
+                                                {activeChats.length === 0 ? (
+                                                    <div className="groups-empty">
+                                                        <div className="groups-empty-icon">💬</div>
+                                                        <div className="groups-empty-text">No discussions yet</div>
+                                                        {canStartDiscussion && <div className="groups-empty-sub">Start the first one!</div>}
+                                                    </div>
+                                                ) : (
+                                                    <div className="chat-channels">
+                                                        {/* Group by tier for public groups */}
+                                                        {group.type === 'public'
+                                                            ? [1,2,3].map(tier => {
+                                                                const tierChats = activeChats.filter(c => c.tier === tier);
+                                                                if (!tierChats.length) return null;
+                                                                const ti = TIER_INFO[tier];
+                                                                return (
+                                                                    <div key={tier}>
+                                                                        <div style={{fontWeight:700, color:'#8b6f47', fontSize:'0.82rem', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'0.4rem', marginTop:'0.5rem'}}>
+                                                                            {ti.icon} {ti.label}
+                                                                        </div>
+                                                                        {tierChats
+                                                                            .slice()
+                                                                            .sort((a,b) => b.rating - a.rating)
+                                                                            .map(chat => (
+                                                                            <div key={chat.id} className="chat-channel-card" onClick={() => openGroupChat(group, chat)}>
+                                                                                <div className="chat-channel-info">
+                                                                                    <div className="chat-channel-title">{chat.title}</div>
+                                                                                    <div className="chat-channel-meta">
+                                                                                        <span className={`tier-badge ${ti.cls}`}>{ti.label}</span>
+                                                                                        <span className="chat-rating-stars">{formatStars(chat.rating, chat.rating_count)}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span style={{color:'#c9a87c', fontSize:'1.1rem'}}>›</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                );
+                                                            })
+                                                            : activeChats.map(chat => {
+                                                                const ti = TIER_INFO[chat.tier] || TIER_INFO[1];
+                                                                return (
+                                                                    <div key={chat.id} className="chat-channel-card" onClick={() => openGroupChat(group, chat)}>
+                                                                        <div className="chat-channel-info">
+                                                                            <div className="chat-channel-title">{chat.title}</div>
+                                                                            <div className="chat-channel-meta">
+                                                                                <span className={`tier-badge ${ti.cls}`}>{ti.label}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <span style={{color:'#c9a87c', fontSize:'1.1rem'}}>›</span>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        }
+                                                    </div>
+                                                )}
+
+                                                {/* Add chat modal */}
+                                                {showAddChat && (
+                                                    <div className="create-group-overlay" onClick={() => setShowAddChat(false)}>
+                                                        <div className="create-group-panel" onClick={e => e.stopPropagation()}>
+                                                            <div className="create-group-title">New Discussion Channel</div>
+                                                            <div className="cg-field">
+                                                                <label className="cg-label">Title</label>
+                                                                <input className="cg-input" value={addChatForm.title} onChange={e => setAddChatForm(f => ({...f, title: e.target.value}))} placeholder="e.g. Chapter 1–5 thoughts" />
+                                                            </div>
+                                                            {group.type === 'public' && (
+                                                                <div className="cg-field">
+                                                                    <label className="cg-label">Tier</label>
+                                                                    <select className="cg-input" value={addChatForm.tier} onChange={e => setAddChatForm(f => ({...f, tier: Number(e.target.value)}))}>
+                                                                        <option value={1}>📖 Tier 1 — General (open to all)</option>
+                                                                        <option value={2}>📚 Tier 2 — Intermediate (readers of the book)</option>
+                                                                        <option value={3}>🔍 Tier 3 — Deep Dive (engaged readers only)</option>
+                                                                    </select>
+                                                                </div>
+                                                            )}
+                                                            <div className="cg-actions">
+                                                                <button className="cg-btn-secondary" onClick={() => setShowAddChat(false)}>Cancel</button>
+                                                                <button className="cg-btn-primary" disabled={!addChatForm.title.trim()} onClick={() => createGroupChat(group)}>Create</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ── Tab: Members ── */}
+                                        {groupDetailTab === 'members' && (
+                                            <div>
+                                                {canAddMember && (
+                                                    <div style={{marginBottom:'0.75rem', display:'flex', gap:'0.5rem'}}>
+                                                        <input
+                                                            className="cg-input"
+                                                            placeholder="User ID to add…"
+                                                            id="addMemberInput"
+                                                            style={{flex:1}}
+                                                        />
+                                                        <button
+                                                            className="groups-create-btn"
+                                                            onClick={() => {
+                                                                const v = document.getElementById('addMemberInput').value.trim();
+                                                                if (v) addMemberToGroup(group, v);
+                                                            }}
+                                                        >Add</button>
+                                                    </div>
+                                                )}
+                                                <div className="group-members-list">
+                                                    {members.map(m => {
+                                                        const isSelf = (m.user_id || m.userId) === currentUser.id;
+                                                        const role = (group.roles || []).find(r => r.id === (m.role_id || m.roleId));
+                                                        const rt = role?.role_type || role?.roleType || 'member';
+                                                        const targetId = m.user_id || m.userId;
+                                                        return (
+                                                            <div key={m.id} className="group-member-row" style={{opacity: m.banned_at ? 0.55 : 1}}>
+                                                                <div className="group-member-avatar">
+                                                                    {(m.userName || m.user_name || 'U').charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div style={{flex:1}}>
+                                                                    <div className="group-member-name">
+                                                                        {m.userName || m.user_name || targetId}
+                                                                        {isSelf && <span style={{fontSize:'0.72rem', color:'#8b6f47', marginLeft:'0.35rem'}}>(you)</span>}
+                                                                    </div>
+                                                                    <div className="group-member-role" style={{display:'flex', alignItems:'center', gap:'0.35rem'}}>
+                                                                        <span style={{width:8, height:8, borderRadius:'50%', background: ROLE_COLORS[rt] || '#888', display:'inline-block'}}></span>
+                                                                        {ROLE_LABELS[rt] || role?.name || 'Member'}
+                                                                        {m.banned_at && <span className="banned-badge">BANNED</span>}
+                                                                    </div>
+                                                                </div>
+                                                                {!isSelf && (
+                                                                    <div className="group-member-actions">
+                                                                        {hasPriv(group, 'report_member') && (
+                                                                            <button className="group-member-btn report" onClick={() => reportMember(group, targetId)}>Report</button>
+                                                                        )}
+                                                                        {amMod && group.ownerId !== targetId && (
+                                                                            <>
+                                                                                {hasPriv(group, 'ban_member') && (
+                                                                                    <button
+                                                                                        className="group-member-btn ban"
+                                                                                        onClick={() => banMember(group, targetId, !m.banned_at)}
+                                                                                    >{m.banned_at ? 'Unban' : 'Ban'}</button>
+                                                                                )}
+                                                                                {hasPriv(group, 'remove_member') && !m.banned_at && (
+                                                                                    <button className="group-member-btn remove" onClick={() => removeMember(group, targetId)}>Remove</button>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                        {hasPriv(group, 'assign_role') && !m.banned_at && (
+                                                                            <button
+                                                                                className="group-member-btn"
+                                                                                style={{borderColor:'#8b6f47', color:'#8b6f47'}}
+                                                                                onClick={() => {
+                                                                                    const roleId = window.prompt('Enter role ID to request for this user:\n' + roles.map(r => `${r.id} — ${r.name}`).join('\n'));
+                                                                                    if (roleId) requestRoleChange(group, targetId, roleId);
+                                                                                }}
+                                                                            >Role</button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* ── Tab: Shelves ── */}
+                                        {groupDetailTab === 'shelves' && (
+                                            <div>
+                                                {canManageBooks && shelves.length < group.max_shelves && (
+                                                    <button className="groups-create-btn" style={{marginBottom:'0.75rem'}} onClick={() => setShowAddGroupShelf(true)}>
+                                                        + Add Shelf ({shelves.length}/{group.max_shelves})
+                                                    </button>
+                                                )}
+                                                {shelves.length === 0 ? (
+                                                    <div className="groups-empty">
+                                                        <div className="groups-empty-icon">📚</div>
+                                                        <div className="groups-empty-text">No shelves yet</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="group-shelves-list">
+                                                        {shelves.map(shelf => (
+                                                            <div key={shelf.id} className="group-shelf-row">
+                                                                <div className="group-shelf-title">{shelf.title}</div>
+                                                                <div className="group-shelf-books">
+                                                                    {(shelf.books || []).length === 0
+                                                                        ? <span style={{fontSize:'0.8rem', color:'#aaa'}}>No books yet</span>
+                                                                        : (shelf.books || []).map(b => (
+                                                                            <span key={b.id} className="group-shelf-book-chip">{b.title || b.id}</span>
+                                                                        ))
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {showAddGroupShelf && (
+                                                    <div className="create-group-overlay" onClick={() => setShowAddGroupShelf(false)}>
+                                                        <div className="create-group-panel" onClick={e => e.stopPropagation()}>
+                                                            <div className="create-group-title">Add Shelf</div>
+                                                            <div className="cg-field">
+                                                                <label className="cg-label">Shelf Name</label>
+                                                                <input className="cg-input" value={addGroupShelfTitle} onChange={e => setAddGroupShelfTitle(e.target.value)} placeholder="e.g. Must Reads" />
+                                                            </div>
+                                                            <div className="cg-actions">
+                                                                <button className="cg-btn-secondary" onClick={() => setShowAddGroupShelf(false)}>Cancel</button>
+                                                                <button className="cg-btn-primary" disabled={!addGroupShelfTitle.trim()} onClick={() => addGroupShelf(group)}>Add</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ── Tab: Roles ── */}
+                                        {groupDetailTab === 'roles' && (
+                                            <div>
+                                                {/* Pending role requests (admin only) */}
+                                                {amAdmin && pendingRoleRequests.length > 0 && (
+                                                    <div style={{marginBottom:'1rem'}}>
+                                                        <div style={{fontWeight:700, color:'#3d2817', marginBottom:'0.5rem'}}>Pending Role Requests</div>
+                                                        {pendingRoleRequests.map(req => (
+                                                            <div key={req.id} style={{background:'#fff8e1', border:'1.5px solid #ffe082', borderRadius:8, padding:'0.65rem 0.9rem', marginBottom:'0.4rem', display:'flex', alignItems:'center', gap:'0.75rem'}}>
+                                                                <div style={{flex:1, fontSize:'0.85rem', color:'#3d2817'}}>
+                                                                    Assign <strong>{req.role?.name || req.requested_role_id}</strong> to user
+                                                                    <span style={{color:'#8b6f47'}}> {req.target_user_id}</span>
+                                                                </div>
+                                                                <button style={{background:'#2d6a4f', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', cursor:'pointer', fontWeight:700, fontSize:'0.8rem'}} onClick={() => reviewRoleRequest(group, req.id, true)}>✓ Approve</button>
+                                                                <button style={{background:'#c0392b', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', cursor:'pointer', fontWeight:700, fontSize:'0.8rem'}} onClick={() => reviewRoleRequest(group, req.id, false)}>✗ Reject</button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {amAdmin && group.type === 'public' && (
+                                                    <div style={{fontSize:'0.8rem', color:'#8b6f47', marginBottom:'0.5rem'}}>
+                                                        Custom roles: {roles.filter(r => (r.role_type||r.roleType) === 'custom').length}/6
+                                                    </div>
+                                                )}
+                                                {amAdmin && (
+                                                    <button className="groups-create-btn" style={{marginBottom:'0.75rem'}} onClick={() => setShowAddRole(true)}>
+                                                        + Add Custom Role
+                                                    </button>
+                                                )}
+
+                                                <div className="group-roles-list">
+                                                    {roles.map(role => {
+                                                        const rt = role.role_type || role.roleType;
+                                                        const isBuiltIn = rt !== 'custom';
+                                                        return (
+                                                            <div key={role.id} className="group-role-row">
+                                                                <div className="group-role-header">
+                                                                    <span className="role-type-dot" style={{background: ROLE_COLORS[rt] || '#888'}}></span>
+                                                                    <span className="group-role-name">{role.name}</span>
+                                                                    <span style={{fontSize:'0.72rem', color:'#8b6f47'}}>{ROLE_LABELS[rt] || 'Custom'}</span>
+                                                                    {isBuiltIn && <span style={{fontSize:'0.68rem', background:'#eee', color:'#888', borderRadius:4, padding:'0.05rem 0.35rem', marginLeft:'auto'}}>built-in</span>}
+                                                                </div>
+                                                                <div className="group-role-privs">
+                                                                    {(role.privileges || []).length === 0 && rt !== 'admin'
+                                                                        ? <span style={{fontSize:'0.75rem', color:'#aaa'}}>No extra privileges</span>
+                                                                        : rt === 'admin'
+                                                                            ? <span className="priv-chip">All privileges</span>
+                                                                            : (role.privileges || []).map(p => (
+                                                                                <span key={p} className="priv-chip">{PRIV_LABELS[p] || p}</span>
+                                                                            ))
+                                                                    }
+                                                                </div>
+                                                                {amAdmin && rt !== 'admin' && (
+                                                                    <div style={{marginTop:'0.5rem'}}>
+                                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', marginBottom:'0.3rem'}}>Edit privileges:</div>
+                                                                        <div className="priv-grid">
+                                                                            {ALL_PRIVILEGES.map(priv => (
+                                                                                <label key={priv} className="priv-check">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={(role.privileges || []).includes(priv)}
+                                                                                        onChange={e => {
+                                                                                            const current = role.privileges || [];
+                                                                                            const next = e.target.checked
+                                                                                                ? [...current, priv]
+                                                                                                : current.filter(p => p !== priv);
+                                                                                            updateRolePrivileges(group, role, next);
+                                                                                        }}
+                                                                                    />
+                                                                                    {PRIV_LABELS[priv]}
+                                                                                </label>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Add role modal */}
+                                                {showAddRole && (
+                                                    <div className="create-group-overlay" onClick={() => setShowAddRole(false)}>
+                                                        <div className="create-group-panel" onClick={e => e.stopPropagation()}>
+                                                            <div className="create-group-title">Add Custom Role</div>
+                                                            <div className="cg-field">
+                                                                <label className="cg-label">Role Name</label>
+                                                                <input className="cg-input" value={addRoleForm.name} onChange={e => setAddRoleForm(f => ({...f, name: e.target.value}))} placeholder="e.g. Curator" />
+                                                            </div>
+                                                            <div className="cg-field">
+                                                                <label className="cg-label">Privileges</label>
+                                                                <div className="priv-grid">
+                                                                    {ALL_PRIVILEGES.map(priv => (
+                                                                        <label key={priv} className="priv-check">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={addRoleForm.privileges.includes(priv)}
+                                                                                onChange={e => {
+                                                                                    const next = e.target.checked
+                                                                                        ? [...addRoleForm.privileges, priv]
+                                                                                        : addRoleForm.privileges.filter(p => p !== priv);
+                                                                                    setAddRoleForm(f => ({...f, privileges: next}));
+                                                                                }}
+                                                                            />
+                                                                            {PRIV_LABELS[priv]}
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            <div className="cg-actions">
+                                                                <button className="cg-btn-secondary" onClick={() => setShowAddRole(false)}>Cancel</button>
+                                                                <button className="cg-btn-primary" disabled={!addRoleForm.name.trim()} onClick={() => addGroupRole(group)}>Create</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
+
+                            /* ── VIEW: Groups list ──────────────────────────── */
+                            return (
+                                <div className="groups-container">
+                                    {/* Error banner */}
+                                    {groupsError && (
+                                        <div style={{background:'#fce4ec', border:'1.5px solid #f48fb1', borderRadius:8, padding:'0.75rem 1rem', color:'#880e4f', fontSize:'0.88rem'}}>
+                                            ⚠️ {groupsError}
+                                        </div>
+                                    )}
+
+                                    {/* My groups */}
+                                    <div>
+                                        <div className="groups-section-header">
+                                            <div className="groups-section-title">My Groups</div>
+                                            <button className="groups-create-btn" onClick={() => { setShowCreateGroup(true); setCreateGroupStep(1); }}>
+                                                + Create Group
+                                            </button>
+                                        </div>
+                                        {groupsLoading ? (
+                                            <div style={{color:'#8b6f47', padding:'1.5rem 0'}}>Loading…</div>
+                                        ) : myGroups.length === 0 ? (
+                                            <div className="groups-empty">
+                                                <div className="groups-empty-icon">👥</div>
+                                                <div className="groups-empty-text">You're not in any groups yet</div>
+                                                <div className="groups-empty-sub">Create one or join a public group below</div>
+                                            </div>
+                                        ) : (
+                                            <div className="groups-grid">
+                                                {myGroups.map(g => {
+                                                    const myRole = myGroupRole(g);
+                                                    const rt = myRole?.role_type || myRole?.roleType || 'member';
+                                                    return (
+                                                        <div key={g.id} className="group-card" onClick={() => openGroup(g)}>
+                                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem'}}>
+                                                                <span className={`group-type-badge ${g.type}`}>{g.type}</span>
+                                                                <span style={{fontSize:'0.72rem', color: ROLE_COLORS[rt], fontWeight:700}}>{ROLE_LABELS[rt] || 'Member'}</span>
+                                                            </div>
+                                                            <div className="group-card-title">{g.title}</div>
+                                                            <div className="group-card-meta">
+                                                                <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}/{g.max_members}</span>
+                                                                <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
+                                                                <span>📚 {(g.shelves||[]).length} shelves</span>
+                                                            </div>
+                                                            {g.description && <div className="group-card-desc">{g.description}</div>}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Public groups to join */}
+                                    {publicOnly.length > 0 && (
+                                        <div>
+                                            <div className="groups-section-header">
+                                                <div className="groups-section-title">Discover Public Groups</div>
+                                            </div>
+                                            <div className="groups-grid">
+                                                {publicOnly.map(g => (
+                                                    <div key={g.id} className="group-card">
+                                                        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem'}}>
+                                                            <span className="group-type-badge public">public</span>
+                                                        </div>
+                                                        <div className="group-card-title">{g.title}</div>
+                                                        <div className="group-card-meta">
+                                                            <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}/{g.max_members}</span>
+                                                            <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
+                                                        </div>
+                                                        {g.description && <div className="group-card-desc">{g.description}</div>}
+                                                        <div style={{marginTop:'0.6rem', display:'flex', gap:'0.5rem'}}>
+                                                            <button
+                                                                className="groups-create-btn"
+                                                                style={{fontSize:'0.82rem', padding:'0.4rem 0.85rem'}}
+                                                                onClick={() => joinGroup(g)}
+                                                            >Join</button>
+                                                            <button
+                                                                className="cg-btn-secondary"
+                                                                style={{fontSize:'0.82rem', padding:'0.4rem 0.85rem'}}
+                                                                onClick={() => openGroup(g)}
+                                                            >Browse</button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Create Group Wizard */}
+                                    {showCreateGroup && (
+                                        <div className="create-group-overlay" onClick={() => setShowCreateGroup(false)}>
+                                            <div className="create-group-panel" onClick={e => e.stopPropagation()}>
+                                                <div className="create-group-title">Create a Group</div>
+
+                                                {/* Step indicator */}
+                                                <div className="create-group-step-indicator">
+                                                    {[1,2,3].map(n => (
+                                                        <div key={n} className={`step-dot ${n < createGroupStep ? 'done' : n === createGroupStep ? 'current' : 'future'}`} />
+                                                    ))}
+                                                </div>
+
+                                                {/* Step 1: Type */}
+                                                {createGroupStep === 1 && (
+                                                    <div>
+                                                        <div style={{fontWeight:600, color:'#3d2817', marginBottom:'0.75rem'}}>Choose group type</div>
+                                                        <div className="type-choice">
+                                                            <div
+                                                                className={`type-choice-btn${createGroupForm.type === 'private' ? ' selected' : ''}`}
+                                                                onClick={() => setCreateGroupForm(f => ({...f, type:'private'}))}
+                                                            >
+                                                                <span className="type-choice-icon">🔒</span>
+                                                                <div className="type-choice-label">Private</div>
+                                                                <div className="type-choice-desc">Invite-only · max 40 members · max 10 shelves</div>
+                                                            </div>
+                                                            <div
+                                                                className={`type-choice-btn${createGroupForm.type === 'public' ? ' selected' : ''}`}
+                                                                onClick={() => setCreateGroupForm(f => ({...f, type:'public'}))}
+                                                            >
+                                                                <span className="type-choice-icon">🌐</span>
+                                                                <div className="type-choice-label">Public</div>
+                                                                <div className="type-choice-desc">Open to all · max 100 members · AI moderated · tiered chats</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="cg-actions">
+                                                            <button className="cg-btn-secondary" onClick={() => setShowCreateGroup(false)}>Cancel</button>
+                                                            <button className="cg-btn-primary" onClick={() => setCreateGroupStep(2)}>Next →</button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Step 2: Details */}
+                                                {createGroupStep === 2 && (
+                                                    <div>
+                                                        <div className="cg-field">
+                                                            <label className="cg-label">Group Name *</label>
+                                                            <input
+                                                                className="cg-input"
+                                                                value={createGroupForm.title}
+                                                                onChange={e => setCreateGroupForm(f => ({...f, title: e.target.value}))}
+                                                                placeholder="e.g. Dune Reading Circle"
+                                                                maxLength={100}
+                                                            />
+                                                        </div>
+                                                        <div className="cg-field">
+                                                            <label className="cg-label">Description <span style={{fontWeight:400, color:'#aaa'}}>(optional)</span></label>
+                                                            <textarea
+                                                                className="cg-input cg-textarea"
+                                                                value={createGroupForm.description}
+                                                                onChange={e => setCreateGroupForm(f => ({...f, description: e.target.value}))}
+                                                                placeholder="What's this group about?"
+                                                                maxLength={500}
+                                                            />
+                                                        </div>
+                                                        <div className="cg-field">
+                                                            <label className="cg-label">Linked Book ID <span style={{fontWeight:400, color:'#aaa'}}>(optional)</span></label>
+                                                            <input
+                                                                className="cg-input"
+                                                                value={createGroupForm.relatedBookId}
+                                                                onChange={e => setCreateGroupForm(f => ({...f, relatedBookId: e.target.value}))}
+                                                                placeholder="Google Books ID"
+                                                            />
+                                                        </div>
+                                                        <div className="cg-actions">
+                                                            <button className="cg-btn-secondary" onClick={() => setCreateGroupStep(1)}>← Back</button>
+                                                            <button className="cg-btn-primary" disabled={!createGroupForm.title.trim()} onClick={() => setCreateGroupStep(3)}>Next →</button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Step 3: Confirm */}
+                                                {createGroupStep === 3 && (
+                                                    <div>
+                                                        <div style={{background:'#fdf6ee', border:'1.5px solid #e0c9a6', borderRadius:10, padding:'1rem', marginBottom:'1rem'}}>
+                                                            <div style={{fontWeight:700, color:'#3d2817', marginBottom:'0.4rem', fontSize:'1.05rem'}}>{createGroupForm.title}</div>
+                                                            <div style={{display:'flex', gap:'0.5rem', marginBottom:'0.4rem'}}>
+                                                                <span className={`group-type-badge ${createGroupForm.type}`}>{createGroupForm.type}</span>
+                                                                <span style={{fontSize:'0.8rem', color:'#8b6f47'}}>max {createGroupForm.type === 'public' ? 100 : 40} members</span>
+                                                            </div>
+                                                            {createGroupForm.description && <div style={{fontSize:'0.85rem', color:'#5a3e28'}}>{createGroupForm.description}</div>}
+                                                            {createGroupForm.relatedBookId && <div style={{fontSize:'0.8rem', color:'#8b6f47', marginTop:'0.3rem'}}>📖 Book: {createGroupForm.relatedBookId}</div>}
+                                                            <div style={{fontSize:'0.8rem', color:'#8b6f47', marginTop:'0.5rem'}}>
+                                                                {createGroupForm.type === 'private'
+                                                                    ? '🔒 4 built-in roles will be created (Admin, Asst. Admin, Manager, Member). You can add custom roles after.'
+                                                                    : '🌐 4 built-in roles + AI moderation enabled. Up to 6 custom roles allowed.'
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        <div className="cg-actions">
+                                                            <button className="cg-btn-secondary" onClick={() => setCreateGroupStep(2)}>← Back</button>
+                                                            <button className="cg-btn-primary" disabled={createGroupLoading} onClick={createGroup}>
+                                                                {createGroupLoading ? 'Creating…' : '✓ Create Group'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* ── Create Shelf Modal ── */}

@@ -1,0 +1,17 @@
+{
+  "name": "library-groups-server",
+  "version": "2.2.1",
+  "description": "Local dev server for Your Library group chat feature",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "nanoid": "^4.0.2"
+  }
+}

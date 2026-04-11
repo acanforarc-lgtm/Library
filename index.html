@@ -5350,11 +5350,15 @@
 
             const buildGbQuery = (q) => {
                 if (isIsbnQuery(q)) return `isbn:${q.replace(/[-\s]/g, '')}`;
-                // Pass the raw query — mirrors what Google Books web search does and
-                // searches across title, author, and description simultaneously.
-                // Field-specific prefixes (intitle:, inauthor:) restrict results too
-                // aggressively and return wrong books for title+subtitle queries.
-                return q.trim();
+                // Colons are field-operator separators in Google Books query syntax
+                // (e.g. intitle:, inauthor:). Sending "never stop: life, leadership"
+                // raw causes the API to parse "stop" as an unknown field and return 0
+                // results. Strip colons and commas so the query becomes plain text.
+                return q.trim()
+                    .replace(/:/g, ' ')
+                    .replace(/,/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
             };
 
 
@@ -5578,9 +5582,13 @@
                     results.forEach(b => saveIsbnToCache(b));
 
                     // ── 5. Store in session cache and display ─────────────────────────
-                    try {
-                        sessionStorage.setItem(cacheKey, JSON.stringify({ results, ts: Date.now() }));
-                    } catch (_) {}
+                    // Only cache non-empty results — don't let a transient API failure
+                    // poison the cache and return 0 results for the next hour.
+                    if (results.length > 0) {
+                        try {
+                            sessionStorage.setItem(cacheKey, JSON.stringify({ results, ts: Date.now() }));
+                        } catch (_) {}
+                    }
 
                     if (fullSearch) { setFullResults(results); setShowFullResults(true); }
                     else setSearchResults(results.slice(0, 5));

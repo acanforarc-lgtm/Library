@@ -9478,9 +9478,9 @@
                         )}
 
                         {/* ═══════════════════════════════════════════════
-                            GROUPS SECTION v2.2.1
+                            GROUPS SECTION — Coming Soon
                             ═══════════════════════════════════════════════ */}
-                        {activeTab === 'groups' && currentUser && (() => {
+                        {activeTab === 'groups' && currentUser && false && (() => {
 
                             /* ── Helpers (inline so they close over state) ── */
                             const myGroups   = groups.filter(g => isMemberOfGroup(g));
@@ -10183,6 +10183,24 @@
                                 </div>
                             );
                         })()}
+
+                        {/* Groups Coming Soon */}
+                        {activeTab === 'groups' && currentUser && (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '4rem 2rem',
+                                textAlign: 'center',
+                            }}>
+                                <div style={{fontSize: '3rem', marginBottom: '1rem'}}>💬</div>
+                                <h2 style={{color: '#3d2817', marginBottom: '0.5rem'}}>Groups — Coming Soon</h2>
+                                <p style={{color: '#8b6f47', maxWidth: '380px', lineHeight: 1.6}}>
+                                    Reading groups are under construction. Check back in the next update!
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* ── Create Shelf Modal ── */}

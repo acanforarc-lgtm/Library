@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Your Library</title>
     <!--
     ========================================
@@ -34,7 +34,12 @@
             background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
             color: #3d2817;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             overflow-x: hidden;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .container {
@@ -748,7 +753,7 @@
         .shelf-menu-item.danger:hover { background: #fff0f0; color: #c0392b; }
 
         /* Color/Wood dropdown in edit panel */
-        .color-dropdown-wrap { position: relative; }
+        .color-dropdown-wrap { position: relative; z-index: 9999; }
         .color-dropdown-btn {
             display: flex;
             align-items: center;
@@ -773,7 +778,7 @@
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.2);
             border: 1px solid #e8d5bb;
-            z-index: 300;
+            z-index: 9999;
             overflow: hidden;
             min-width: 160px;
         }
@@ -930,6 +935,8 @@
             padding: 1rem 2rem;
             background: rgba(0,0,0,0.15);
             backdrop-filter: blur(5px);
+            position: relative;
+            z-index: 10;
         }
         
         .shelf-customize-label {
@@ -3375,6 +3382,11 @@
             color: white;
             border-radius: 16px 16px 4px 16px;
         }
+        .msg-bubble.deleted {
+            background: transparent;
+            border: 1px dashed #c9a87c;
+            color: #8b6f47;
+        }
 
         .msg-delete {
             background: none;
@@ -3879,6 +3891,8 @@
             const [newMessage, setNewMessage] = useState('');
             const [messagesLoading, setMessagesLoading] = useState(false);
             const [unreadMessages, setUnreadMessages] = useState(0);
+            const [msgContextMenu, setMsgContextMenu] = useState(null); // msgId of long-pressed msg
+            const msgLongPressTimer = React.useRef(null);
             const msgSubscriptionRef = React.useRef(null);
             const globalMsgSubRef = React.useRef(null);
             const activeConversationRef = React.useRef(null);
@@ -4589,7 +4603,9 @@
 
             const deleteMessage = async (msgId) => {
                 await supabaseClient.from('messages').update({ is_deleted: true }).eq('id', msgId);
-                setMessages(prev => prev.filter(m => m.id !== msgId));
+                // Show deleted placeholder instead of removing so the other party sees it too
+                setMessages(prev => prev.map(m => m.id === msgId ? { ...m, is_deleted: true } : m));
+                setMsgContextMenu(null);
             };
 
             const openConversation = async (conv) => {
@@ -4623,8 +4639,21 @@
 
             const openMessagesWith = async (friendId) => {
                 const conv = await getOrCreateConversation(friendId);
+                // Fetch profiles for both participants so the chat header
+                // shows the correct name immediately (conv has no p1/p2 yet)
+                const { data: profiles } = await supabaseClient
+                    .from('user_profiles')
+                    .select('id, username, display_name')
+                    .in('id', [conv.participant1_id, conv.participant2_id]);
+                const profileMap = {};
+                (profiles || []).forEach(p => { profileMap[p.id] = p; });
+                const enrichedConv = {
+                    ...conv,
+                    p1: profileMap[conv.participant1_id] || null,
+                    p2: profileMap[conv.participant2_id] || null,
+                };
                 await loadConversations();
-                await openConversation(conv);
+                await openConversation(enrichedConv);
                 setActiveTab('messages');
             };
 
@@ -6272,14 +6301,32 @@
                         const response = await fetch(
                             `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${GBOOKS_KEY}`
                         );
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        const data = await response.json();
-
-                        if (data.items?.length) {
-                            bookData = parseGbItem(data.items[0]);
-                            bookData.isbn = cleanIsbn;
-                            // Save to Supabase cache for next time
-                            saveIsbnToCache(bookData);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.items?.length) {
+                                bookData = parseGbItem(data.items[0]);
+                                bookData.isbn = cleanIsbn;
+                                saveIsbnToCache(bookData);
+                            }
+                        }
+                        // Fallback to OpenLibrary on 429 or no results
+                        if (!bookData) {
+                            const olRes = await fetch(
+                                `https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`
+                            );
+                            if (olRes.ok) {
+                                const olData = await olRes.json();
+                                const olBook = olData[`ISBN:${cleanIsbn}`];
+                                if (olBook) {
+                                    bookData = {
+                                        title: olBook.title || 'Unknown Title',
+                                        author: olBook.authors?.[0]?.name || 'Unknown Author',
+                                        isbn: cleanIsbn,
+                                        cover: olBook.cover?.medium || olBook.cover?.large || null,
+                                    };
+                                    saveIsbnToCache(bookData);
+                                }
+                            }
                         }
                     }
 
@@ -8731,7 +8778,7 @@
                                             No books yet. Start building your library!
                                         </div>
                                     ) : (
-                                        books.slice(0, 15).reverse().map(book => (
+                                        [...books].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15).map(book => (
                                             <div
                                                 key={book.id}
                                                 className="category-book"
@@ -9419,7 +9466,8 @@
                                                 </div>
 
                                                 {/* Messages */}
-                                                <div className="chat-messages" ref={chatMessagesRef}>
+                                                <div className="chat-messages" ref={chatMessagesRef}
+                                                    onClick={() => setMsgContextMenu(null)}>
                                                     {messagesLoading ? (
                                                         <div style={{textAlign: 'center', padding: '2rem', color: '#8b6f47'}}>Loading...</div>
                                                     ) : messages.length === 0 ? (
@@ -9429,22 +9477,43 @@
                                                     ) : (
                                                         messages.map(msg => {
                                                             const isMine = msg.sender_id === currentUser.id;
+                                                            const isDeleted = msg.is_deleted;
+                                                            const showMenu = msgContextMenu === msg.id;
                                                             return (
-                                                                <div key={msg.id} className={`msg-bubble-wrap${isMine ? ' mine' : ''}`}>
-                                                                    <div className={`msg-bubble${isMine ? ' mine' : ''}`}>
-                                                                        {msg.content}
-                                                                        {isMine && (
-                                                                            <button
-                                                                                className="msg-delete"
-                                                                                onClick={() => deleteMessage(msg.id)}
-                                                                                title="Delete"
-                                                                            >×</button>
-                                                                        )}
+                                                                <div key={msg.id}
+                                                                    className={`msg-bubble-wrap${isMine ? ' mine' : ''}`}
+                                                                    style={{position:'relative'}}
+                                                                    onTouchStart={() => {
+                                                                        if (!isMine || isDeleted) return;
+                                                                        msgLongPressTimer.current = setTimeout(() => setMsgContextMenu(msg.id), 600);
+                                                                    }}
+                                                                    onTouchEnd={() => clearTimeout(msgLongPressTimer.current)}
+                                                                    onTouchMove={() => clearTimeout(msgLongPressTimer.current)}
+                                                                    onContextMenu={e => { e.preventDefault(); if (isMine && !isDeleted) setMsgContextMenu(msg.id); }}
+                                                                >
+                                                                    <div className={`msg-bubble${isMine ? ' mine' : ''}${isDeleted ? ' deleted' : ''}`}>
+                                                                        {isDeleted
+                                                                            ? <span style={{fontStyle:'italic',opacity:0.6}}>Message deleted</span>
+                                                                            : msg.content
+                                                                        }
                                                                     </div>
                                                                     <div className={`msg-time${isMine ? ' mine' : ''}`}>
                                                                         {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                                                                         {isMine && msg.read_at && ' ✓✓'}
                                                                     </div>
+                                                                    {showMenu && (
+                                                                        <div style={{
+                                                                            position:'absolute', bottom:'calc(100% + 4px)', right:0,
+                                                                            background:'#3d2817', borderRadius:'8px',
+                                                                            boxShadow:'0 4px 12px rgba(0,0,0,0.3)', zIndex:9999,
+                                                                            overflow:'hidden', minWidth:'140px'
+                                                                        }} onClick={e => e.stopPropagation()}>
+                                                                            <button style={{display:'block',padding:'0.65rem 1.2rem',background:'none',border:'none',color:'#ff6b6b',cursor:'pointer',fontSize:'0.9rem',width:'100%',textAlign:'left'}}
+                                                                                onClick={() => deleteMessage(msg.id)}>Delete Message</button>
+                                                                            <button style={{display:'block',padding:'0.65rem 1.2rem',background:'none',border:'none',color:'#faf8f3',cursor:'pointer',fontSize:'0.9rem',width:'100%',textAlign:'left',borderTop:'1px solid rgba(255,255,255,0.1)'}}
+                                                                                onClick={() => setMsgContextMenu(null)}>Cancel</button>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })
@@ -10269,9 +10338,9 @@
                                     <div style={{marginBottom: '2rem'}}>
                                         <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Number of Boards</label>
                                         <div className="board-controls">
-                                            <button className="board-btn" onClick={() => setNewShelfBoardCount(c => Math.max(1, c - 1))} disabled={newShelfBoardCount <= 1}>−</button>
-                                            <span className="board-count">{newShelfBoardCount} {newShelfBoardCount === 1 ? 'shelf' : 'shelves'}</span>
-                                            <button className="board-btn" onClick={() => setNewShelfBoardCount(c => Math.min(8, c + 1))} disabled={newShelfBoardCount >= 8}>+</button>
+                                            <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfBoardCount(c => Math.max(1, c - 1))} disabled={newShelfBoardCount <= 1}>−</button>
+                                            <span className="board-count" style={{color:'#3d2817',fontWeight:'600'}}>{newShelfBoardCount} {newShelfBoardCount === 1 ? 'board' : 'boards'}</span>
+                                            <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfBoardCount(c => Math.min(8, c + 1))} disabled={newShelfBoardCount >= 8}>+</button>
                                         </div>
                                     </div>
 

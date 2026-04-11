@@ -5587,8 +5587,10 @@
                 setSearchLoading(true);
                 if (!fullSearch) setShowSearchDropdown(true);
 
-                // v4 cache key — full Google Books passthrough, no custom ranking
-                const cacheKey = `search_v4_${query.trim().toLowerCase()}_${fullSearch}`;
+                // v5 cache key — clears stale v4 entries that cached empty results from the
+                // brief window when the printType==='BOOK' filter was too strict (before the
+                // fix in dbf7e34 relaxed it to !=='MAGAZINE').
+                const cacheKey = `search_v5_${query.trim().toLowerCase()}_${fullSearch}`;
 
                 try {
                     // ── 1. Session cache (1-hour TTL) ─────────────────────────────────

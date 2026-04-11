@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.3.1
+    YOUR LIBRARY - VERSION 2.3.2
     ========================================
+    v2.3.2: Persist active tab across page refreshes
     v2.3.1: Search improvements — enhanced search functions and UX
     v2.2.2: Bug fixes — chat scroll to latest, messaging and mobile UI polish
     v2.2.1: Group chat — private groups, public groups, tiered chats, roles, moderation
@@ -3811,7 +3812,7 @@
             const [books, setBooks] = useState([]);
             const [shelves, setShelves] = useState([]);
             const [message, setMessage] = useState('');
-            const [activeTab, setActiveTab] = useState('books');
+            const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'books');
             const [newShelfName, setNewShelfName] = useState('');
             
             const [showConfirm, setShowConfirm] = useState(false);
@@ -4948,6 +4949,11 @@
             useEffect(() => {
                 if (activeTab === 'groups' && currentUser) loadGroups();
             }, [activeTab, currentUser]);
+
+            // Persist active tab so refresh returns to the same page
+            useEffect(() => {
+                localStorage.setItem('activeTab', activeTab);
+            }, [activeTab]);
 
             // ── Open a group (refresh its data) ──────────────────────────────
             const openGroup = async (group) => {

@@ -2058,6 +2058,38 @@
             border: 2px solid transparent;
             border-radius: 8px;
             padding: 0.4rem;
+            position: relative;
+        }
+
+        .selector-book-checkbox {
+            position: absolute;
+            top: 0.6rem;
+            left: 0.6rem;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid #fff;
+            background: rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            transition: background 0.15s, border-color 0.15s;
+            pointer-events: none;
+        }
+        .selector-book-card.selected .selector-book-checkbox {
+            background: #2d4a3e;
+            border-color: #2d4a3e;
+        }
+        .selector-book-checkbox-tick {
+            display: none;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .selector-book-card.selected .selector-book-checkbox-tick {
+            display: block;
         }
 
         .selector-book-card:hover {
@@ -10554,7 +10586,7 @@
                                 <div className="book-detail-content">
                                     <h2 className="book-detail-title">Add Books to Shelf</h2>
                                     <p style={{ marginBottom: '1.5rem', color: '#8b6f47' }}>
-                                        Select books from your library to add to "{shelves.find(s => s.id === targetShelfForSelector)?.name}"
+                                        Select one or more books from your library to add to "{shelves.find(s => s.id === targetShelfForSelector)?.name}"
                                     </p>
 
                                     {books.length === 0 ? (
@@ -10594,6 +10626,9 @@
                                                         className={`selector-book-card ${selectedBooksToAdd.includes(book.id) ? 'selected' : ''}`}
                                                         onClick={() => toggleBookSelection(book.id)}
                                                     >
+                                                        <div className="selector-book-checkbox">
+                                                            <span className="selector-book-checkbox-tick">✓</span>
+                                                        </div>
                                                         {book.cover ? (
                                                             <img
                                                                 src={book.cover}

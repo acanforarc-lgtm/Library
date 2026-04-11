@@ -45,7 +45,6 @@ workflows:
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
-<<<<<<< HEAD
             --xcargs "CURRENT_PROJECT_VERSION=$BUILD_NUMBER MARKETING_VERSION=2.3.4"
 
     artifacts:

@@ -42,10 +42,10 @@ workflows:
         script: |
           BUILD_NUMBER=$(git rev-list --count HEAD)
           echo "Setting build number to $BUILD_NUMBER (git commit count)"
+          cd ios/App && xcrun agvtool new-version -all $BUILD_NUMBER && cd ../..
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --xcargs "CURRENT_PROJECT_VERSION=$BUILD_NUMBER MARKETING_VERSION=2.3.4"
+            --scheme "$XCODE_SCHEME"
 
     artifacts:
       - build/ios/ipa/*.ipa

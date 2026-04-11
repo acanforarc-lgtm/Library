@@ -5360,8 +5360,13 @@
 
             const parseGbItem = (item) => {
                 const b = item.volumeInfo;
+                // Google Books splits title and subtitle into separate fields.
+                // Combine them so the full title is always shown.
+                const fullTitle = b.subtitle
+                    ? `${b.title}: ${b.subtitle}`
+                    : (b.title || 'Unknown Title');
                 return {
-                    title: b.title || 'Unknown Title',
+                    title: fullTitle,
                     author: b.authors?.[0] || 'Unknown Author',
                     isbn: b.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier ||
                           b.industryIdentifiers?.find(i => i.type === 'ISBN_10')?.identifier ||
@@ -5386,7 +5391,9 @@
                 const filterAndParse = (items) => (items || [])
                     .filter(item => {
                         const t = (item.volumeInfo.title || '').toLowerCase();
-                        return item.volumeInfo.printType === 'BOOK' &&
+                        // Exclude magazines — but don't require printType==='BOOK' since
+                        // many valid books have no printType set and would be wrongly filtered out.
+                        return item.volumeInfo.printType !== 'MAGAZINE' &&
                                !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
                     })
                     .map(parseGbItem);

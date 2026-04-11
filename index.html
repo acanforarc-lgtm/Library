@@ -6,8 +6,10 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.3.2
+    YOUR LIBRARY - VERSION 2.3.4
     ========================================
+    v2.3.4: Fix book auto-placement glitch on shelf
+    v2.3.3: Updated book adding — shelf selector checkbox UI
     v2.3.2: Persist active tab across page refreshes
     v2.3.1: Search improvements — enhanced search functions and UX
     v2.2.2: Bug fixes — chat scroll to latest, messaging and mobile UI polish
@@ -6557,28 +6559,24 @@
             };
             
             // Find next available position on a board
-            const findNextAvailablePosition = (shelfId, boardIndex) => {
-                const booksOnBoard = getBooksForBoard(shelfId, boardIndex);
-                
-                if (booksOnBoard.length === 0) {
-                    return 0; // Empty board, start at position 0
-                }
-                
-                // Try to place after the last book
+            const findNextAvailablePosition = (shelfId, boardIndex, excludeIds = []) => {
+                const booksOnBoard = getBooksForBoard(shelfId, boardIndex)
+                    .filter(b => !excludeIds.includes(b.id));
+
+                if (booksOnBoard.length === 0) return 0;
+
+                // Try placing after the last book (step in BOOK_WIDTH increments to stay aligned)
                 const lastBook = booksOnBoard[booksOnBoard.length - 1];
-                const nextPosition = (lastBook.position || 0) + BOOK_WIDTH;
-                
-                if (nextPosition + BOOK_WIDTH <= SHELF_WIDTH) {
-                    return nextPosition;
-                }
-                
-                // If can't fit at end, find gaps
-                for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos++) {
-                    if (isPositionAvailable(shelfId, boardIndex, pos)) {
+                const afterLast = (lastBook.position || 0) + BOOK_WIDTH;
+                if (afterLast + BOOK_WIDTH <= SHELF_WIDTH) return afterLast;
+
+                // Scan for gaps, stepping by BOOK_WIDTH so positions stay aligned
+                for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos += BOOK_WIDTH) {
+                    if (isPositionAvailable(shelfId, boardIndex, pos, excludeIds[0] ?? null)) {
                         return pos;
                     }
                 }
-                
+
                 return null; // Board is full
             };
             
@@ -7007,28 +7005,43 @@
             const addSelectedBooksToShelf = async () => {
                 if (selectedBooksToAdd.length === 0) return;
 
-                const targetBoardIndex = 0; // Default to first board
-                const targetShelf = targetShelfForSelector; // capture before async
-                const booksToAdd = [...selectedBooksToAdd]; // capture before async
-                let nextPosition = findNextAvailablePosition(targetShelf, targetBoardIndex);
+                const targetBoardIndex = 0;
+                const targetShelf = targetShelfForSelector;
+                const booksToAdd = [...selectedBooksToAdd];
 
-                if (nextPosition === null) {
-                    showMessage('❌ First shelf board is full!');
-                    return;
+                // Build a virtual occupied-position set, excluding the books being moved
+                // so their current positions don't block placement of themselves.
+                const takenPositions = new Set(
+                    getBooksForBoard(targetShelf, targetBoardIndex)
+                        .filter(b => !booksToAdd.includes(b.id))
+                        .flatMap(b => Array.from({ length: BOOK_WIDTH }, (_, i) => (b.position || 0) + i))
+                );
+
+                // Find next free aligned slot, marking it taken as we go
+                const findNextFreeSlot = () => {
+                    for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos += BOOK_WIDTH) {
+                        const blocked = Array.from({ length: BOOK_WIDTH }, (_, i) => pos + i).some(p => takenPositions.has(p));
+                        if (!blocked) return pos;
+                    }
+                    return null;
+                };
+
+                // Assign a position to each book in sequence
+                const assignments = [];
+                for (const bookId of booksToAdd) {
+                    const pos = findNextFreeSlot();
+                    if (pos === null) {
+                        showMessage('❌ Shelf board is full — not all books could be added');
+                        break;
+                    }
+                    assignments.push({ id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos });
+                    // Mark those slots taken so the next book doesn't collide
+                    for (let i = 0; i < BOOK_WIDTH; i++) takenPositions.add(pos + i);
                 }
 
+                if (assignments.length === 0) return;
+
                 try {
-                    // Build position assignments for each selected book
-                    let pos = nextPosition;
-                    const assignments = booksToAdd.map(bookId => {
-                        const assignment = { id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos };
-                        pos += BOOK_WIDTH;
-                        return assignment;
-                    });
-
-                    console.log('📚 Adding books to shelf', targetShelf, 'assignments:', assignments);
-
-                    // Persist all to Supabase, checking each for errors
                     await Promise.all(assignments.map(async ({ id, shelf_id, board_index, position }) => {
                         const { error } = await supabaseClient
                             .from('books')
@@ -7037,17 +7050,9 @@
                         if (error) throw error;
                     }));
 
-                    // Re-fetch from Supabase so state always matches DB
-                    const freshBooks = await reloadBooks();
-                    const onShelf = freshBooks.filter(b => String(b.shelf_id) === String(targetShelf));
-                    console.log(`📖 DB reports ${onShelf.length} book(s) on shelf ${targetShelf}:`, onShelf);
-
+                    await reloadBooks();
                     const shelfName = shelves.find(s => s.id === targetShelf)?.name;
-                    if (onShelf.length > 0) {
-                        showMessage(`✅ Added ${onShelf.length} book(s) to "${shelfName}"`);
-                    } else {
-                        showMessage(`⚠️ DB saved but no books found on shelf "${shelfName}" (shelf id: ${targetShelf}). Check Supabase RLS/columns.`);
-                    }
+                    showMessage(`✅ Added ${assignments.length} book(s) to "${shelfName}"`);
                     closeBookSelector();
                 } catch (error) {
                     console.error('Error adding books to shelf:', error);

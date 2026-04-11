@@ -6,8 +6,10 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.2.1
+    YOUR LIBRARY - VERSION 2.3.1
     ========================================
+    v2.3.1: Search improvements — enhanced search functions and UX
+    v2.2.2: Bug fixes — chat scroll to latest, messaging and mobile UI polish
     v2.2.1: Group chat — private groups, public groups, tiered chats, roles, moderation
     v2.1.1: Bug fixes — messaging, notifications, mobile UI polish
     v2.1.0: Mobile UI redesign — iMessage layout, responsive header
@@ -3927,6 +3929,7 @@
             const [pendingRoleRequests, setPendingRoleRequests] = useState([]);
             const [groupsError, setGroupsError] = useState('');
             const groupsMsgEndRef = React.useRef(null);
+            const groupsMsgContainerRef = React.useRef(null);
             // Create wizard
             const [showCreateGroup, setShowCreateGroup] = useState(false);
             const [createGroupStep, setCreateGroupStep] = useState(1);
@@ -4043,12 +4046,12 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            // Scroll to bottom when messages update
+            // Scroll to bottom when messages update or finish loading
             useEffect(() => {
-                if (chatMessagesRef.current) {
+                if (chatMessagesRef.current && !messagesLoading) {
                     chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
                 }
-            }, [messages]);
+            }, [messages, messagesLoading]);
 
             // Keep activeConversationRef in sync so global subscription can access it
             useEffect(() => {
@@ -5205,8 +5208,8 @@
 
             // Scroll to bottom when messages change
             useEffect(() => {
-                if (groupsMsgEndRef.current && groupsView === 'chat') {
-                    groupsMsgEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                if (groupsMsgContainerRef.current && groupsView === 'chat') {
+                    groupsMsgContainerRef.current.scrollTop = groupsMsgContainerRef.current.scrollHeight;
                 }
             }, [groupMessages, groupsView]);
 
@@ -5318,24 +5321,42 @@
                 } catch (e) { console.warn('Cache save failed:', e); }
             };
 
+            // Searches the shared book_cache by title or author text match.
+            // Returns normalised book objects — used as the first lookup tier before hitting APIs.
+            const searchBookCache = async (query) => {
+                try {
+                    const q = query.trim();
+                    if (q.length < 2) return [];
+                    const { data } = await supabaseClient
+                        .from('book_cache')
+                        .select('*')
+                        .or(`title.ilike.%${q}%,author.ilike.%${q}%,description.ilike.%${q}%`)
+                        .limit(30);
+                    return (data || []).map(row => ({
+                        title: row.title,
+                        author: row.author,
+                        isbn: row.isbn,
+                        cover: row.cover_url,
+                        publishYear: row.publish_year,
+                        publisher: row.publisher,
+                        pageCount: row.page_count,
+                        description: row.description || 'No description available.',
+                        rating: row.rating || 0
+                    }));
+                } catch { return []; }
+            };
+
             // ─── Google Books fetch helper ─────────────────────────────────────
-            // Shared stop-words and query builder used by search + recommendations.
-            const GB_STOP_WORDS = new Set([
-                'a','an','the','and','or','of','in','to','for','with',
-                'on','at','by','from','is','it','its','as','be','but','so','than'
-            ]);
 
             const buildGbQuery = (q) => {
                 if (isIsbnQuery(q)) return `isbn:${q.replace(/[-\s]/g, '')}`;
-                const cleanWord = w => w
-                    .replace(/['\u2018\u2019\u201A\u201B\u02BC\u02BB'`]/g, '')
-                    .replace(/[^a-zA-Z0-9]/g, '');
-                const words = q.trim().split(/\s+/).filter(Boolean);
-                const content = words.map(cleanWord)
-                    .filter(w => w.length >= 3 && !GB_STOP_WORDS.has(w.toLowerCase()));
-                if (content.length === 0) return q;
-                return content.map(w => `intitle:${w}`).join(' ');
+                // Pass the raw query — mirrors what Google Books web search does and
+                // searches across title, author, and description simultaneously.
+                // Field-specific prefixes (intitle:, inauthor:) restrict results too
+                // aggressively and return wrong books for title+subtitle queries.
+                return q.trim();
             };
+
 
             const parseGbItem = (item) => {
                 const b = item.volumeInfo;
@@ -5355,11 +5376,21 @@
                 };
             };
 
-            // Fetches books from Google Books API. Returns array of normalised book objects.
+            // Fetches books from Google Books API using the raw query — mirrors Google Books
+            // web search, which queries title, author, and description simultaneously.
             const fetchFromGoogleBooks = async (query, fullSearch = false) => {
                 const maxResults = fullSearch ? 200 : 40;
                 const perPage = 40;
                 const apiQuery = buildGbQuery(restoreContractions(query));
+
+                const filterAndParse = (items) => (items || [])
+                    .filter(item => {
+                        const t = (item.volumeInfo.title || '').toLowerCase();
+                        return item.volumeInfo.printType === 'BOOK' &&
+                               !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
+                    })
+                    .map(parseGbItem);
+
                 let results = [];
                 let startIndex = 0;
 
@@ -5370,19 +5401,11 @@
                     if (!res.ok) break;
                     const data = await res.json();
                     if (!data.items?.length) break;
-
-                    const filtered = data.items
-                        .filter(item => {
-                            const t = (item.volumeInfo.title || '').toLowerCase();
-                            return item.volumeInfo.printType === 'BOOK' &&
-                                   !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
-                        })
-                        .map(parseGbItem);
-
-                    results = [...results, ...filtered];
+                    results = [...results, ...filterAndParse(data.items)];
                     if (!fullSearch || data.items.length < perPage) break;
                     startIndex += perPage;
                 }
+
                 return results;
             };
 
@@ -5463,6 +5486,14 @@
                 ];
                 if (SUMMARY_WORDS.some(kw => rawTitle.includes(kw))) score -= 50;
 
+                // Hard penalty: if no query token appears anywhere in title or author,
+                // this result is irrelevant regardless of quality signals (e.g. a popular
+                // unrelated book shouldn't outrank the correct result on rating alone).
+                if (tokens.length > 0) {
+                    const anyMatch = tokens.some(t => title.includes(t) || author.includes(t));
+                    if (!anyMatch) score -= 200;
+                }
+
                 // Quality signals — prefer well-catalogued books
                 if (book.cover) score += 3;
                 if (book.isbn && book.isbn !== 'Not Available') score += 3;
@@ -5505,25 +5536,24 @@
                 setSearchLoading(true);
                 if (!fullSearch) setShowSearchDropdown(true);
 
-                const cacheKey = `search_v1_${query.trim().toLowerCase()}_${fullSearch}`;
+                // v4 cache key — full Google Books passthrough, no custom ranking
+                const cacheKey = `search_v4_${query.trim().toLowerCase()}_${fullSearch}`;
 
                 try {
-                    // ── 1. sessionStorage cache (1-hour TTL) ──────────────────────────
+                    // ── 1. Session cache (1-hour TTL) ─────────────────────────────────
                     const cached = sessionStorage.getItem(cacheKey);
-                    let cacheHit = false;
                     if (cached) {
                         try {
                             const { results, ts } = JSON.parse(cached);
                             if (Date.now() - ts < 3_600_000) {
                                 if (fullSearch) { setFullResults(results); setShowFullResults(true); }
                                 else setSearchResults(results.slice(0, 5));
-                                cacheHit = true;
+                                return;
                             }
                         } catch (_) {}
                     }
-                    if (cacheHit) return;
 
-                    // ── 2. ISBN query → Supabase cache first, then Google Books ───────
+                    // ── 2. ISBN: exact Supabase lookup ────────────────────────────────
                     if (isIsbnQuery(query)) {
                         const cleanIsbn = query.replace(/[-\s]/g, '');
                         const fromCache = await lookupIsbnInCache(cleanIsbn);
@@ -5532,56 +5562,21 @@
                             else setSearchResults([fromCache]);
                             return;
                         }
-                        // Not cached — fall through to Google Books below
                     }
 
-                    // ── 3. Open Library first (free, unlimited) ───────────────────────
-                    let olResults = [];
+                    // ── 3. Google Books — raw query, Google's native ranking ───────────
+                    const results = await fetchFromGoogleBooks(query, fullSearch);
+
+                    // ── 4. Cache results in Supabase for future ISBN/barcode lookups ───
+                    results.forEach(b => saveIsbnToCache(b));
+
+                    // ── 5. Store in session cache and display ─────────────────────────
                     try {
-                        const olLimit = fullSearch ? 40 : 10;
-                        const olRes = await fetch(
-                            `https://openlibrary.org/search.json?q=${encodeURIComponent(restoreContractions(query))}&limit=${olLimit}&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median,first_sentence`
-                        );
-                        if (olRes.ok) {
-                            const olData = await olRes.json();
-                            olResults = (olData.docs || []).map(doc => ({
-                                title: doc.title || 'Unknown Title',
-                                author: doc.author_name?.[0] || 'Unknown Author',
-                                isbn: doc.isbn?.[0] || 'Not Available',
-                                cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
-                                publishYear: doc.first_publish_year?.toString() || null,
-                                publisher: doc.publisher?.[0] || null,
-                                pageCount: doc.number_of_pages_median || null,
-                                description: doc.first_sentence?.[0] || 'No description available.',
-                                rating: 0
-                            }));
-                        }
-                    } catch (e) { console.warn('Open Library search failed:', e); }
-
-                    // ── 4. If OL returned < 3 results, call Google Books ──────────────
-                    let finalResults = olResults;
-                    if (olResults.length < 3) {
-                        try {
-                            const gbResults = await fetchFromGoogleBooks(query, fullSearch);
-                            // Prefer Google Books results when OL is thin
-                            finalResults = gbResults.length > 0 ? gbResults : olResults;
-
-                            // Cache any ISBN-bearing results for future barcode lookups
-                            gbResults.forEach(b => { if (b.isbn && b.isbn !== 'Not Available') saveIsbnToCache(b); });
-                        } catch (e) { console.warn('Google Books search failed:', e); }
-                    }
-
-                    // ── 5. Rank and store ─────────────────────────────────────────────
-                    const ranked = finalResults
-                        .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
-                        .sort((a, b) => b._score - a._score);
-
-                    try {
-                        sessionStorage.setItem(cacheKey, JSON.stringify({ results: ranked, ts: Date.now() }));
+                        sessionStorage.setItem(cacheKey, JSON.stringify({ results, ts: Date.now() }));
                     } catch (_) {}
 
-                    if (fullSearch) { setFullResults(ranked); setShowFullResults(true); }
-                    else setSearchResults(ranked.slice(0, 5));
+                    if (fullSearch) { setFullResults(results); setShowFullResults(true); }
+                    else setSearchResults(results.slice(0, 5));
 
                 } catch (error) {
                     console.error('Search error:', error);
@@ -9600,7 +9595,7 @@
                                             </div>
                                         </div>
 
-                                        <div className="group-chat-messages" ref={groupsMsgEndRef}>
+                                        <div className="group-chat-messages" ref={groupsMsgContainerRef}>
                                             {groupMessagesLoading && (
                                                 <div style={{textAlign:'center', color:'#8b6f47', padding:'2rem'}}>Loading…</div>
                                             )}

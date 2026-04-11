@@ -3891,7 +3891,7 @@
             const [newMessage, setNewMessage] = useState('');
             const [messagesLoading, setMessagesLoading] = useState(false);
             const [unreadMessages, setUnreadMessages] = useState(0);
-            const [msgContextMenu, setMsgContextMenu] = useState(null); // msgId of long-pressed msg
+            const [msgContextMenu, setMsgContextMenu] = useState(null); // { id, x, y }
             const msgLongPressTimer = React.useRef(null);
             const msgSubscriptionRef = React.useRef(null);
             const globalMsgSubRef = React.useRef(null);
@@ -4603,9 +4603,8 @@
 
             const deleteMessage = async (msgId) => {
                 await supabaseClient.from('messages').update({ is_deleted: true }).eq('id', msgId);
-                // Show deleted placeholder instead of removing so the other party sees it too
                 setMessages(prev => prev.map(m => m.id === msgId ? { ...m, is_deleted: true } : m));
-                setMsgContextMenu(null);
+                setMsgContextMenu(null); // {id,x,y} → null
             };
 
             const openConversation = async (conv) => {
@@ -9467,7 +9466,7 @@
 
                                                 {/* Messages */}
                                                 <div className="chat-messages" ref={chatMessagesRef}
-                                                    onClick={() => setMsgContextMenu(null)}>
+                                                    onClick={() => msgContextMenu && setMsgContextMenu(null)}>
                                                     {messagesLoading ? (
                                                         <div style={{textAlign: 'center', padding: '2rem', color: '#8b6f47'}}>Loading...</div>
                                                     ) : messages.length === 0 ? (
@@ -9478,18 +9477,17 @@
                                                         messages.map(msg => {
                                                             const isMine = msg.sender_id === currentUser.id;
                                                             const isDeleted = msg.is_deleted;
-                                                            const showMenu = msgContextMenu === msg.id;
                                                             return (
                                                                 <div key={msg.id}
                                                                     className={`msg-bubble-wrap${isMine ? ' mine' : ''}`}
-                                                                    style={{position:'relative'}}
-                                                                    onTouchStart={() => {
+                                                                    onTouchStart={e => {
                                                                         if (!isMine || isDeleted) return;
-                                                                        msgLongPressTimer.current = setTimeout(() => setMsgContextMenu(msg.id), 600);
+                                                                        const t = e.touches[0];
+                                                                        msgLongPressTimer.current = setTimeout(() => setMsgContextMenu({id: msg.id, x: t.clientX, y: t.clientY}), 600);
                                                                     }}
                                                                     onTouchEnd={() => clearTimeout(msgLongPressTimer.current)}
                                                                     onTouchMove={() => clearTimeout(msgLongPressTimer.current)}
-                                                                    onContextMenu={e => { e.preventDefault(); if (isMine && !isDeleted) setMsgContextMenu(msg.id); }}
+                                                                    onContextMenu={e => { e.preventDefault(); if (isMine && !isDeleted) setMsgContextMenu({id: msg.id, x: e.clientX, y: e.clientY}); }}
                                                                 >
                                                                     <div className={`msg-bubble${isMine ? ' mine' : ''}${isDeleted ? ' deleted' : ''}`}>
                                                                         {isDeleted
@@ -9501,19 +9499,6 @@
                                                                         {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                                                                         {isMine && msg.read_at && ' ✓✓'}
                                                                     </div>
-                                                                    {showMenu && (
-                                                                        <div style={{
-                                                                            position:'absolute', bottom:'calc(100% + 4px)', right:0,
-                                                                            background:'#3d2817', borderRadius:'8px',
-                                                                            boxShadow:'0 4px 12px rgba(0,0,0,0.3)', zIndex:9999,
-                                                                            overflow:'hidden', minWidth:'140px'
-                                                                        }} onClick={e => e.stopPropagation()}>
-                                                                            <button style={{display:'block',padding:'0.65rem 1.2rem',background:'none',border:'none',color:'#ff6b6b',cursor:'pointer',fontSize:'0.9rem',width:'100%',textAlign:'left'}}
-                                                                                onClick={() => deleteMessage(msg.id)}>Delete Message</button>
-                                                                            <button style={{display:'block',padding:'0.65rem 1.2rem',background:'none',border:'none',color:'#faf8f3',cursor:'pointer',fontSize:'0.9rem',width:'100%',textAlign:'left',borderTop:'1px solid rgba(255,255,255,0.1)'}}
-                                                                                onClick={() => setMsgContextMenu(null)}>Cancel</button>
-                                                                        </div>
-                                                                    )}
                                                                 </div>
                                                             );
                                                         })
@@ -9543,6 +9528,23 @@
                                         );
                                     })()}
                                 </div>
+
+                                {/* Message context menu — fixed so it escapes overflow:auto */}
+                                {msgContextMenu && (
+                                    <div style={{
+                                        position:'fixed',
+                                        top: Math.min(msgContextMenu.y, window.innerHeight - 100),
+                                        left: Math.min(msgContextMenu.x, window.innerWidth - 160),
+                                        background:'#3d2817', borderRadius:'8px',
+                                        boxShadow:'0 4px 20px rgba(0,0,0,0.4)',
+                                        zIndex:99999, overflow:'hidden', minWidth:'150px'
+                                    }} onClick={e => e.stopPropagation()}>
+                                        <button style={{display:'block',padding:'0.7rem 1.2rem',background:'none',border:'none',color:'#ff6b6b',cursor:'pointer',fontSize:'0.95rem',width:'100%',textAlign:'left'}}
+                                            onClick={() => deleteMessage(msgContextMenu.id)}>Delete Message</button>
+                                        <button style={{display:'block',padding:'0.7rem 1.2rem',background:'none',border:'none',color:'#faf8f3',cursor:'pointer',fontSize:'0.95rem',width:'100%',textAlign:'left',borderTop:'1px solid rgba(255,255,255,0.15)'}}
+                                            onClick={() => setMsgContextMenu(null)}>Cancel</button>
+                                    </div>
+                                )}
                             </div>
                         )}
 

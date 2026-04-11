@@ -3,14 +3,14 @@
 -- Apply in Supabase SQL Editor (project: wqurkgnossvafujxlehq)
 -- Run AFTER v2.0.0_social_schema.sql
 -- ============================================================
--- Strategy: create ALL tables first, then add RLS policies
--- (policies that cross-reference tables must come after all
---  referenced tables exist).
+-- All tables created first, then RLS policies (avoids forward-
+-- reference errors). Every outer-row column in policy subqueries
+-- is fully qualified (table.column) to avoid ambiguity errors.
 -- ============================================================
 
 
 -- ─────────────────────────────────────────────────────────────
--- TABLES (no cross-referencing policies yet)
+-- TABLES
 -- ─────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS book_groups (
@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS ai_moderation_log (
 
 CREATE INDEX IF NOT EXISTS idx_aml_context ON ai_moderation_log(context_id);
 CREATE INDEX IF NOT EXISTS idx_aml_action  ON ai_moderation_log(action);
+-- No RLS — service role only
 
 
 CREATE TABLE IF NOT EXISTS member_reports (
@@ -227,275 +228,316 @@ ALTER TABLE member_reports ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────
 -- RLS POLICIES
--- All tables exist now, so cross-references are safe.
+-- Outer-row columns are always fully qualified (table.column)
+-- to avoid "column reference is ambiguous" errors.
 -- ─────────────────────────────────────────────────────────────
 
 -- book_groups
-CREATE POLICY "Public groups visible to all; private only to members"
+CREATE POLICY "bg_select"
   ON book_groups FOR SELECT
   USING (
-    is_active = true AND (
-      type = 'public'
-      OR owner_id = auth.uid()
+    book_groups.is_active = true AND (
+      book_groups.type = 'public'
+      OR book_groups.owner_id = auth.uid()
       OR EXISTS (
         SELECT 1 FROM group_members gm
-        WHERE gm.group_id = id AND gm.user_id = auth.uid() AND gm.banned_at IS NULL
+        WHERE gm.group_id = book_groups.id
+          AND gm.user_id = auth.uid()
+          AND gm.banned_at IS NULL
       )
     )
   );
 
-CREATE POLICY "Authenticated users can create groups"
-  ON book_groups FOR INSERT WITH CHECK (auth.uid() = owner_id);
+CREATE POLICY "bg_insert"
+  ON book_groups FOR INSERT
+  WITH CHECK (auth.uid() = book_groups.owner_id);
 
-CREATE POLICY "Owner can update group"
-  ON book_groups FOR UPDATE USING (auth.uid() = owner_id);
+CREATE POLICY "bg_update"
+  ON book_groups FOR UPDATE
+  USING (auth.uid() = book_groups.owner_id);
 
-CREATE POLICY "Owner can delete group"
-  ON book_groups FOR DELETE USING (auth.uid() = owner_id);
+CREATE POLICY "bg_delete"
+  ON book_groups FOR DELETE
+  USING (auth.uid() = book_groups.owner_id);
 
 
 -- group_roles
-CREATE POLICY "Members can view roles"
+CREATE POLICY "gr_select"
   ON group_roles FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM book_groups bg
-      LEFT JOIN group_members gm ON gm.group_id = bg.id AND gm.user_id = auth.uid()
-      WHERE bg.id = group_id
+      LEFT JOIN group_members gm
+        ON gm.group_id = bg.id AND gm.user_id = auth.uid()
+      WHERE bg.id = group_roles.group_id
         AND (bg.type = 'public' OR (gm.user_id IS NOT NULL AND gm.banned_at IS NULL))
     )
   );
 
-CREATE POLICY "Admin can manage roles"
+CREATE POLICY "gr_all"
   ON group_roles FOR ALL
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr2 ON gr2.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
+      WHERE gm.group_id = group_roles.group_id
+        AND gm.user_id = auth.uid()
         AND gr2.role_type = 'admin'
     )
   );
 
 
 -- group_members
-CREATE POLICY "Members can see who else is in the group"
+CREATE POLICY "gm_select"
   ON group_members FOR SELECT
   USING (
-    auth.uid() = user_id
+    auth.uid() = group_members.user_id
     OR EXISTS (
       SELECT 1 FROM group_members gm2
-      WHERE gm2.group_id = group_id AND gm2.user_id = auth.uid() AND gm2.banned_at IS NULL
+      WHERE gm2.group_id = group_members.group_id
+        AND gm2.user_id = auth.uid()
+        AND gm2.banned_at IS NULL
     )
   );
 
-CREATE POLICY "Privileged members can add others"
+CREATE POLICY "gm_insert"
   ON group_members FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["add_member"]'::jsonb)
+      WHERE gm.group_id = group_members.group_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["add_member"]'::jsonb
+        )
     )
   );
 
-CREATE POLICY "Privileged members can update (ban/unban)"
+CREATE POLICY "gm_update"
   ON group_members FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["ban_member"]'::jsonb
-             OR gr.privileges @> '["remove_member"]'::jsonb)
+      WHERE gm.group_id = group_members.group_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["ban_member"]'::jsonb
+          OR gr.privileges @> '["remove_member"]'::jsonb
+        )
     )
   );
 
-CREATE POLICY "Privileged members can remove others"
+CREATE POLICY "gm_delete"
   ON group_members FOR DELETE
   USING (
-    auth.uid() = user_id
+    auth.uid() = group_members.user_id
     OR EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["remove_member"]'::jsonb)
+      WHERE gm.group_id = group_members.group_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["remove_member"]'::jsonb
+        )
     )
   );
 
 
 -- role_change_requests
-CREATE POLICY "Group members can see requests"
+CREATE POLICY "rcr_select"
   ON role_change_requests FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid() AND gm.banned_at IS NULL
+      WHERE gm.group_id = role_change_requests.group_id
+        AND gm.user_id = auth.uid()
+        AND gm.banned_at IS NULL
     )
   );
 
-CREATE POLICY "Privileged members can request role changes"
+CREATE POLICY "rcr_insert"
   ON role_change_requests FOR INSERT
   WITH CHECK (
-    auth.uid() = requested_by AND
-    EXISTS (
+    auth.uid() = role_change_requests.requested_by
+    AND EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["assign_role"]'::jsonb)
+      WHERE gm.group_id = role_change_requests.group_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["assign_role"]'::jsonb
+        )
     )
   );
 
-CREATE POLICY "Admin can review requests"
+CREATE POLICY "rcr_update"
   ON role_change_requests FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
+      WHERE gm.group_id = role_change_requests.group_id
+        AND gm.user_id = auth.uid()
         AND gr.role_type = 'admin'
     )
   );
 
 
 -- group_shelves
-CREATE POLICY "Members can view shelves"
+CREATE POLICY "gs_select"
   ON group_shelves FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid() AND gm.banned_at IS NULL
+      WHERE gm.group_id = group_shelves.group_id
+        AND gm.user_id = auth.uid()
+        AND gm.banned_at IS NULL
     )
   );
 
-CREATE POLICY "Privileged members can manage shelves"
+CREATE POLICY "gs_all"
   ON group_shelves FOR ALL
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["manage_books"]'::jsonb)
+      WHERE gm.group_id = group_shelves.group_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["manage_books"]'::jsonb
+        )
     )
   );
 
 
 -- group_chats
-CREATE POLICY "Members or public can view chats"
+CREATE POLICY "gc_select"
   ON group_chats FOR SELECT
   USING (
-    EXISTS (
+    group_chats.is_active = true
+    AND EXISTS (
       SELECT 1 FROM book_groups bg
-      LEFT JOIN group_members gm ON gm.group_id = bg.id AND gm.user_id = auth.uid()
-      WHERE bg.id = group_id AND is_active = true
+      LEFT JOIN group_members gm
+        ON gm.group_id = bg.id AND gm.user_id = auth.uid()
+      WHERE bg.id = group_chats.group_id
         AND (bg.type = 'public' OR (gm.user_id IS NOT NULL AND gm.banned_at IS NULL))
     )
   );
 
-CREATE POLICY "Privileged members can create chats"
+CREATE POLICY "gc_insert"
   ON group_chats FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["start_discussion"]'::jsonb)
+      WHERE gm.group_id = group_chats.group_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["start_discussion"]'::jsonb
+        )
     )
   );
 
-CREATE POLICY "Admin can update/archive chats"
+CREATE POLICY "gc_update"
   ON group_chats FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
+      WHERE gm.group_id = group_chats.group_id
+        AND gm.user_id = auth.uid()
         AND gr.role_type = 'admin'
     )
   );
 
 
 -- chat_ratings
-CREATE POLICY "Anyone can view ratings"     ON chat_ratings FOR SELECT USING (true);
-CREATE POLICY "Users can rate chats"        ON chat_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own rating" ON chat_ratings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "cr_select" ON chat_ratings FOR SELECT USING (true);
+CREATE POLICY "cr_insert" ON chat_ratings FOR INSERT WITH CHECK (auth.uid() = chat_ratings.user_id);
+CREATE POLICY "cr_update" ON chat_ratings FOR UPDATE USING (auth.uid() = chat_ratings.user_id);
 
 
 -- group_chat_messages
-CREATE POLICY "Members or public can read non-deleted messages"
+CREATE POLICY "gcm_select"
   ON group_chat_messages FOR SELECT
   USING (
-    is_deleted = false AND
-    EXISTS (
+    group_chat_messages.is_deleted = false
+    AND EXISTS (
       SELECT 1 FROM group_chats gc
       JOIN book_groups bg ON bg.id = gc.group_id
-      LEFT JOIN group_members gm ON gm.group_id = bg.id AND gm.user_id = auth.uid()
-      WHERE gc.id = chat_id
+      LEFT JOIN group_members gm
+        ON gm.group_id = bg.id AND gm.user_id = auth.uid()
+      WHERE gc.id = group_chat_messages.chat_id
         AND (bg.type = 'public' OR (gm.user_id IS NOT NULL AND gm.banned_at IS NULL))
     )
   );
 
-CREATE POLICY "Non-banned members can post"
+CREATE POLICY "gcm_insert"
   ON group_chat_messages FOR INSERT
   WITH CHECK (
-    auth.uid() = sender_id AND
-    EXISTS (
+    auth.uid() = group_chat_messages.sender_id
+    AND EXISTS (
       SELECT 1 FROM group_chats gc
       JOIN book_groups bg ON bg.id = gc.group_id
-      LEFT JOIN group_members gm ON gm.group_id = bg.id AND gm.user_id = auth.uid()
-      WHERE gc.id = chat_id
+      LEFT JOIN group_members gm
+        ON gm.group_id = bg.id AND gm.user_id = auth.uid()
+      WHERE gc.id = group_chat_messages.chat_id
         AND (bg.type = 'public' OR (gm.user_id IS NOT NULL AND gm.banned_at IS NULL))
     )
   );
 
-CREATE POLICY "Sender or moderator can soft-delete"
+CREATE POLICY "gcm_update"
   ON group_chat_messages FOR UPDATE
   USING (
-    auth.uid() = sender_id
+    auth.uid() = group_chat_messages.sender_id
     OR EXISTS (
       SELECT 1 FROM group_chats gc
       JOIN group_members gm ON gm.group_id = gc.group_id
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gc.id = chat_id AND gm.user_id = auth.uid()
-        AND (gr.role_type IN ('admin','assistant_admin')
-             OR gr.privileges @> '["ban_member"]'::jsonb)
+      WHERE gc.id = group_chat_messages.chat_id
+        AND gm.user_id = auth.uid()
+        AND (
+          gr.role_type IN ('admin','assistant_admin')
+          OR gr.privileges @> '["ban_member"]'::jsonb
+        )
     )
   );
 
 
 -- book_public_chats
-CREATE POLICY "Anyone can view active public book chats"
-  ON book_public_chats FOR SELECT USING (is_active = true);
-
-CREATE POLICY "Authenticated users can create book chats"
-  ON book_public_chats FOR INSERT WITH CHECK (auth.uid() = host_id);
-
-CREATE POLICY "Host can update their chat"
-  ON book_public_chats FOR UPDATE USING (auth.uid() = host_id);
+CREATE POLICY "bpc_select" ON book_public_chats FOR SELECT USING (book_public_chats.is_active = true);
+CREATE POLICY "bpc_insert" ON book_public_chats FOR INSERT WITH CHECK (auth.uid() = book_public_chats.host_id);
+CREATE POLICY "bpc_update" ON book_public_chats FOR UPDATE USING (auth.uid() = book_public_chats.host_id);
 
 
 -- member_reports
-CREATE POLICY "Reporter can view own reports"
-  ON member_reports FOR SELECT USING (auth.uid() = reporter_id);
+CREATE POLICY "mr_select"
+  ON member_reports FOR SELECT
+  USING (auth.uid() = member_reports.reporter_id);
 
-CREATE POLICY "Authenticated users can file reports"
+CREATE POLICY "mr_insert"
   ON member_reports FOR INSERT
-  WITH CHECK (auth.uid() = reporter_id AND reporter_id != target_id);
+  WITH CHECK (
+    auth.uid() = member_reports.reporter_id
+    AND member_reports.reporter_id != member_reports.target_id
+  );
 
-CREATE POLICY "Admin can review reports in their group"
+CREATE POLICY "mr_update"
   ON member_reports FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM group_members gm
       JOIN group_roles gr ON gr.id = gm.role_id
-      WHERE gm.group_id = group_id AND gm.user_id = auth.uid()
+      WHERE gm.group_id = member_reports.group_id
+        AND gm.user_id = auth.uid()
         AND gr.role_type = 'admin'
     )
   );
@@ -606,10 +648,10 @@ DECLARE
   MGR_PRIVS  JSONB := '["add_member","remove_member","report_member","start_discussion"]'::jsonb;
 BEGIN
   INSERT INTO group_roles(group_id, name, role_type, privileges, sort_order) VALUES
-    (NEW.id, 'Admin',           'admin',          ALL_PRIVS,       1),
-    (NEW.id, 'Assistant Admin', 'assistant_admin', ASST_PRIVS,      2),
-    (NEW.id, 'Manager',         'manager',         MGR_PRIVS,       3),
-    (NEW.id, 'Member',          'member',          '[]'::jsonb,     4);
+    (NEW.id, 'Admin',           'admin',          ALL_PRIVS,   1),
+    (NEW.id, 'Assistant Admin', 'assistant_admin', ASST_PRIVS,  2),
+    (NEW.id, 'Manager',         'manager',         MGR_PRIVS,   3),
+    (NEW.id, 'Member',          'member',          '[]'::jsonb, 4);
 
   SELECT id INTO v_admin_role_id FROM group_roles
   WHERE group_id = NEW.id AND role_type = 'admin';

@@ -4888,7 +4888,7 @@
                     const myGroupIds = (memberRows || []).map(r => r.group_id);
 
                     // Fetch private groups I'm in + all active public groups
-                    const { data: grps, error } = await supabaseClient
+                    let grpQuery = supabaseClient
                         .from('book_groups')
                         .select(`
                             *,
@@ -4897,8 +4897,13 @@
                             shelves:group_shelves(*),
                             chats:group_chats(id, title, tier, rating, rating_count, is_active, created_at)
                         `)
-                        .eq('is_active', true)
-                        .or(`type.eq.public,id.in.(${myGroupIds.length ? myGroupIds.join(',') : 'null'})`);
+                        .eq('is_active', true);
+                    if (myGroupIds.length > 0) {
+                        grpQuery = grpQuery.or(`type.eq.public,id.in.(${myGroupIds.join(',')})`);
+                    } else {
+                        grpQuery = grpQuery.eq('type', 'public');
+                    }
+                    const { data: grps, error } = await grpQuery;
                     if (error) throw error;
                     setGroups(grps || []);
                 } catch (err) {

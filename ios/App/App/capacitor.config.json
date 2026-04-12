@@ -3,7 +3,8 @@
 	"appName": "Your Library",
 	"webDir": "www",
 	"ios": {
-		"contentInset": "always"
+		"contentInset": "always",
+		"scrollEnabled": false
 	},
 	"plugins": {
 		"SplashScreen": {

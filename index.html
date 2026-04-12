@@ -5447,7 +5447,8 @@
 
                 while (results.length < maxResults) {
                     const res = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(apiQuery)}&orderBy=relevance&maxResults=${perPage}&startIndex=${startIndex}${GBOOKS_KEY}`
+                        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(apiQuery)}&orderBy=relevance&maxResults=${perPage}&startIndex=${startIndex}${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' }
                     );
                     if (!res.ok) break;
                     const data = await res.json();
@@ -6140,7 +6141,8 @@
                 setRecsLoading(true);
 
                 const gbQuery = (q, n = 15) =>
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=relevance&maxResults=${n}&printType=books${GBOOKS_KEY}`)
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=relevance&maxResults=${n}&printType=books${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null);
 
@@ -6199,7 +6201,8 @@
 
                 // 5. New releases
                 promises.push(
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=15&printType=books${GBOOKS_KEY}`)
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=15&printType=books${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null).catch(() => null)
                         .then(data => {
                             const books = toBooks(data);
@@ -6350,7 +6353,8 @@
                     if (!bookData) {
                         // Not cached — fetch from Google Books
                         const response = await fetch(
-                            `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${GBOOKS_KEY}`
+                            `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${GBOOKS_KEY}`,
+                            { referrerPolicy: 'strict-origin-when-cross-origin' }
                         );
                         if (response.ok) {
                             const data = await response.json();
@@ -7396,7 +7400,8 @@
 
                     // Try Google Books API first (with key to avoid 429)
                     const response = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${GBOOKS_KEY}`
+                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' }
                     );
 
                     console.log('API Response status:', response.status);
@@ -7728,7 +7733,8 @@
 
                     // Try Google Books with key to avoid 429
                     const googleResponse = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1${GBOOKS_KEY}`
+                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' }
                     );
 
                     if (googleResponse.status === 429) {

@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.3
+    YOUR LIBRARY - VERSION 2.4.4
     ========================================
+    v2.4.4: Hide all groups/community UI pending redesign
     v2.4.3: Compact reading data, Community as link → Groups page
     v2.4.2: Replace inline description with Summary popout link
     v2.4.1: Enrich library book popups with metadata from book_cache
@@ -7996,9 +7997,6 @@
                                                 👥 Friends
                                                 {friendRequests.length > 0 && <span className="tab-badge" style={{marginLeft:'0.5rem'}}>{friendRequests.length}</span>}
                                             </div>
-                                            <div className="dropdown-item" onClick={() => { setActiveTab('groups'); setGroupsView('list'); setShowUserMenu(false); }}>
-                                                💬 Groups
-                                            </div>
                                             <div className="dropdown-item" onClick={handleLogout} style={{borderTop:'2px solid #f0f0f0',marginTop:'0.5rem',paddingTop:'1rem'}}>🚪 Logout</div>
                                         </div>
                                     )}
@@ -8242,9 +8240,6 @@
                                                 <span className="tab-badge" style={{marginLeft: '0.5rem'}}>{friendRequests.length}</span>
                                             )}
                                         </div>
-                                        <div className="dropdown-item" onClick={() => { setActiveTab('groups'); setGroupsView('list'); setShowUserMenu(false); }}>
-                                            💬 Groups
-                                        </div>
                                         <div className="dropdown-item" onClick={handleLogout} style={{ borderTop: '2px solid #f0f0f0', marginTop: '0.5rem', paddingTop: '1rem' }}>
                                             🚪 Logout
                                         </div>
@@ -8287,18 +8282,7 @@
                                                         onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
                                                     >📖 Summary</div>
                                                 )}
-                                                {shelfBookData.isbn && (
-                                                    <div
-                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.1rem'}}
-                                                        onClick={() => {
-                                                            setCommunityBookIsbn(shelfBookData.isbn);
-                                                            setCommunityBookTitle(shelfBookData.title);
-                                                            closeShelfBookPopup();
-                                                            setActiveTab('groups');
-                                                            setGroupsView('list');
-                                                        }}
-                                                    >💬 Community</div>
-                                                )}
+                                                {/* Community link hidden — pending groups redesign */}
                                             </div>
                                         </div>
                                     </div>
@@ -8443,18 +8427,7 @@
                                                         onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
                                                     >📖 Summary</div>
                                                 )}
-                                                {bookInfoData.isbn && (
-                                                    <div
-                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.1rem'}}
-                                                        onClick={() => {
-                                                            setCommunityBookIsbn(bookInfoData.isbn);
-                                                            setCommunityBookTitle(bookInfoData.title);
-                                                            closeBookInfo();
-                                                            setActiveTab('groups');
-                                                            setGroupsView('list');
-                                                        }}
-                                                    >💬 Community</div>
-                                                )}
+                                                {/* Community link hidden — pending groups redesign */}
                                             </div>
                                         </div>
                                     </div>
@@ -8624,7 +8597,7 @@
                                         </div>
                                     )}
 
-                                    {currentUser && selectedBook?.isbn && selectedBook.isbn !== 'Not Available' && (
+                                    {currentUser && selectedBook?.isbn && selectedBook.isbn !== 'Not Available' && false && (
                                         <div style={{marginTop:'1.25rem', borderTop:'1px solid #e0c9a6', paddingTop:'1rem'}}>
                                             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem'}}>
                                                 <div style={{fontWeight:700, color:'#3d2817', fontSize:'0.95rem'}}>💬 Community</div>
@@ -9005,12 +8978,7 @@
                             >
                                 🏠 My Room
                             </div>
-                            <div
-                                className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
-                                onClick={() => { setActiveTab('groups'); setGroupsView('list'); }}
-                            >
-                                💬 Groups
-                            </div>
+                            {/* Groups tab hidden — pending redesign */}
                         </div>
 
                         {/* Your Books Section - Netflix Style */}
@@ -9796,7 +9764,7 @@
                         {/* ═══════════════════════════════════════════════
                             GROUPS SECTION — Coming Soon
                             ═══════════════════════════════════════════════ */}
-                        {activeTab === 'groups' && currentUser && (() => {
+                        {activeTab === 'groups' && currentUser && false && (() => {
 
                             /* ── Helpers (inline so they close over state) ── */
                             const myGroups   = groups.filter(g => isMemberOfGroup(g));

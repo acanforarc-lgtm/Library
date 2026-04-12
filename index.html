@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.2
+    YOUR LIBRARY - VERSION 2.4.3
     ========================================
+    v2.4.3: Compact reading data, Community as link → Groups page
     v2.4.2: Replace inline description with Summary popout link
     v2.4.1: Enrich library book popups with metadata from book_cache
     v2.4.0: Groups enabled, book community discussions
@@ -2343,40 +2344,41 @@
         /* User Book Data in Popups */
         .user-book-data {
             background: #faf8f3;
-            padding: 1.5rem;
+            padding: 0.75rem;
             border-radius: 8px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.75rem;
         }
 
         .user-book-data-title {
             font-weight: 600;
-            margin-bottom: 1rem;
+            margin-bottom: 0.4rem;
             color: #3d2817;
+            font-size: 0.9rem;
         }
 
         .user-data-row {
-            margin-bottom: 1rem;
+            margin-bottom: 0.45rem;
         }
 
         .user-data-label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #8b6f47;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.15rem;
         }
 
         .user-data-select,
         .user-data-input {
             width: 100%;
-            padding: 0.6rem;
-            border: 2px solid #e0e0e0;
+            padding: 0.4rem 0.6rem;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         .star-rating {
             display: flex;
-            gap: 0.3rem;
-            font-size: 1.5rem;
+            gap: 0.2rem;
+            font-size: 1.2rem;
             flex-direction: row;
         }
 
@@ -3995,6 +3997,8 @@
             // Book community state
             const [bookGroups, setBookGroups] = useState([]);
             const [bookGroupsLoading, setBookGroupsLoading] = useState(false);
+            const [communityBookIsbn, setCommunityBookIsbn] = useState(null);
+            const [communityBookTitle, setCommunityBookTitle] = useState('');
 
             // Touch drag ref (avoids stale closure in touch handlers)
             const touchDragRef = React.useRef(null);
@@ -4992,7 +4996,10 @@
             };
 
             useEffect(() => {
-                if (activeTab === 'groups' && currentUser) loadGroups();
+                if (activeTab === 'groups' && currentUser) {
+                    loadGroups();
+                    if (communityBookIsbn) loadBookGroups(communityBookIsbn);
+                }
             }, [activeTab, currentUser]);
 
             const loadBookGroups = async (bookId) => {
@@ -5019,15 +5026,6 @@
                 else setBookGroups([]);
             }, [selectedBook?.isbn]);
 
-            useEffect(() => {
-                if (showBookInfo && bookInfoData?.isbn) loadBookGroups(bookInfoData.isbn);
-                else if (!showBookInfo) setBookGroups([]);
-            }, [showBookInfo, bookInfoData?.isbn]);
-
-            useEffect(() => {
-                if (showShelfBookPopup && shelfBookData?.isbn) loadBookGroups(shelfBookData.isbn);
-                else if (!showShelfBookPopup) setBookGroups([]);
-            }, [showShelfBookPopup, shelfBookData?.isbn]);
 
             // Persist active tab so refresh returns to the same page
             useEffect(() => {
@@ -8289,6 +8287,18 @@
                                                         onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
                                                     >📖 Summary</div>
                                                 )}
+                                                {shelfBookData.isbn && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.1rem'}}
+                                                        onClick={() => {
+                                                            setCommunityBookIsbn(shelfBookData.isbn);
+                                                            setCommunityBookTitle(shelfBookData.title);
+                                                            closeShelfBookPopup();
+                                                            setActiveTab('groups');
+                                                            setGroupsView('list');
+                                                        }}
+                                                    >💬 Community</div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -8347,66 +8357,6 @@
                                         </div>
                                     </div>
 
-                                    {currentUser && shelfBookData?.isbn && (
-                                        <div style={{marginTop:'1.25rem', borderTop:'1px solid #e0c9a6', paddingTop:'1rem'}}>
-                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem'}}>
-                                                <div style={{fontWeight:700, color:'#3d2817', fontSize:'0.95rem'}}>💬 Community</div>
-                                                <button
-                                                    style={{background:'#8b6f47', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', fontSize:'0.8rem', cursor:'pointer'}}
-                                                    onClick={() => {
-                                                        setCreateGroupForm(f => ({...f, relatedBookId: shelfBookData.isbn}));
-                                                        setShowCreateGroup(true);
-                                                        setCreateGroupStep(1);
-                                                        closeShelfBookPopup();
-                                                        setActiveTab('groups');
-                                                        setGroupsView('list');
-                                                    }}
-                                                >+ Start Group</button>
-                                            </div>
-                                            {bookGroupsLoading ? (
-                                                <div style={{color:'#8b6f47', fontSize:'0.85rem'}}>Loading…</div>
-                                            ) : bookGroups.length === 0 ? (
-                                                <div style={{color:'#8b6f47', fontSize:'0.85rem', fontStyle:'italic'}}>No groups discussing this book yet.</div>
-                                            ) : (
-                                                <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
-                                                    {bookGroups.map(g => {
-                                                        const amMember = isMemberOfGroup(g);
-                                                        return (
-                                                            <div key={g.id} style={{background:'#fdf6ee', border:'1.5px solid #e0c9a6', borderRadius:8, padding:'0.55rem 0.75rem', display:'flex', alignItems:'center', gap:'0.6rem'}}>
-                                                                <div style={{flex:1}}>
-                                                                    <div style={{fontWeight:600, color:'#3d2817', fontSize:'0.88rem'}}>{g.title}</div>
-                                                                    <div style={{fontSize:'0.73rem', color:'#8b6f47', display:'flex', gap:'0.4rem', marginTop:'0.15rem', flexWrap:'wrap'}}>
-                                                                        <span className={`group-type-badge ${g.type}`}>{g.type}</span>
-                                                                        <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}</span>
-                                                                        <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
-                                                                    </div>
-                                                                </div>
-                                                                {!amMember ? (
-                                                                    <button
-                                                                        style={{background:'#8b6f47', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.6rem', fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap'}}
-                                                                        onClick={async () => {
-                                                                            await joinGroup(g);
-                                                                            closeShelfBookPopup();
-                                                                            setActiveTab('groups');
-                                                                        }}
-                                                                    >Join</button>
-                                                                ) : (
-                                                                    <button
-                                                                        style={{background:'none', border:'1.5px solid #8b6f47', color:'#8b6f47', borderRadius:6, padding:'0.3rem 0.6rem', fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap'}}
-                                                                        onClick={() => {
-                                                                            openGroup(g);
-                                                                            closeShelfBookPopup();
-                                                                            setActiveTab('groups');
-                                                                        }}
-                                                                    >Open</button>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
 
                                     <div className="book-info-actions">
                                         <div className="book-info-buttons">
@@ -8493,6 +8443,18 @@
                                                         onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
                                                     >📖 Summary</div>
                                                 )}
+                                                {bookInfoData.isbn && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.1rem'}}
+                                                        onClick={() => {
+                                                            setCommunityBookIsbn(bookInfoData.isbn);
+                                                            setCommunityBookTitle(bookInfoData.title);
+                                                            closeBookInfo();
+                                                            setActiveTab('groups');
+                                                            setGroupsView('list');
+                                                        }}
+                                                    >💬 Community</div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -8551,66 +8513,6 @@
                                         </div>
                                     </div>
 
-                                    {currentUser && bookInfoData?.isbn && (
-                                        <div style={{marginTop:'1.25rem', borderTop:'1px solid #e0c9a6', paddingTop:'1rem'}}>
-                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem'}}>
-                                                <div style={{fontWeight:700, color:'#3d2817', fontSize:'0.95rem'}}>💬 Community</div>
-                                                <button
-                                                    style={{background:'#8b6f47', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', fontSize:'0.8rem', cursor:'pointer'}}
-                                                    onClick={() => {
-                                                        setCreateGroupForm(f => ({...f, relatedBookId: bookInfoData.isbn}));
-                                                        setShowCreateGroup(true);
-                                                        setCreateGroupStep(1);
-                                                        closeBookInfo();
-                                                        setActiveTab('groups');
-                                                        setGroupsView('list');
-                                                    }}
-                                                >+ Start Group</button>
-                                            </div>
-                                            {bookGroupsLoading ? (
-                                                <div style={{color:'#8b6f47', fontSize:'0.85rem'}}>Loading…</div>
-                                            ) : bookGroups.length === 0 ? (
-                                                <div style={{color:'#8b6f47', fontSize:'0.85rem', fontStyle:'italic'}}>No groups discussing this book yet.</div>
-                                            ) : (
-                                                <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
-                                                    {bookGroups.map(g => {
-                                                        const amMember = isMemberOfGroup(g);
-                                                        return (
-                                                            <div key={g.id} style={{background:'#fdf6ee', border:'1.5px solid #e0c9a6', borderRadius:8, padding:'0.55rem 0.75rem', display:'flex', alignItems:'center', gap:'0.6rem'}}>
-                                                                <div style={{flex:1}}>
-                                                                    <div style={{fontWeight:600, color:'#3d2817', fontSize:'0.88rem'}}>{g.title}</div>
-                                                                    <div style={{fontSize:'0.73rem', color:'#8b6f47', display:'flex', gap:'0.4rem', marginTop:'0.15rem', flexWrap:'wrap'}}>
-                                                                        <span className={`group-type-badge ${g.type}`}>{g.type}</span>
-                                                                        <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}</span>
-                                                                        <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
-                                                                    </div>
-                                                                </div>
-                                                                {!amMember ? (
-                                                                    <button
-                                                                        style={{background:'#8b6f47', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.6rem', fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap'}}
-                                                                        onClick={async () => {
-                                                                            await joinGroup(g);
-                                                                            closeBookInfo();
-                                                                            setActiveTab('groups');
-                                                                        }}
-                                                                    >Join</button>
-                                                                ) : (
-                                                                    <button
-                                                                        style={{background:'none', border:'1.5px solid #8b6f47', color:'#8b6f47', borderRadius:6, padding:'0.3rem 0.6rem', fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap'}}
-                                                                        onClick={() => {
-                                                                            openGroup(g);
-                                                                            closeBookInfo();
-                                                                            setActiveTab('groups');
-                                                                        }}
-                                                                    >Open</button>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
 
                                     <div className="book-info-actions">
                                         <div className="book-info-buttons">
@@ -10404,6 +10306,70 @@
                                     {groupsError && (
                                         <div style={{background:'#fce4ec', border:'1.5px solid #f48fb1', borderRadius:8, padding:'0.75rem 1rem', color:'#880e4f', fontSize:'0.88rem'}}>
                                             ⚠️ {groupsError}
+                                        </div>
+                                    )}
+
+                                    {/* Book community filter */}
+                                    {communityBookIsbn && (
+                                        <div style={{marginBottom:'1rem'}}>
+                                            <div className="groups-section-header">
+                                                <div className="groups-section-title" style={{fontSize:'0.95rem'}}>
+                                                    📖 "{communityBookTitle}"
+                                                </div>
+                                                <div style={{display:'flex', gap:'0.5rem', alignItems:'center'}}>
+                                                    <button
+                                                        className="groups-create-btn"
+                                                        onClick={() => {
+                                                            setCreateGroupForm(f => ({...f, relatedBookId: communityBookIsbn}));
+                                                            setShowCreateGroup(true);
+                                                            setCreateGroupStep(1);
+                                                        }}
+                                                    >+ Start Group</button>
+                                                    <button
+                                                        style={{background:'none', border:'1.5px solid #c0a882', color:'#8b6f47', borderRadius:6, padding:'0.3rem 0.65rem', fontSize:'0.8rem', cursor:'pointer'}}
+                                                        onClick={() => { setCommunityBookIsbn(null); setCommunityBookTitle(''); setBookGroups([]); }}
+                                                    >✕ Clear</button>
+                                                </div>
+                                            </div>
+                                            {bookGroupsLoading ? (
+                                                <div style={{color:'#8b6f47', fontSize:'0.85rem', padding:'0.5rem 0'}}>Loading…</div>
+                                            ) : bookGroups.length === 0 ? (
+                                                <div className="groups-empty" style={{padding:'1rem 0'}}>
+                                                    <div className="groups-empty-icon" style={{fontSize:'1.5rem'}}>💬</div>
+                                                    <div className="groups-empty-text">No groups for this book yet</div>
+                                                    <div className="groups-empty-sub">Start the first one!</div>
+                                                </div>
+                                            ) : (
+                                                <div className="groups-grid">
+                                                    {bookGroups.map(g => {
+                                                        const amMember = isMemberOfGroup(g);
+                                                        const myRole = myGroupRole(g);
+                                                        const rt = myRole?.role_type || myRole?.roleType || 'member';
+                                                        return (
+                                                            <div key={g.id} className="group-card">
+                                                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem'}}>
+                                                                    <span className={`group-type-badge ${g.type}`}>{g.type}</span>
+                                                                    {amMember && <span style={{fontSize:'0.72rem', color: ROLE_COLORS[rt], fontWeight:700}}>{ROLE_LABELS[rt] || 'Member'}</span>}
+                                                                </div>
+                                                                <div className="group-card-title">{g.title}</div>
+                                                                <div className="group-card-meta">
+                                                                    <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}/{g.max_members}</span>
+                                                                    <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
+                                                                </div>
+                                                                <div style={{marginTop:'0.6rem', display:'flex', gap:'0.5rem'}}>
+                                                                    {!amMember && (
+                                                                        <button className="groups-create-btn" style={{fontSize:'0.82rem', padding:'0.4rem 0.85rem'}} onClick={() => joinGroup(g)}>Join</button>
+                                                                    )}
+                                                                    <button className="cg-btn-secondary" style={{fontSize:'0.82rem', padding:'0.4rem 0.85rem'}} onClick={() => openGroup(g)}>
+                                                                        {amMember ? 'Open' : 'Browse'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            <div style={{borderBottom:'1px solid #e0c9a6', margin:'1rem 0'}} />
                                         </div>
                                     )}
 

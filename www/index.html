@@ -2,12 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.2.1
+    YOUR LIBRARY - VERSION 2.4.5
     ========================================
+    v2.4.5: iOS pre-release fixes
+    v2.4.4: Hide all groups/community UI pending redesign
+    v2.4.3: Compact reading data, Community as link → Groups page
+    v2.4.2: Replace inline description with Summary popout link
+    v2.4.1: Enrich library book popups with metadata from book_cache
+    v2.4.0: Groups enabled, book community discussions
+    v2.3.5: API key security, search fixes, UI polish, messages layout
+    v2.3.4: Fix book auto-placement glitch on shelf
+    v2.3.3: Updated book adding — shelf selector checkbox UI
+    v2.3.2: Persist active tab across page refreshes
+    v2.3.1: Search improvements — enhanced search functions and UX
+    v2.2.2: Bug fixes — chat scroll to latest, messaging and mobile UI polish
     v2.2.1: Group chat — private groups, public groups, tiered chats, roles, moderation
     v2.1.1: Bug fixes — messaging, notifications, mobile UI polish
     v2.1.0: Mobile UI redesign — iMessage layout, responsive header
@@ -34,7 +46,12 @@
             background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
             color: #3d2817;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             overflow-x: hidden;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .container {
@@ -748,7 +765,7 @@
         .shelf-menu-item.danger:hover { background: #fff0f0; color: #c0392b; }
 
         /* Color/Wood dropdown in edit panel */
-        .color-dropdown-wrap { position: relative; }
+        .color-dropdown-wrap { position: relative; z-index: 9999; }
         .color-dropdown-btn {
             display: flex;
             align-items: center;
@@ -773,7 +790,7 @@
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.2);
             border: 1px solid #e8d5bb;
-            z-index: 300;
+            z-index: 9999;
             overflow: hidden;
             min-width: 160px;
         }
@@ -930,6 +947,8 @@
             padding: 1rem 2rem;
             background: rgba(0,0,0,0.15);
             backdrop-filter: blur(5px);
+            position: relative;
+            z-index: 10;
         }
         
         .shelf-customize-label {
@@ -1583,7 +1602,7 @@
 
         .full-results-header {
             background: linear-gradient(135deg, #8b6f47 0%, #6d5538 100%);
-            padding: 2rem 3rem;
+            padding: 2rem 3rem 0.25rem;
             color: white;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             position: sticky;
@@ -1651,7 +1670,7 @@
         }
 
         .full-results-content {
-            padding: 3rem;
+            padding: 0 3rem 3rem;
             max-width: 1400px;
             margin: 0 auto;
         }
@@ -2048,6 +2067,38 @@
             border: 2px solid transparent;
             border-radius: 8px;
             padding: 0.4rem;
+            position: relative;
+        }
+
+        .selector-book-checkbox {
+            position: absolute;
+            top: 0.6rem;
+            left: 0.6rem;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid #fff;
+            background: rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            transition: background 0.15s, border-color 0.15s;
+            pointer-events: none;
+        }
+        .selector-book-card.selected .selector-book-checkbox {
+            background: #2d4a3e;
+            border-color: #2d4a3e;
+        }
+        .selector-book-checkbox-tick {
+            display: none;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .selector-book-card.selected .selector-book-checkbox-tick {
+            display: block;
         }
 
         .selector-book-card:hover {
@@ -2295,40 +2346,41 @@
         /* User Book Data in Popups */
         .user-book-data {
             background: #faf8f3;
-            padding: 1.5rem;
+            padding: 0.75rem;
             border-radius: 8px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.75rem;
         }
 
         .user-book-data-title {
             font-weight: 600;
-            margin-bottom: 1rem;
+            margin-bottom: 0.4rem;
             color: #3d2817;
+            font-size: 0.9rem;
         }
 
         .user-data-row {
-            margin-bottom: 1rem;
+            margin-bottom: 0.45rem;
         }
 
         .user-data-label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #8b6f47;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.15rem;
         }
 
         .user-data-select,
         .user-data-input {
             width: 100%;
-            padding: 0.6rem;
-            border: 2px solid #e0e0e0;
+            padding: 0.4rem 0.6rem;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         .star-rating {
             display: flex;
-            gap: 0.3rem;
-            font-size: 1.5rem;
+            gap: 0.2rem;
+            font-size: 1.2rem;
             flex-direction: row;
         }
 
@@ -3375,6 +3427,11 @@
             color: white;
             border-radius: 16px 16px 4px 16px;
         }
+        .msg-bubble.deleted {
+            background: transparent;
+            border: 1px dashed #c9a87c;
+            color: #8b6f47;
+        }
 
         .msg-delete {
             background: none;
@@ -3435,8 +3492,9 @@
         @media (max-width: 600px) {
             .messages-page {
                 flex-direction: column;
-                height: calc(100vh - 160px);
+                height: calc(100vh - 230px);
                 min-height: unset;
+                margin: 0;
                 position: relative;
                 overflow: hidden;
             }
@@ -3743,14 +3801,8 @@
     </style>
     <!-- QuaggaJS for Barcode Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
-    
-    <!-- Barcode Scanner Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
-    
-    <!-- Mobile Debug Console -->
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
+
     <!-- Three.js for 3D Room -->
     <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -3775,7 +3827,7 @@
         // ── Google Books API key ──────────────────────────────────────────────
         // Add your key here once you have it from Google Cloud Console.
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
-        const GOOGLE_BOOKS_API_KEY = '';
+        const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -3797,7 +3849,7 @@
             const [books, setBooks] = useState([]);
             const [shelves, setShelves] = useState([]);
             const [message, setMessage] = useState('');
-            const [activeTab, setActiveTab] = useState('books');
+            const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'books');
             const [newShelfName, setNewShelfName] = useState('');
             
             const [showConfirm, setShowConfirm] = useState(false);
@@ -3847,6 +3899,8 @@
             const [recsLoading, setRecsLoading] = useState(false);
             const [showBookInfo, setShowBookInfo] = useState(false);
             const [bookInfoData, setBookInfoData] = useState(null);
+            const [showBookSummary, setShowBookSummary] = useState(false);
+            const [bookSummaryText, setBookSummaryText] = useState('');
             const [showBookSelector, setShowBookSelector] = useState(false);
             const [targetShelfForSelector, setTargetShelfForSelector] = useState(null);
             const [selectedBooksToAdd, setSelectedBooksToAdd] = useState([]);
@@ -3879,6 +3933,8 @@
             const [newMessage, setNewMessage] = useState('');
             const [messagesLoading, setMessagesLoading] = useState(false);
             const [unreadMessages, setUnreadMessages] = useState(0);
+            const [msgContextMenu, setMsgContextMenu] = useState(null); // { id, x, y }
+            const msgLongPressTimer = React.useRef(null);
             const msgSubscriptionRef = React.useRef(null);
             const globalMsgSubRef = React.useRef(null);
             const activeConversationRef = React.useRef(null);
@@ -3913,6 +3969,7 @@
             const [pendingRoleRequests, setPendingRoleRequests] = useState([]);
             const [groupsError, setGroupsError] = useState('');
             const groupsMsgEndRef = React.useRef(null);
+            const groupsMsgContainerRef = React.useRef(null);
             // Create wizard
             const [showCreateGroup, setShowCreateGroup] = useState(false);
             const [createGroupStep, setCreateGroupStep] = useState(1);
@@ -3932,6 +3989,12 @@
             // Hover stars for rating
             const [ratingHover, setRatingHover] = useState(0);
             const [myRatings, setMyRatings] = useState({}); // chatId -> myRating
+
+            // Book community state
+            const [bookGroups, setBookGroups] = useState([]);
+            const [bookGroupsLoading, setBookGroupsLoading] = useState(false);
+            const [communityBookIsbn, setCommunityBookIsbn] = useState(null);
+            const [communityBookTitle, setCommunityBookTitle] = useState('');
 
             // Touch drag ref (avoids stale closure in touch handlers)
             const touchDragRef = React.useRef(null);
@@ -4029,12 +4092,12 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            // Scroll to bottom when messages update
+            // Scroll to bottom when messages update or finish loading
             useEffect(() => {
-                if (chatMessagesRef.current) {
+                if (chatMessagesRef.current && !messagesLoading) {
                     chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
                 }
-            }, [messages]);
+            }, [messages, messagesLoading]);
 
             // Keep activeConversationRef in sync so global subscription can access it
             useEffect(() => {
@@ -4589,7 +4652,8 @@
 
             const deleteMessage = async (msgId) => {
                 await supabaseClient.from('messages').update({ is_deleted: true }).eq('id', msgId);
-                setMessages(prev => prev.filter(m => m.id !== msgId));
+                setMessages(prev => prev.map(m => m.id === msgId ? { ...m, is_deleted: true } : m));
+                setMsgContextMenu(null); // {id,x,y} → null
             };
 
             const openConversation = async (conv) => {
@@ -4623,8 +4687,21 @@
 
             const openMessagesWith = async (friendId) => {
                 const conv = await getOrCreateConversation(friendId);
+                // Fetch profiles for both participants so the chat header
+                // shows the correct name immediately (conv has no p1/p2 yet)
+                const { data: profiles } = await supabaseClient
+                    .from('user_profiles')
+                    .select('id, username, display_name')
+                    .in('id', [conv.participant1_id, conv.participant2_id]);
+                const profileMap = {};
+                (profiles || []).forEach(p => { profileMap[p.id] = p; });
+                const enrichedConv = {
+                    ...conv,
+                    p1: profileMap[conv.participant1_id] || null,
+                    p2: profileMap[conv.participant2_id] || null,
+                };
                 await loadConversations();
-                await openConversation(conv);
+                await openConversation(enrichedConv);
                 setActiveTab('messages');
             };
 
@@ -4888,7 +4965,7 @@
                     const myGroupIds = (memberRows || []).map(r => r.group_id);
 
                     // Fetch private groups I'm in + all active public groups
-                    const { data: grps, error } = await supabaseClient
+                    let grpQuery = supabaseClient
                         .from('book_groups')
                         .select(`
                             *,
@@ -4897,8 +4974,13 @@
                             shelves:group_shelves(*),
                             chats:group_chats(id, title, tier, rating, rating_count, is_active, created_at)
                         `)
-                        .eq('is_active', true)
-                        .or(`type.eq.public,id.in.(${myGroupIds.length ? myGroupIds.join(',') : 'null'})`);
+                        .eq('is_active', true);
+                    if (myGroupIds.length > 0) {
+                        grpQuery = grpQuery.or(`type.eq.public,id.in.(${myGroupIds.join(',')})`);
+                    } else {
+                        grpQuery = grpQuery.eq('type', 'public');
+                    }
+                    const { data: grps, error } = await grpQuery;
                     if (error) throw error;
                     setGroups(grps || []);
                 } catch (err) {
@@ -4910,8 +4992,41 @@
             };
 
             useEffect(() => {
-                if (activeTab === 'groups' && currentUser) loadGroups();
+                if (activeTab === 'groups' && currentUser) {
+                    loadGroups();
+                    if (communityBookIsbn) loadBookGroups(communityBookIsbn);
+                }
             }, [activeTab, currentUser]);
+
+            const loadBookGroups = async (bookId) => {
+                if (!bookId) { setBookGroups([]); return; }
+                setBookGroupsLoading(true);
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('book_groups')
+                        .select('*, roles:group_roles(*), members:group_members(user_id, banned_at, role:group_roles(name, role_type)), chats:group_chats(id, is_active)')
+                        .eq('related_book_id', bookId)
+                        .eq('is_active', true);
+                    if (error) throw error;
+                    setBookGroups(data || []);
+                } catch (err) {
+                    console.error('loadBookGroups:', err);
+                    setBookGroups([]);
+                } finally {
+                    setBookGroupsLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                if (selectedBook?.isbn && selectedBook.isbn !== 'Not Available') loadBookGroups(selectedBook.isbn);
+                else setBookGroups([]);
+            }, [selectedBook?.isbn]);
+
+
+            // Persist active tab so refresh returns to the same page
+            useEffect(() => {
+                localStorage.setItem('activeTab', activeTab);
+            }, [activeTab]);
 
             // ── Open a group (refresh its data) ──────────────────────────────
             const openGroup = async (group) => {
@@ -5172,8 +5287,8 @@
 
             // Scroll to bottom when messages change
             useEffect(() => {
-                if (groupsMsgEndRef.current && groupsView === 'chat') {
-                    groupsMsgEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                if (groupsMsgContainerRef.current && groupsView === 'chat') {
+                    groupsMsgContainerRef.current.scrollTop = groupsMsgContainerRef.current.scrollHeight;
                 }
             }, [groupMessages, groupsView]);
 
@@ -5285,29 +5400,56 @@
                 } catch (e) { console.warn('Cache save failed:', e); }
             };
 
+            // Searches the shared book_cache by title or author text match.
+            // Returns normalised book objects — used as the first lookup tier before hitting APIs.
+            const searchBookCache = async (query) => {
+                try {
+                    const q = query.trim();
+                    if (q.length < 2) return [];
+                    const { data } = await supabaseClient
+                        .from('book_cache')
+                        .select('*')
+                        .or(`title.ilike.%${q}%,author.ilike.%${q}%,description.ilike.%${q}%`)
+                        .limit(30);
+                    return (data || []).map(row => ({
+                        title: row.title,
+                        author: row.author,
+                        isbn: row.isbn,
+                        cover: row.cover_url,
+                        publishYear: row.publish_year,
+                        publisher: row.publisher,
+                        pageCount: row.page_count,
+                        description: row.description || 'No description available.',
+                        rating: row.rating || 0
+                    }));
+                } catch { return []; }
+            };
+
             // ─── Google Books fetch helper ─────────────────────────────────────
-            // Shared stop-words and query builder used by search + recommendations.
-            const GB_STOP_WORDS = new Set([
-                'a','an','the','and','or','of','in','to','for','with',
-                'on','at','by','from','is','it','its','as','be','but','so','than'
-            ]);
 
             const buildGbQuery = (q) => {
                 if (isIsbnQuery(q)) return `isbn:${q.replace(/[-\s]/g, '')}`;
-                const cleanWord = w => w
-                    .replace(/['\u2018\u2019\u201A\u201B\u02BC\u02BB'`]/g, '')
-                    .replace(/[^a-zA-Z0-9]/g, '');
-                const words = q.trim().split(/\s+/).filter(Boolean);
-                const content = words.map(cleanWord)
-                    .filter(w => w.length >= 3 && !GB_STOP_WORDS.has(w.toLowerCase()));
-                if (content.length === 0) return q;
-                return content.map(w => `intitle:${w}`).join(' ');
+                // Colons are field-operator separators in Google Books query syntax
+                // (e.g. intitle:, inauthor:). Sending "never stop: life, leadership"
+                // raw causes the API to parse "stop" as an unknown field and return 0
+                // results. Strip colons and commas so the query becomes plain text.
+                return q.trim()
+                    .replace(/:/g, ' ')
+                    .replace(/,/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
             };
+
 
             const parseGbItem = (item) => {
                 const b = item.volumeInfo;
+                // Google Books splits title and subtitle into separate fields.
+                // Combine them so the full title is always shown.
+                const fullTitle = b.subtitle
+                    ? `${b.title}: ${b.subtitle}`
+                    : (b.title || 'Unknown Title');
                 return {
-                    title: b.title || 'Unknown Title',
+                    title: fullTitle,
                     author: b.authors?.[0] || 'Unknown Author',
                     isbn: b.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier ||
                           b.industryIdentifiers?.find(i => i.type === 'ISBN_10')?.identifier ||
@@ -5322,34 +5464,39 @@
                 };
             };
 
-            // Fetches books from Google Books API. Returns array of normalised book objects.
+            // Fetches books from Google Books API using the raw query — mirrors Google Books
+            // web search, which queries title, author, and description simultaneously.
             const fetchFromGoogleBooks = async (query, fullSearch = false) => {
                 const maxResults = fullSearch ? 200 : 40;
                 const perPage = 40;
                 const apiQuery = buildGbQuery(restoreContractions(query));
+
+                const filterAndParse = (items) => (items || [])
+                    .filter(item => {
+                        const t = (item.volumeInfo.title || '').toLowerCase();
+                        // Exclude magazines — but don't require printType==='BOOK' since
+                        // many valid books have no printType set and would be wrongly filtered out.
+                        return item.volumeInfo.printType !== 'MAGAZINE' &&
+                               !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
+                    })
+                    .map(parseGbItem);
+
                 let results = [];
                 let startIndex = 0;
 
                 while (results.length < maxResults) {
                     const res = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(apiQuery)}&orderBy=relevance&maxResults=${perPage}&startIndex=${startIndex}${GBOOKS_KEY}`
+                        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(apiQuery)}&orderBy=relevance&maxResults=${perPage}&startIndex=${startIndex}${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' }
                     );
                     if (!res.ok) break;
                     const data = await res.json();
                     if (!data.items?.length) break;
-
-                    const filtered = data.items
-                        .filter(item => {
-                            const t = (item.volumeInfo.title || '').toLowerCase();
-                            return item.volumeInfo.printType === 'BOOK' &&
-                                   !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
-                        })
-                        .map(parseGbItem);
-
-                    results = [...results, ...filtered];
+                    results = [...results, ...filterAndParse(data.items)];
                     if (!fullSearch || data.items.length < perPage) break;
                     startIndex += perPage;
                 }
+
                 return results;
             };
 
@@ -5369,10 +5516,10 @@
                     return;
                 }
 
-                // Debounce search - wait 300ms after user stops typing
+                // Debounce search - wait 1000ms after user stops typing
                 searchTimerRef.current = setTimeout(() => {
                     searchBooks(value);
-                }, 300);
+                }, 1000);
             };
 
             // ==========================================
@@ -5430,6 +5577,14 @@
                 ];
                 if (SUMMARY_WORDS.some(kw => rawTitle.includes(kw))) score -= 50;
 
+                // Hard penalty: if no query token appears anywhere in title or author,
+                // this result is irrelevant regardless of quality signals (e.g. a popular
+                // unrelated book shouldn't outrank the correct result on rating alone).
+                if (tokens.length > 0) {
+                    const anyMatch = tokens.some(t => title.includes(t) || author.includes(t));
+                    if (!anyMatch) score -= 200;
+                }
+
                 // Quality signals — prefer well-catalogued books
                 if (book.cover) score += 3;
                 if (book.isbn && book.isbn !== 'Not Available') score += 3;
@@ -5472,25 +5627,26 @@
                 setSearchLoading(true);
                 if (!fullSearch) setShowSearchDropdown(true);
 
-                const cacheKey = `search_v1_${query.trim().toLowerCase()}_${fullSearch}`;
+                // v5 cache key — clears stale v4 entries that cached empty results from the
+                // brief window when the printType==='BOOK' filter was too strict (before the
+                // fix in dbf7e34 relaxed it to !=='MAGAZINE').
+                const cacheKey = `search_v5_${query.trim().toLowerCase()}_${fullSearch}`;
 
                 try {
-                    // ── 1. sessionStorage cache (1-hour TTL) ──────────────────────────
+                    // ── 1. Session cache (1-hour TTL) ─────────────────────────────────
                     const cached = sessionStorage.getItem(cacheKey);
-                    let cacheHit = false;
                     if (cached) {
                         try {
                             const { results, ts } = JSON.parse(cached);
                             if (Date.now() - ts < 3_600_000) {
                                 if (fullSearch) { setFullResults(results); setShowFullResults(true); }
                                 else setSearchResults(results.slice(0, 5));
-                                cacheHit = true;
+                                return;
                             }
                         } catch (_) {}
                     }
-                    if (cacheHit) return;
 
-                    // ── 2. ISBN query → Supabase cache first, then Google Books ───────
+                    // ── 2. ISBN: exact Supabase lookup ────────────────────────────────
                     if (isIsbnQuery(query)) {
                         const cleanIsbn = query.replace(/[-\s]/g, '');
                         const fromCache = await lookupIsbnInCache(cleanIsbn);
@@ -5499,56 +5655,25 @@
                             else setSearchResults([fromCache]);
                             return;
                         }
-                        // Not cached — fall through to Google Books below
                     }
 
-                    // ── 3. Open Library first (free, unlimited) ───────────────────────
-                    let olResults = [];
-                    try {
-                        const olLimit = fullSearch ? 40 : 10;
-                        const olRes = await fetch(
-                            `https://openlibrary.org/search.json?q=${encodeURIComponent(restoreContractions(query))}&limit=${olLimit}&fields=title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median,first_sentence`
-                        );
-                        if (olRes.ok) {
-                            const olData = await olRes.json();
-                            olResults = (olData.docs || []).map(doc => ({
-                                title: doc.title || 'Unknown Title',
-                                author: doc.author_name?.[0] || 'Unknown Author',
-                                isbn: doc.isbn?.[0] || 'Not Available',
-                                cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
-                                publishYear: doc.first_publish_year?.toString() || null,
-                                publisher: doc.publisher?.[0] || null,
-                                pageCount: doc.number_of_pages_median || null,
-                                description: doc.first_sentence?.[0] || 'No description available.',
-                                rating: 0
-                            }));
-                        }
-                    } catch (e) { console.warn('Open Library search failed:', e); }
+                    // ── 3. Google Books — raw query, Google's native ranking ───────────
+                    const results = await fetchFromGoogleBooks(query, fullSearch);
 
-                    // ── 4. If OL returned < 3 results, call Google Books ──────────────
-                    let finalResults = olResults;
-                    if (olResults.length < 3) {
+                    // ── 4. Cache results in Supabase for future ISBN/barcode lookups ───
+                    results.forEach(b => saveIsbnToCache(b));
+
+                    // ── 5. Store in session cache and display ─────────────────────────
+                    // Only cache non-empty results — don't let a transient API failure
+                    // poison the cache and return 0 results for the next hour.
+                    if (results.length > 0) {
                         try {
-                            const gbResults = await fetchFromGoogleBooks(query, fullSearch);
-                            // Prefer Google Books results when OL is thin
-                            finalResults = gbResults.length > 0 ? gbResults : olResults;
-
-                            // Cache any ISBN-bearing results for future barcode lookups
-                            gbResults.forEach(b => { if (b.isbn && b.isbn !== 'Not Available') saveIsbnToCache(b); });
-                        } catch (e) { console.warn('Google Books search failed:', e); }
+                            sessionStorage.setItem(cacheKey, JSON.stringify({ results, ts: Date.now() }));
+                        } catch (_) {}
                     }
 
-                    // ── 5. Rank and store ─────────────────────────────────────────────
-                    const ranked = finalResults
-                        .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
-                        .sort((a, b) => b._score - a._score);
-
-                    try {
-                        sessionStorage.setItem(cacheKey, JSON.stringify({ results: ranked, ts: Date.now() }));
-                    } catch (_) {}
-
-                    if (fullSearch) { setFullResults(ranked); setShowFullResults(true); }
-                    else setSearchResults(ranked.slice(0, 5));
+                    if (fullSearch) { setFullResults(results); setShowFullResults(true); }
+                    else setSearchResults(results.slice(0, 5));
 
                 } catch (error) {
                     console.error('Search error:', error);
@@ -5620,6 +5745,9 @@
                         .select();
 
                     if (error) throw error;
+
+                    // Ensure book metadata is in cache for library popup enrichment
+                    saveIsbnToCache(pendingSearchBook);
 
                     setBooks(prev => [...prev, data[0]]);
                     const shelfName = targetShelfId ? shelves.find(s => s.id === targetShelfId)?.name : null;
@@ -6055,7 +6183,8 @@
                 setRecsLoading(true);
 
                 const gbQuery = (q, n = 15) =>
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=relevance&maxResults=${n}&printType=books${GBOOKS_KEY}`)
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=relevance&maxResults=${n}&printType=books${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null);
 
@@ -6114,7 +6243,8 @@
 
                 // 5. New releases
                 promises.push(
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=15&printType=books${GBOOKS_KEY}`)
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=15&printType=books${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null).catch(() => null)
                         .then(data => {
                             const books = toBooks(data);
@@ -6175,10 +6305,37 @@
             }, [activeTab, shelves.length, books.length]);
 
             // Open book info popup
-            const openBookInfo = (book) => {
-                setBookInfoData(book);
+            // Enrich a stored library book with full metadata from book_cache by title match
+            const enrichBookFromCache = async (book) => {
+                if (book.isbn && book.description) return book; // already have what we need
+                try {
+                    const { data } = await supabaseClient
+                        .from('book_cache')
+                        .select('*')
+                        .ilike('title', `${book.title.substring(0, 50)}%`)
+                        .limit(1)
+                        .maybeSingle();
+                    if (data) {
+                        return {
+                            ...book,
+                            isbn:        book.isbn        || data.isbn,
+                            description: book.description || data.description,
+                            publishYear: book.publishYear || data.publish_year,
+                            pageCount:   book.pageCount   || data.page_count,
+                            publisher:   book.publisher   || data.publisher,
+                            cover:       book.cover       || data.cover_url,
+                        };
+                    }
+                } catch (e) { /* silently ignore */ }
+                return book;
+            };
+
+            const openBookInfo = async (book) => {
                 setShowBookInfo(true);
                 setSelectedShelfForAdd('');
+                setBookInfoData(book); // show immediately
+                const enriched = await enrichBookFromCache(book);
+                setBookInfoData(enriched);
             };
 
             // Close book info popup
@@ -6265,16 +6422,35 @@
                     if (!bookData) {
                         // Not cached — fetch from Google Books
                         const response = await fetch(
-                            `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${GBOOKS_KEY}`
+                            `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${GBOOKS_KEY}`,
+                            { referrerPolicy: 'strict-origin-when-cross-origin' }
                         );
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        const data = await response.json();
-
-                        if (data.items?.length) {
-                            bookData = parseGbItem(data.items[0]);
-                            bookData.isbn = cleanIsbn;
-                            // Save to Supabase cache for next time
-                            saveIsbnToCache(bookData);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.items?.length) {
+                                bookData = parseGbItem(data.items[0]);
+                                bookData.isbn = cleanIsbn;
+                                saveIsbnToCache(bookData);
+                            }
+                        }
+                        // Fallback to OpenLibrary on 429 or no results
+                        if (!bookData) {
+                            const olRes = await fetch(
+                                `https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`
+                            );
+                            if (olRes.ok) {
+                                const olData = await olRes.json();
+                                const olBook = olData[`ISBN:${cleanIsbn}`];
+                                if (olBook) {
+                                    bookData = {
+                                        title: olBook.title || 'Unknown Title',
+                                        author: olBook.authors?.[0]?.name || 'Unknown Author',
+                                        isbn: cleanIsbn,
+                                        cover: olBook.cover?.medium || olBook.cover?.large || null,
+                                    };
+                                    saveIsbnToCache(bookData);
+                                }
+                            }
                         }
                     }
 
@@ -6458,28 +6634,24 @@
             };
             
             // Find next available position on a board
-            const findNextAvailablePosition = (shelfId, boardIndex) => {
-                const booksOnBoard = getBooksForBoard(shelfId, boardIndex);
-                
-                if (booksOnBoard.length === 0) {
-                    return 0; // Empty board, start at position 0
-                }
-                
-                // Try to place after the last book
+            const findNextAvailablePosition = (shelfId, boardIndex, excludeIds = []) => {
+                const booksOnBoard = getBooksForBoard(shelfId, boardIndex)
+                    .filter(b => !excludeIds.includes(b.id));
+
+                if (booksOnBoard.length === 0) return 0;
+
+                // Try placing after the last book (step in BOOK_WIDTH increments to stay aligned)
                 const lastBook = booksOnBoard[booksOnBoard.length - 1];
-                const nextPosition = (lastBook.position || 0) + BOOK_WIDTH;
-                
-                if (nextPosition + BOOK_WIDTH <= SHELF_WIDTH) {
-                    return nextPosition;
-                }
-                
-                // If can't fit at end, find gaps
-                for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos++) {
-                    if (isPositionAvailable(shelfId, boardIndex, pos)) {
+                const afterLast = (lastBook.position || 0) + BOOK_WIDTH;
+                if (afterLast + BOOK_WIDTH <= SHELF_WIDTH) return afterLast;
+
+                // Scan for gaps, stepping by BOOK_WIDTH so positions stay aligned
+                for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos += BOOK_WIDTH) {
+                    if (isPositionAvailable(shelfId, boardIndex, pos, excludeIds[0] ?? null)) {
                         return pos;
                     }
                 }
-                
+
                 return null; // Board is full
             };
             
@@ -6908,28 +7080,43 @@
             const addSelectedBooksToShelf = async () => {
                 if (selectedBooksToAdd.length === 0) return;
 
-                const targetBoardIndex = 0; // Default to first board
-                const targetShelf = targetShelfForSelector; // capture before async
-                const booksToAdd = [...selectedBooksToAdd]; // capture before async
-                let nextPosition = findNextAvailablePosition(targetShelf, targetBoardIndex);
+                const targetBoardIndex = 0;
+                const targetShelf = targetShelfForSelector;
+                const booksToAdd = [...selectedBooksToAdd];
 
-                if (nextPosition === null) {
-                    showMessage('❌ First shelf board is full!');
-                    return;
+                // Build a virtual occupied-position set, excluding the books being moved
+                // so their current positions don't block placement of themselves.
+                const takenPositions = new Set(
+                    getBooksForBoard(targetShelf, targetBoardIndex)
+                        .filter(b => !booksToAdd.includes(b.id))
+                        .flatMap(b => Array.from({ length: BOOK_WIDTH }, (_, i) => (b.position || 0) + i))
+                );
+
+                // Find next free aligned slot, marking it taken as we go
+                const findNextFreeSlot = () => {
+                    for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos += BOOK_WIDTH) {
+                        const blocked = Array.from({ length: BOOK_WIDTH }, (_, i) => pos + i).some(p => takenPositions.has(p));
+                        if (!blocked) return pos;
+                    }
+                    return null;
+                };
+
+                // Assign a position to each book in sequence
+                const assignments = [];
+                for (const bookId of booksToAdd) {
+                    const pos = findNextFreeSlot();
+                    if (pos === null) {
+                        showMessage('❌ Shelf board is full — not all books could be added');
+                        break;
+                    }
+                    assignments.push({ id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos });
+                    // Mark those slots taken so the next book doesn't collide
+                    for (let i = 0; i < BOOK_WIDTH; i++) takenPositions.add(pos + i);
                 }
 
+                if (assignments.length === 0) return;
+
                 try {
-                    // Build position assignments for each selected book
-                    let pos = nextPosition;
-                    const assignments = booksToAdd.map(bookId => {
-                        const assignment = { id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos };
-                        pos += BOOK_WIDTH;
-                        return assignment;
-                    });
-
-                    console.log('📚 Adding books to shelf', targetShelf, 'assignments:', assignments);
-
-                    // Persist all to Supabase, checking each for errors
                     await Promise.all(assignments.map(async ({ id, shelf_id, board_index, position }) => {
                         const { error } = await supabaseClient
                             .from('books')
@@ -6938,17 +7125,9 @@
                         if (error) throw error;
                     }));
 
-                    // Re-fetch from Supabase so state always matches DB
-                    const freshBooks = await reloadBooks();
-                    const onShelf = freshBooks.filter(b => String(b.shelf_id) === String(targetShelf));
-                    console.log(`📖 DB reports ${onShelf.length} book(s) on shelf ${targetShelf}:`, onShelf);
-
+                    await reloadBooks();
                     const shelfName = shelves.find(s => s.id === targetShelf)?.name;
-                    if (onShelf.length > 0) {
-                        showMessage(`✅ Added ${onShelf.length} book(s) to "${shelfName}"`);
-                    } else {
-                        showMessage(`⚠️ DB saved but no books found on shelf "${shelfName}" (shelf id: ${targetShelf}). Check Supabase RLS/columns.`);
-                    }
+                    showMessage(`✅ Added ${assignments.length} book(s) to "${shelfName}"`);
                     closeBookSelector();
                 } catch (error) {
                     console.error('Error adding books to shelf:', error);
@@ -6957,11 +7136,13 @@
             };
 
             // Open shelf book popup
-            const openShelfBookPopup = (book, shelfId) => {
-                setShelfBookData(book);
+            const openShelfBookPopup = async (book, shelfId) => {
                 setCurrentShelfId(shelfId);
                 setSelectedShelfForAdd('');
                 setShowShelfBookPopup(true);
+                setShelfBookData(book); // show immediately
+                const enriched = await enrichBookFromCache(book);
+                setShelfBookData(enriched);
             };
 
             // Close shelf book popup
@@ -7290,7 +7471,8 @@
 
                     // Try Google Books API first (with key to avoid 429)
                     const response = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${GBOOKS_KEY}`
+                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' }
                     );
 
                     console.log('API Response status:', response.status);
@@ -7622,7 +7804,8 @@
 
                     // Try Google Books with key to avoid 429
                     const googleResponse = await fetch(
-                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1${GBOOKS_KEY}`
+                        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1${GBOOKS_KEY}`,
+                        { referrerPolicy: 'strict-origin-when-cross-origin' }
                     );
 
                     if (googleResponse.status === 429) {
@@ -7808,9 +7991,6 @@
                                             <div className="dropdown-item" onClick={() => { setActiveTab('friends'); setSocialTab('friends'); setShowUserMenu(false); }} style={{position:'relative'}}>
                                                 👥 Friends
                                                 {friendRequests.length > 0 && <span className="tab-badge" style={{marginLeft:'0.5rem'}}>{friendRequests.length}</span>}
-                                            </div>
-                                            <div className="dropdown-item" onClick={() => { setActiveTab('groups'); setGroupsView('list'); setShowUserMenu(false); }}>
-                                                💬 Groups
                                             </div>
                                             <div className="dropdown-item" onClick={handleLogout} style={{borderTop:'2px solid #f0f0f0',marginTop:'0.5rem',paddingTop:'1rem'}}>🚪 Logout</div>
                                         </div>
@@ -8055,9 +8235,6 @@
                                                 <span className="tab-badge" style={{marginLeft: '0.5rem'}}>{friendRequests.length}</span>
                                             )}
                                         </div>
-                                        <div className="dropdown-item" onClick={() => { setActiveTab('groups'); setGroupsView('list'); setShowUserMenu(false); }}>
-                                            💬 Groups
-                                        </div>
                                         <div className="dropdown-item" onClick={handleLogout} style={{ borderTop: '2px solid #f0f0f0', marginTop: '0.5rem', paddingTop: '1rem' }}>
                                             🚪 Logout
                                         </div>
@@ -8091,18 +8268,19 @@
                                             <h2 className="book-info-title">{shelfBookData.title}</h2>
                                             <div className="book-info-author">by {shelfBookData.author}</div>
                                             <div className="book-info-meta">
-                                                <div>📚 ISBN: {shelfBookData.isbn}</div>
+                                                {shelfBookData.isbn && <div>📚 ISBN: {shelfBookData.isbn}</div>}
                                                 {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
                                                 {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
+                                                {shelfBookData.description && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.2rem'}}
+                                                        onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
+                                                    >📖 Summary</div>
+                                                )}
+                                                {/* Community link hidden — pending groups redesign */}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {shelfBookData.description && (
-                                        <div className="book-info-description">
-                                            {shelfBookData.description}
-                                        </div>
-                                    )}
 
                                     {/* User Book Data */}
                                     <div className="user-book-data">
@@ -8158,21 +8336,22 @@
                                         </div>
                                     </div>
 
+
                                     <div className="book-info-actions">
                                         <div className="book-info-buttons">
-                                            <button 
+                                            <button
                                                 className="btn-info btn-info-assign"
                                                 onClick={openMoveModal}
                                             >
                                                 📚 Move
                                             </button>
-                                            <button 
+                                            <button
                                                 className="btn-info btn-info-remove"
                                                 onClick={removeFromCurrentShelf}
                                             >
                                                 🗑 Remove
                                             </button>
-                                            <button 
+                                            <button
                                                 className="btn-info"
                                                 onClick={() => setShowShelfBookPopup(false)}
                                                 style={{background: '#8b6f47'}}
@@ -8181,6 +8360,30 @@
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Book Summary Popout */}
+                    {showBookSummary && (
+                        <div
+                            style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:100001, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem'}}
+                            onClick={() => setShowBookSummary(false)}
+                        >
+                            <div
+                                style={{background:'#fdf6ee', borderRadius:14, padding:'1.5rem', maxWidth:480, width:'100%', maxHeight:'70vh', overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 8px 40px rgba(0,0,0,0.4)', position:'relative'}}
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.75rem'}}>
+                                    <div style={{fontWeight:700, fontSize:'1rem', color:'#3d2817'}}>📖 Summary</div>
+                                    <button
+                                        style={{background:'none', border:'none', fontSize:'1.4rem', color:'#8b6f47', cursor:'pointer', lineHeight:1}}
+                                        onClick={() => setShowBookSummary(false)}
+                                    >×</button>
+                                </div>
+                                <div style={{overflowY:'auto', fontSize:'0.9rem', color:'#3d2817', lineHeight:1.65}}>
+                                    {bookSummaryText}
                                 </div>
                             </div>
                         </div>
@@ -8213,15 +8416,16 @@
                                                 {bookInfoData.isbn && <div>📚 ISBN: {bookInfoData.isbn}</div>}
                                                 {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
                                                 {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
+                                                {bookInfoData.description && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.2rem'}}
+                                                        onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
+                                                    >📖 Summary</div>
+                                                )}
+                                                {/* Community link hidden — pending groups redesign */}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {bookInfoData.description && (
-                                        <div className="book-info-description">
-                                            {bookInfoData.description}
-                                        </div>
-                                    )}
 
                                     {/* User Book Data */}
                                     <div className="user-book-data">
@@ -8276,6 +8480,7 @@
                                             />
                                         </div>
                                     </div>
+
 
                                     <div className="book-info-actions">
                                         <div className="book-info-buttons">
@@ -8387,7 +8592,68 @@
                                         </div>
                                     )}
 
-                                    <button className="book-detail-add-btn" onClick={addBookFromSearch}>
+                                    {currentUser && selectedBook?.isbn && selectedBook.isbn !== 'Not Available' && false && (
+                                        <div style={{marginTop:'1.25rem', borderTop:'1px solid #e0c9a6', paddingTop:'1rem'}}>
+                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem'}}>
+                                                <div style={{fontWeight:700, color:'#3d2817', fontSize:'0.95rem'}}>💬 Community</div>
+                                                <button
+                                                    style={{background:'#8b6f47', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', fontSize:'0.8rem', cursor:'pointer'}}
+                                                    onClick={() => {
+                                                        setCreateGroupForm(f => ({...f, relatedBookId: selectedBook.isbn}));
+                                                        setShowCreateGroup(true);
+                                                        setCreateGroupStep(1);
+                                                        closeBookDetail();
+                                                        setActiveTab('groups');
+                                                        setGroupsView('list');
+                                                    }}
+                                                >+ Start Group</button>
+                                            </div>
+                                            {bookGroupsLoading ? (
+                                                <div style={{color:'#8b6f47', fontSize:'0.85rem'}}>Loading…</div>
+                                            ) : bookGroups.length === 0 ? (
+                                                <div style={{color:'#8b6f47', fontSize:'0.85rem', fontStyle:'italic'}}>No groups discussing this book yet.</div>
+                                            ) : (
+                                                <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                                                    {bookGroups.map(g => {
+                                                        const amMember = isMemberOfGroup(g);
+                                                        return (
+                                                            <div key={g.id} style={{background:'#fdf6ee', border:'1.5px solid #e0c9a6', borderRadius:8, padding:'0.55rem 0.75rem', display:'flex', alignItems:'center', gap:'0.6rem'}}>
+                                                                <div style={{flex:1}}>
+                                                                    <div style={{fontWeight:600, color:'#3d2817', fontSize:'0.88rem'}}>{g.title}</div>
+                                                                    <div style={{fontSize:'0.73rem', color:'#8b6f47', display:'flex', gap:'0.4rem', marginTop:'0.15rem', flexWrap:'wrap'}}>
+                                                                        <span className={`group-type-badge ${g.type}`}>{g.type}</span>
+                                                                        <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}</span>
+                                                                        <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
+                                                                    </div>
+                                                                </div>
+                                                                {!amMember ? (
+                                                                    <button
+                                                                        style={{background:'#8b6f47', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.6rem', fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap'}}
+                                                                        onClick={async () => {
+                                                                            await joinGroup(g);
+                                                                            closeBookDetail();
+                                                                            setActiveTab('groups');
+                                                                        }}
+                                                                    >Join</button>
+                                                                ) : (
+                                                                    <button
+                                                                        style={{background:'none', border:'1.5px solid #8b6f47', color:'#8b6f47', borderRadius:6, padding:'0.3rem 0.6rem', fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap'}}
+                                                                        onClick={() => {
+                                                                            openGroup(g);
+                                                                            closeBookDetail();
+                                                                            setActiveTab('groups');
+                                                                        }}
+                                                                    >Open</button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <button className="book-detail-add-btn" onClick={addBookFromSearch} style={{marginTop:'1rem'}}>
                                         ➕ Add to Library
                                     </button>
                                 </div>
@@ -8688,7 +8954,7 @@
                     {/* Main Content Area */}
                     <div className="main-content">
                         {/* Tab Navigation */}
-                        <div className="tabs">
+                        <div className="tabs" style={activeTab === 'messages' ? {marginBottom: '0.5rem'} : {}}>
                             <div 
                                 className={`tab ${activeTab === 'books' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('books')}
@@ -8707,12 +8973,7 @@
                             >
                                 🏠 My Room
                             </div>
-                            <div
-                                className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
-                                onClick={() => { setActiveTab('groups'); setGroupsView('list'); }}
-                            >
-                                💬 Groups
-                            </div>
+                            {/* Groups tab hidden — pending redesign */}
                         </div>
 
                         {/* Your Books Section - Netflix Style */}
@@ -8726,7 +8987,7 @@
                                             No books yet. Start building your library!
                                         </div>
                                     ) : (
-                                        books.slice(0, 15).reverse().map(book => (
+                                        [...books].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15).map(book => (
                                             <div
                                                 key={book.id}
                                                 className="category-book"
@@ -9089,9 +9350,7 @@
                                                     )}
                                                     
                                                     {boardBooks.length === 0 ? (
-                                                        <div className="empty" style={{color: 'rgba(61,40,23,0.4)', width: '100%', textAlign: 'center'}}>
-                                                            Empty shelf - add books using the ➕ button above or drag books here!
-                                                        </div>
+                                                        <div />
                                                     ) : (
                                                         boardBooks.map(book => {
                                                             const position = book.position !== null ? book.position : 0;
@@ -9414,7 +9673,8 @@
                                                 </div>
 
                                                 {/* Messages */}
-                                                <div className="chat-messages" ref={chatMessagesRef}>
+                                                <div className="chat-messages" ref={chatMessagesRef}
+                                                    onClick={() => msgContextMenu && setMsgContextMenu(null)}>
                                                     {messagesLoading ? (
                                                         <div style={{textAlign: 'center', padding: '2rem', color: '#8b6f47'}}>Loading...</div>
                                                     ) : messages.length === 0 ? (
@@ -9424,17 +9684,24 @@
                                                     ) : (
                                                         messages.map(msg => {
                                                             const isMine = msg.sender_id === currentUser.id;
+                                                            const isDeleted = msg.is_deleted;
                                                             return (
-                                                                <div key={msg.id} className={`msg-bubble-wrap${isMine ? ' mine' : ''}`}>
-                                                                    <div className={`msg-bubble${isMine ? ' mine' : ''}`}>
-                                                                        {msg.content}
-                                                                        {isMine && (
-                                                                            <button
-                                                                                className="msg-delete"
-                                                                                onClick={() => deleteMessage(msg.id)}
-                                                                                title="Delete"
-                                                                            >×</button>
-                                                                        )}
+                                                                <div key={msg.id}
+                                                                    className={`msg-bubble-wrap${isMine ? ' mine' : ''}`}
+                                                                    onTouchStart={e => {
+                                                                        if (!isMine || isDeleted) return;
+                                                                        const t = e.touches[0];
+                                                                        msgLongPressTimer.current = setTimeout(() => setMsgContextMenu({id: msg.id, x: t.clientX, y: t.clientY}), 600);
+                                                                    }}
+                                                                    onTouchEnd={() => clearTimeout(msgLongPressTimer.current)}
+                                                                    onTouchMove={() => clearTimeout(msgLongPressTimer.current)}
+                                                                    onContextMenu={e => { e.preventDefault(); if (isMine && !isDeleted) setMsgContextMenu({id: msg.id, x: e.clientX, y: e.clientY}); }}
+                                                                >
+                                                                    <div className={`msg-bubble${isMine ? ' mine' : ''}${isDeleted ? ' deleted' : ''}`}>
+                                                                        {isDeleted
+                                                                            ? <span style={{fontStyle:'italic',opacity:0.6}}>Message deleted</span>
+                                                                            : msg.content
+                                                                        }
                                                                     </div>
                                                                     <div className={`msg-time${isMine ? ' mine' : ''}`}>
                                                                         {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
@@ -9469,13 +9736,30 @@
                                         );
                                     })()}
                                 </div>
+
+                                {/* Message context menu — fixed so it escapes overflow:auto */}
+                                {msgContextMenu && (
+                                    <div style={{
+                                        position:'fixed',
+                                        top: Math.min(msgContextMenu.y, window.innerHeight - 100),
+                                        left: Math.min(msgContextMenu.x, window.innerWidth - 160),
+                                        background:'#3d2817', borderRadius:'8px',
+                                        boxShadow:'0 4px 20px rgba(0,0,0,0.4)',
+                                        zIndex:99999, overflow:'hidden', minWidth:'150px'
+                                    }} onClick={e => e.stopPropagation()}>
+                                        <button style={{display:'block',padding:'0.7rem 1.2rem',background:'none',border:'none',color:'#ff6b6b',cursor:'pointer',fontSize:'0.95rem',width:'100%',textAlign:'left'}}
+                                            onClick={() => deleteMessage(msgContextMenu.id)}>Delete Message</button>
+                                        <button style={{display:'block',padding:'0.7rem 1.2rem',background:'none',border:'none',color:'#faf8f3',cursor:'pointer',fontSize:'0.95rem',width:'100%',textAlign:'left',borderTop:'1px solid rgba(255,255,255,0.15)'}}
+                                            onClick={() => setMsgContextMenu(null)}>Cancel</button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
                         {/* ═══════════════════════════════════════════════
-                            GROUPS SECTION v2.2.1
+                            GROUPS SECTION — Coming Soon
                             ═══════════════════════════════════════════════ */}
-                        {activeTab === 'groups' && currentUser && (() => {
+                        {activeTab === 'groups' && currentUser && false && (() => {
 
                             /* ── Helpers (inline so they close over state) ── */
                             const myGroups   = groups.filter(g => isMemberOfGroup(g));
@@ -9524,7 +9808,7 @@
                                             </div>
                                         </div>
 
-                                        <div className="group-chat-messages" ref={groupsMsgEndRef}>
+                                        <div className="group-chat-messages" ref={groupsMsgContainerRef}>
                                             {groupMessagesLoading && (
                                                 <div style={{textAlign:'center', color:'#8b6f47', padding:'2rem'}}>Loading…</div>
                                             )}
@@ -9988,6 +10272,70 @@
                                         </div>
                                     )}
 
+                                    {/* Book community filter */}
+                                    {communityBookIsbn && (
+                                        <div style={{marginBottom:'1rem'}}>
+                                            <div className="groups-section-header">
+                                                <div className="groups-section-title" style={{fontSize:'0.95rem'}}>
+                                                    📖 "{communityBookTitle}"
+                                                </div>
+                                                <div style={{display:'flex', gap:'0.5rem', alignItems:'center'}}>
+                                                    <button
+                                                        className="groups-create-btn"
+                                                        onClick={() => {
+                                                            setCreateGroupForm(f => ({...f, relatedBookId: communityBookIsbn}));
+                                                            setShowCreateGroup(true);
+                                                            setCreateGroupStep(1);
+                                                        }}
+                                                    >+ Start Group</button>
+                                                    <button
+                                                        style={{background:'none', border:'1.5px solid #c0a882', color:'#8b6f47', borderRadius:6, padding:'0.3rem 0.65rem', fontSize:'0.8rem', cursor:'pointer'}}
+                                                        onClick={() => { setCommunityBookIsbn(null); setCommunityBookTitle(''); setBookGroups([]); }}
+                                                    >✕ Clear</button>
+                                                </div>
+                                            </div>
+                                            {bookGroupsLoading ? (
+                                                <div style={{color:'#8b6f47', fontSize:'0.85rem', padding:'0.5rem 0'}}>Loading…</div>
+                                            ) : bookGroups.length === 0 ? (
+                                                <div className="groups-empty" style={{padding:'1rem 0'}}>
+                                                    <div className="groups-empty-icon" style={{fontSize:'1.5rem'}}>💬</div>
+                                                    <div className="groups-empty-text">No groups for this book yet</div>
+                                                    <div className="groups-empty-sub">Start the first one!</div>
+                                                </div>
+                                            ) : (
+                                                <div className="groups-grid">
+                                                    {bookGroups.map(g => {
+                                                        const amMember = isMemberOfGroup(g);
+                                                        const myRole = myGroupRole(g);
+                                                        const rt = myRole?.role_type || myRole?.roleType || 'member';
+                                                        return (
+                                                            <div key={g.id} className="group-card">
+                                                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem'}}>
+                                                                    <span className={`group-type-badge ${g.type}`}>{g.type}</span>
+                                                                    {amMember && <span style={{fontSize:'0.72rem', color: ROLE_COLORS[rt], fontWeight:700}}>{ROLE_LABELS[rt] || 'Member'}</span>}
+                                                                </div>
+                                                                <div className="group-card-title">{g.title}</div>
+                                                                <div className="group-card-meta">
+                                                                    <span>👥 {(g.members||[]).filter(m=>!m.banned_at).length}/{g.max_members}</span>
+                                                                    <span>💬 {(g.chats||[]).filter(c=>c.is_active).length} chats</span>
+                                                                </div>
+                                                                <div style={{marginTop:'0.6rem', display:'flex', gap:'0.5rem'}}>
+                                                                    {!amMember && (
+                                                                        <button className="groups-create-btn" style={{fontSize:'0.82rem', padding:'0.4rem 0.85rem'}} onClick={() => joinGroup(g)}>Join</button>
+                                                                    )}
+                                                                    <button className="cg-btn-secondary" style={{fontSize:'0.82rem', padding:'0.4rem 0.85rem'}} onClick={() => openGroup(g)}>
+                                                                        {amMember ? 'Open' : 'Browse'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            <div style={{borderBottom:'1px solid #e0c9a6', margin:'1rem 0'}} />
+                                        </div>
+                                    )}
+
                                     {/* My groups */}
                                     <div>
                                         <div className="groups-section-header">
@@ -10131,12 +10479,12 @@
                                                             />
                                                         </div>
                                                         <div className="cg-field">
-                                                            <label className="cg-label">Linked Book ID <span style={{fontWeight:400, color:'#aaa'}}>(optional)</span></label>
+                                                            <label className="cg-label">Linked Book ISBN <span style={{fontWeight:400, color:'#aaa'}}>(optional)</span></label>
                                                             <input
                                                                 className="cg-input"
                                                                 value={createGroupForm.relatedBookId}
                                                                 onChange={e => setCreateGroupForm(f => ({...f, relatedBookId: e.target.value}))}
-                                                                placeholder="Google Books ID"
+                                                                placeholder="e.g. 9780743273565"
                                                             />
                                                         </div>
                                                         <div className="cg-actions">
@@ -10156,7 +10504,7 @@
                                                                 <span style={{fontSize:'0.8rem', color:'#8b6f47'}}>max {createGroupForm.type === 'public' ? 100 : 40} members</span>
                                                             </div>
                                                             {createGroupForm.description && <div style={{fontSize:'0.85rem', color:'#5a3e28'}}>{createGroupForm.description}</div>}
-                                                            {createGroupForm.relatedBookId && <div style={{fontSize:'0.8rem', color:'#8b6f47', marginTop:'0.3rem'}}>📖 Book: {createGroupForm.relatedBookId}</div>}
+                                                            {createGroupForm.relatedBookId && <div style={{fontSize:'0.8rem', color:'#8b6f47', marginTop:'0.3rem'}}>📖 ISBN: {createGroupForm.relatedBookId}</div>}
                                                             <div style={{fontSize:'0.8rem', color:'#8b6f47', marginTop:'0.5rem'}}>
                                                                 {createGroupForm.type === 'private'
                                                                     ? '🔒 4 built-in roles will be created (Admin, Asst. Admin, Manager, Member). You can add custom roles after.'
@@ -10178,6 +10526,7 @@
                                 </div>
                             );
                         })()}
+
                     </div>
 
                     {/* ── Create Shelf Modal ── */}
@@ -10246,9 +10595,9 @@
                                     <div style={{marginBottom: '2rem'}}>
                                         <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Number of Boards</label>
                                         <div className="board-controls">
-                                            <button className="board-btn" onClick={() => setNewShelfBoardCount(c => Math.max(1, c - 1))} disabled={newShelfBoardCount <= 1}>−</button>
-                                            <span className="board-count">{newShelfBoardCount} {newShelfBoardCount === 1 ? 'shelf' : 'shelves'}</span>
-                                            <button className="board-btn" onClick={() => setNewShelfBoardCount(c => Math.min(8, c + 1))} disabled={newShelfBoardCount >= 8}>+</button>
+                                            <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfBoardCount(c => Math.max(1, c - 1))} disabled={newShelfBoardCount <= 1}>−</button>
+                                            <span className="board-count" style={{color:'#3d2817',fontWeight:'600'}}>{newShelfBoardCount} {newShelfBoardCount === 1 ? 'board' : 'boards'}</span>
+                                            <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfBoardCount(c => Math.min(8, c + 1))} disabled={newShelfBoardCount >= 8}>+</button>
                                         </div>
                                     </div>
 
@@ -10334,8 +10683,44 @@
                     {showFullResults && (
                         <div className="full-results-overlay">
                             <div className="full-results-header">
-                                {/* Tab navigation replaces the close button */}
-                                <div className="tabs" style={{marginBottom: '1rem'}}>
+                                <h2 className="full-results-title">Search Results</h2>
+
+                                {/* Search bar */}
+                                <div className="header-search" style={{marginBottom: '0.5rem', maxWidth: '600px'}}>
+                                    <input
+                                        type="text"
+                                        placeholder="Search by title or ISBN..."
+                                        value={searchQuery}
+                                        onChange={(e) => handleSearchChange(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && searchQuery.length >= 3) {
+                                                setShowSearchDropdown(false);
+                                                searchBooks(searchQuery, true);
+                                            }
+                                        }}
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            className="search-clear"
+                                            onClick={() => {
+                                                setSearchQuery('');
+                                                setShowSearchDropdown(false);
+                                                setSearchResults([]);
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => searchQuery.length >= 3 && searchBooks(searchQuery, true)}
+                                        title="Search"
+                                    >
+                                        🔍
+                                    </button>
+                                </div>
+
+                                {/* Tab navigation */}
+                                <div className="tabs" style={{marginBottom: '0.5rem'}}>
                                     <div
                                         className="tab"
                                         onClick={() => { setShowFullResults(false); setActiveTab('books'); }}
@@ -10355,49 +10740,21 @@
                                         🏠 My Room
                                     </div>
                                 </div>
-
-                                {/* Search bar */}
-                                <div className="header-search" style={{marginBottom: '1.5rem', maxWidth: '600px'}}>
-                                    <input
-                                        type="text"
-                                        placeholder="Search by title or ISBN..."
-                                        value={searchQuery}
-                                        onChange={(e) => handleSearchChange(e.target.value)}
-                                    />
-                                    {searchQuery && (
-                                        <button 
-                                            className="search-clear"
-                                            onClick={() => {
-                                                setSearchQuery('');
-                                                setShowSearchDropdown(false);
-                                                setSearchResults([]);
-                                            }}
-                                        >
-                                            ×
-                                        </button>
-                                    )}
-                                    <button 
-                                        onClick={() => searchQuery.length >= 3 && searchBooks(searchQuery, true)}
-                                        title="Search"
+                            </div>
+                            <div className="full-results-content">
+                                {/* Sort control */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem'}}>
+                                    <span style={{fontWeight: '600', color: '#5c3d1e'}}>Sort</span>
+                                    <select
+                                        value={fullResultsSort}
+                                        onChange={(e) => setFullResultsSort(e.target.value)}
+                                        style={{padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #c9a96e', background: '#fff', color: '#5c3d1e', cursor: 'pointer'}}
                                     >
-                                        🔍
-                                    </button>
-                                </div>
-                                
-                                <h2 className="full-results-title">Search Results</h2>
-                                <div className="full-results-subtitle">
-                                    Found {fullResults.length} books matching "{searchQuery}"
-                                </div>
-                                <div className="full-results-sort">
-                                    <label>Sort by:</label>
-                                    <select value={fullResultsSort} onChange={(e) => setFullResultsSort(e.target.value)}>
                                         <option value="popular">Most Popular</option>
                                         <option value="az">A-Z</option>
                                         <option value="za">Z-A</option>
                                     </select>
                                 </div>
-                            </div>
-                            <div className="full-results-content">
                                 {fullResults.length === 0 ? (
                                     <div className="search-empty">
                                         <div className="search-empty-title">No books found</div>
@@ -10444,7 +10801,7 @@
                                 <div className="book-detail-content">
                                     <h2 className="book-detail-title">Add Books to Shelf</h2>
                                     <p style={{ marginBottom: '1.5rem', color: '#8b6f47' }}>
-                                        Select books from your library to add to "{shelves.find(s => s.id === targetShelfForSelector)?.name}"
+                                        Select one or more books from your library to add to "{shelves.find(s => s.id === targetShelfForSelector)?.name}"
                                     </p>
 
                                     {books.length === 0 ? (
@@ -10484,6 +10841,9 @@
                                                         className={`selector-book-card ${selectedBooksToAdd.includes(book.id) ? 'selected' : ''}`}
                                                         onClick={() => toggleBookSelection(book.id)}
                                                     >
+                                                        <div className="selector-book-checkbox">
+                                                            <span className="selector-book-checkbox-tick">✓</span>
+                                                        </div>
                                                         {book.cover ? (
                                                             <img
                                                                 src={book.cover}
@@ -11108,6 +11468,12 @@
                                             value={searchQuery}
                                             onChange={(e) => handleSearchChange(e.target.value)}
                                             onFocus={() => searchQuery.length >= 3 && setShowSearchDropdown(true)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && searchQuery.length >= 3) {
+                                                    setShowSearchDropdown(false);
+                                                    searchBooks(searchQuery, true);
+                                                }
+                                            }}
                                             className="form-input"
                                             style={{ width: '100%' }}
                                         />

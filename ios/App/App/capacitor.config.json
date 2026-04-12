@@ -1,6 +1,6 @@
 {
-	"appId": "com.library.app",
-	"appName": "Library",
+	"appId": "com.acanfora.yourlibrary",
+	"appName": "Your Library",
 	"webDir": "www",
 	"ios": {
 		"contentInset": "always"

@@ -10489,30 +10489,13 @@
                     {showFullResults && (
                         <div className="full-results-overlay">
                             <div className="full-results-header">
-                                {/* Tab navigation replaces the close button */}
-                                <div className="tabs" style={{marginBottom: '1rem'}}>
-                                    <div
-                                        className="tab"
-                                        onClick={() => { setShowFullResults(false); setActiveTab('books'); }}
-                                    >
-                                        📖 Your Books
-                                    </div>
-                                    <div
-                                        className="tab"
-                                        onClick={() => { setShowFullResults(false); setActiveTab('shelves'); }}
-                                    >
-                                        📚 Your Shelves
-                                    </div>
-                                    <div
-                                        className="tab"
-                                        onClick={() => { setShowFullResults(false); setActiveTab('room'); }}
-                                    >
-                                        🏠 My Room
-                                    </div>
+                                <h2 className="full-results-title">Search Results</h2>
+                                <div className="full-results-subtitle">
+                                    Found {fullResults.length} books matching "{searchQuery}"
                                 </div>
 
                                 {/* Search bar */}
-                                <div className="header-search" style={{marginBottom: '1.5rem', maxWidth: '600px'}}>
+                                <div className="header-search" style={{marginBottom: '1rem', maxWidth: '600px'}}>
                                     <input
                                         type="text"
                                         placeholder="Search by title or ISBN..."
@@ -10537,28 +10520,50 @@
                                             ×
                                         </button>
                                     )}
-                                    <button 
+                                    <button
                                         onClick={() => searchQuery.length >= 3 && searchBooks(searchQuery, true)}
                                         title="Search"
                                     >
                                         🔍
                                     </button>
                                 </div>
-                                
-                                <h2 className="full-results-title">Search Results</h2>
-                                <div className="full-results-subtitle">
-                                    Found {fullResults.length} books matching "{searchQuery}"
+
+                                {/* Tab navigation */}
+                                <div className="tabs">
+                                    <div
+                                        className="tab"
+                                        onClick={() => { setShowFullResults(false); setActiveTab('books'); }}
+                                    >
+                                        📖 Your Books
+                                    </div>
+                                    <div
+                                        className="tab"
+                                        onClick={() => { setShowFullResults(false); setActiveTab('shelves'); }}
+                                    >
+                                        📚 Your Shelves
+                                    </div>
+                                    <div
+                                        className="tab"
+                                        onClick={() => { setShowFullResults(false); setActiveTab('room'); }}
+                                    >
+                                        🏠 My Room
+                                    </div>
                                 </div>
-                                <div className="full-results-sort">
-                                    <label>Sort by:</label>
-                                    <select value={fullResultsSort} onChange={(e) => setFullResultsSort(e.target.value)}>
+                            </div>
+                            <div className="full-results-content">
+                                {/* Sort control */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem 0'}}>
+                                    <span style={{fontWeight: '600', color: '#5c3d1e'}}>Sort</span>
+                                    <select
+                                        value={fullResultsSort}
+                                        onChange={(e) => setFullResultsSort(e.target.value)}
+                                        style={{padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #c9a96e', background: '#fff', color: '#5c3d1e', cursor: 'pointer'}}
+                                    >
                                         <option value="popular">Most Popular</option>
                                         <option value="az">A-Z</option>
                                         <option value="za">Z-A</option>
                                     </select>
                                 </div>
-                            </div>
-                            <div className="full-results-content">
                                 {fullResults.length === 0 ? (
                                     <div className="search-empty">
                                         <div className="search-empty-title">No books found</div>

@@ -10518,9 +10518,15 @@
                                         placeholder="Search by title or ISBN..."
                                         value={searchQuery}
                                         onChange={(e) => handleSearchChange(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && searchQuery.length >= 3) {
+                                                setShowSearchDropdown(false);
+                                                searchBooks(searchQuery, true);
+                                            }
+                                        }}
                                     />
                                     {searchQuery && (
-                                        <button 
+                                        <button
                                             className="search-clear"
                                             onClick={() => {
                                                 setSearchQuery('');
@@ -11266,6 +11272,12 @@
                                             value={searchQuery}
                                             onChange={(e) => handleSearchChange(e.target.value)}
                                             onFocus={() => searchQuery.length >= 3 && setShowSearchDropdown(true)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && searchQuery.length >= 3) {
+                                                    setShowSearchDropdown(false);
+                                                    searchBooks(searchQuery, true);
+                                                }
+                                            }}
                                             className="form-input"
                                             style={{ width: '100%' }}
                                         />

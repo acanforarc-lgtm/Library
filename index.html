@@ -9201,9 +9201,7 @@
                                                     )}
                                                     
                                                     {boardBooks.length === 0 ? (
-                                                        <div className="empty" style={{color: 'rgba(61,40,23,0.4)', width: '100%', textAlign: 'center'}}>
-                                                            Empty shelf - add books using the ➕ button above or drag books here!
-                                                        </div>
+                                                        <div />
                                                     ) : (
                                                         boardBooks.map(book => {
                                                             const position = book.position !== null ? book.position : 0;

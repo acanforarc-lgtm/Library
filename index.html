@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.1
+    YOUR LIBRARY - VERSION 2.4.2
     ========================================
+    v2.4.2: Replace inline description with Summary popout link
     v2.4.1: Enrich library book popups with metadata from book_cache
     v2.4.0: Groups enabled, book community discussions
     v2.3.5: API key security, search fixes, UI polish, messages layout
@@ -3900,6 +3901,8 @@
             const [recsLoading, setRecsLoading] = useState(false);
             const [showBookInfo, setShowBookInfo] = useState(false);
             const [bookInfoData, setBookInfoData] = useState(null);
+            const [showBookSummary, setShowBookSummary] = useState(false);
+            const [bookSummaryText, setBookSummaryText] = useState('');
             const [showBookSelector, setShowBookSelector] = useState(false);
             const [targetShelfForSelector, setTargetShelfForSelector] = useState(null);
             const [selectedBooksToAdd, setSelectedBooksToAdd] = useState([]);
@@ -8280,15 +8283,15 @@
                                                 {shelfBookData.isbn && <div>📚 ISBN: {shelfBookData.isbn}</div>}
                                                 {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
                                                 {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
+                                                {shelfBookData.description && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.2rem'}}
+                                                        onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
+                                                    >📖 Summary</div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {shelfBookData.description && (
-                                        <div className="book-info-description">
-                                            {shelfBookData.description}
-                                        </div>
-                                    )}
 
                                     {/* User Book Data */}
                                     <div className="user-book-data">
@@ -8433,6 +8436,30 @@
                         </div>
                     )}
 
+                    {/* Book Summary Popout */}
+                    {showBookSummary && (
+                        <div
+                            style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:100001, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem'}}
+                            onClick={() => setShowBookSummary(false)}
+                        >
+                            <div
+                                style={{background:'#fdf6ee', borderRadius:14, padding:'1.5rem', maxWidth:480, width:'100%', maxHeight:'70vh', overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 8px 40px rgba(0,0,0,0.4)', position:'relative'}}
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.75rem'}}>
+                                    <div style={{fontWeight:700, fontSize:'1rem', color:'#3d2817'}}>📖 Summary</div>
+                                    <button
+                                        style={{background:'none', border:'none', fontSize:'1.4rem', color:'#8b6f47', cursor:'pointer', lineHeight:1}}
+                                        onClick={() => setShowBookSummary(false)}
+                                    >×</button>
+                                </div>
+                                <div style={{overflowY:'auto', fontSize:'0.9rem', color:'#3d2817', lineHeight:1.65}}>
+                                    {bookSummaryText}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Book Info Popup (from Your Books) */}
                     {showBookInfo && bookInfoData && (
                         <div className="book-detail-overlay" onClick={closeBookInfo}>
@@ -8460,15 +8487,15 @@
                                                 {bookInfoData.isbn && <div>📚 ISBN: {bookInfoData.isbn}</div>}
                                                 {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
                                                 {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
+                                                {bookInfoData.description && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', fontSize:'0.85rem', marginTop:'0.2rem'}}
+                                                        onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
+                                                    >📖 Summary</div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {bookInfoData.description && (
-                                        <div className="book-info-description">
-                                            {bookInfoData.description}
-                                        </div>
-                                    )}
 
                                     {/* User Book Data */}
                                     <div className="user-book-data">

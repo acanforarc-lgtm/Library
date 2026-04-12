@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.0
+    YOUR LIBRARY - VERSION 2.4.1
     ========================================
+    v2.4.1: Enrich library book popups with metadata from book_cache
     v2.4.0: Groups enabled, book community discussions
     v2.3.5: API key security, search fixes, UI polish, messages layout
     v2.3.4: Fix book auto-placement glitch on shelf
@@ -5018,12 +5019,12 @@
             useEffect(() => {
                 if (showBookInfo && bookInfoData?.isbn) loadBookGroups(bookInfoData.isbn);
                 else if (!showBookInfo) setBookGroups([]);
-            }, [showBookInfo]);
+            }, [showBookInfo, bookInfoData?.isbn]);
 
             useEffect(() => {
                 if (showShelfBookPopup && shelfBookData?.isbn) loadBookGroups(shelfBookData.isbn);
                 else if (!showShelfBookPopup) setBookGroups([]);
-            }, [showShelfBookPopup]);
+            }, [showShelfBookPopup, shelfBookData?.isbn]);
 
             // Persist active tab so refresh returns to the same page
             useEffect(() => {
@@ -5748,6 +5749,9 @@
 
                     if (error) throw error;
 
+                    // Ensure book metadata is in cache for library popup enrichment
+                    saveIsbnToCache(pendingSearchBook);
+
                     setBooks(prev => [...prev, data[0]]);
                     const shelfName = targetShelfId ? shelves.find(s => s.id === targetShelfId)?.name : null;
                     showMessage(`✅ Added "${data[0].title}"${shelfName ? ` to "${shelfName}"` : ' to Your Books'}!`);
@@ -6304,10 +6308,37 @@
             }, [activeTab, shelves.length, books.length]);
 
             // Open book info popup
-            const openBookInfo = (book) => {
-                setBookInfoData(book);
+            // Enrich a stored library book with full metadata from book_cache by title match
+            const enrichBookFromCache = async (book) => {
+                if (book.isbn && book.description) return book; // already have what we need
+                try {
+                    const { data } = await supabaseClient
+                        .from('book_cache')
+                        .select('*')
+                        .ilike('title', `${book.title.substring(0, 50)}%`)
+                        .limit(1)
+                        .maybeSingle();
+                    if (data) {
+                        return {
+                            ...book,
+                            isbn:        book.isbn        || data.isbn,
+                            description: book.description || data.description,
+                            publishYear: book.publishYear || data.publish_year,
+                            pageCount:   book.pageCount   || data.page_count,
+                            publisher:   book.publisher   || data.publisher,
+                            cover:       book.cover       || data.cover_url,
+                        };
+                    }
+                } catch (e) { /* silently ignore */ }
+                return book;
+            };
+
+            const openBookInfo = async (book) => {
                 setShowBookInfo(true);
                 setSelectedShelfForAdd('');
+                setBookInfoData(book); // show immediately
+                const enriched = await enrichBookFromCache(book);
+                setBookInfoData(enriched);
             };
 
             // Close book info popup
@@ -7108,11 +7139,13 @@
             };
 
             // Open shelf book popup
-            const openShelfBookPopup = (book, shelfId) => {
-                setShelfBookData(book);
+            const openShelfBookPopup = async (book, shelfId) => {
                 setCurrentShelfId(shelfId);
                 setSelectedShelfForAdd('');
                 setShowShelfBookPopup(true);
+                setShelfBookData(book); // show immediately
+                const enriched = await enrichBookFromCache(book);
+                setShelfBookData(enriched);
             };
 
             // Close shelf book popup
@@ -8244,7 +8277,7 @@
                                             <h2 className="book-info-title">{shelfBookData.title}</h2>
                                             <div className="book-info-author">by {shelfBookData.author}</div>
                                             <div className="book-info-meta">
-                                                <div>📚 ISBN: {shelfBookData.isbn}</div>
+                                                {shelfBookData.isbn && <div>📚 ISBN: {shelfBookData.isbn}</div>}
                                                 {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
                                                 {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
                                             </div>

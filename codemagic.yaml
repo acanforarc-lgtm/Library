@@ -23,6 +23,9 @@ workflows:
       - name: Install dependencies
         script: npm install
 
+      - name: Inject API key
+        script: sed -i '' "s/__GOOGLE_BOOKS_API_KEY__/$GOOGLE_BOOKS_API_KEY/g" index.html
+
       - name: Build web assets
         script: npm run build
 

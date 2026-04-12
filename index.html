@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.6
+    YOUR LIBRARY - VERSION 2.4.7
     ========================================
+    v2.4.7: Fixed layout — header+tabs stay fixed, only content scrolls; fix search page horizontal overflow
     v2.4.6: Fix iOS overscroll bounce and horizontal scroll
     v2.4.5: iOS pre-release fixes
     v2.4.4: Hide all groups/community UI pending redesign
@@ -43,7 +44,8 @@
         }
 
         html {
-            overflow-x: hidden;
+            height: 100%;
+            overflow: hidden;
             max-width: 100vw;
         }
 
@@ -51,9 +53,8 @@
             font-family: 'Work Sans', sans-serif;
             background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
             color: #3d2817;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
-            overflow-x: hidden;
+            height: 100%;
+            overflow: hidden;
             max-width: 100vw;
             overscroll-behavior: none;
             padding-top: env(safe-area-inset-top);
@@ -63,12 +64,17 @@
         }
 
         .container {
-            max-width: none; /* Remove limit - let content use full width */
+            max-width: none;
             margin: 0 auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         /* Header Section - Top 10% */
         .header-section {
+            flex-shrink: 0;
             height: 10vh;
             min-height: 80px;
             border-bottom: 3px solid #8b6f47;
@@ -264,17 +270,26 @@
             background: rgba(61, 40, 23, 0.05) !important;
         }
 
-        /* Main Content Area */
+        /* Main Content Area — scrolls independently; header+tabs stay fixed */
         .main-content {
-            padding: 2rem 25px; /* Reduced from 3rem (~48px) to 25px */
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 25px 2rem;
         }
 
-        /* Tab Navigation */
+        /* Tab Navigation — sticky inside scroll container so tabs never scroll away */
         .tabs {
             display: flex;
             gap: 1rem;
             justify-content: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            padding: 0.75rem 0 0.5rem;
         }
 
         .tab {
@@ -626,6 +641,18 @@
             .shelf-controls h3 {
                 white-space: normal;
                 width: 100%;
+            }
+
+            /* Search results overlay: prevent horizontal overflow on narrow screens */
+            .full-results-header {
+                padding: 0.75rem 0.75rem 0.25rem;
+            }
+            .full-results-content {
+                padding: 0 0.75rem 1.5rem;
+            }
+            .full-results-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
             }
         }
 
@@ -1594,6 +1621,7 @@
             background: white;
             z-index: 1500;
             overflow-y: auto;
+            overflow-x: hidden;
             animation: slideIn 0.3s ease-out;
         }
 
@@ -2890,7 +2918,7 @@
             }
 
             .main-content {
-                padding: 0.75rem;
+                padding: 0 0.75rem 1rem;
             }
 
             .auth-container {

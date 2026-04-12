@@ -5476,10 +5476,10 @@
                     return;
                 }
 
-                // Debounce search - wait 300ms after user stops typing
+                // Debounce search - wait 1000ms after user stops typing
                 searchTimerRef.current = setTimeout(() => {
                     searchBooks(value);
-                }, 300);
+                }, 1000);
             };
 
             // ==========================================

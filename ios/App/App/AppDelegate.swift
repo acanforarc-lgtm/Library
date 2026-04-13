@@ -12,6 +12,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // iOS normally scrolls the webview to reveal the focused input above the
         // keyboard, which displaces our fixed-position layout container.
         // Setting contentInsetAdjustmentBehavior = .never stops this at the OS level.
+        // Set UIWindow background to cream so no black shows behind the WKWebView
+        self.window?.backgroundColor = UIColor(red: 250/255, green: 248/255, blue: 243/255, alpha: 1)
         DispatchQueue.main.async {
             if let vc = self.window?.rootViewController as? CAPBridgeViewController,
                let scrollView = vc.webView?.scrollView {

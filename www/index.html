@@ -6,8 +6,10 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.11
+    YOUR LIBRARY - VERSION 2.4.13
     ========================================
+    v2.4.13: Fix black bottom (contentInset:never so WKWebView fills screen) + remove viewport height lock that caused zoom after keyboard dismiss
+    v2.4.12: Native Swift fix — WKWebView scrollView.contentInsetAdjustmentBehavior = .never to block keyboard-triggered layout displacement
     v2.4.11: Add viewport height lock on input focus to prevent iOS keyboard layout shift
     v2.4.10: Install @capacitor/keyboard so resize:none config actually applies; add visualViewport backstop
     v2.4.9: Fix iOS viewport shift after search — keyboard dismiss + scroll reset
@@ -4361,45 +4363,6 @@
                 };
             }, []);
 
-            // Viewport height lock — the most direct prevention.
-            // focusin fires BEFORE the keyboard animates up, so we capture the
-            // pre-keyboard innerHeight and write it into the viewport meta tag.
-            // iOS cannot shrink or scroll the layout when the height is locked.
-            // focusout removes the lock (with a short delay to handle focus
-            // jumping from one input to another without a visible flash).
-            useEffect(() => {
-                const viewport = document.querySelector('meta[name="viewport"]');
-                if (!viewport) return;
-                const base = viewport.getAttribute('content');
-                let unlockTimer = null;
-
-                const lock = (e) => {
-                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') return;
-                    clearTimeout(unlockTimer);
-                    viewport.setAttribute('content', `${base}, height=${window.innerHeight}px`);
-                };
-
-                const unlock = (e) => {
-                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') return;
-                    // Delay so focus jumping between inputs doesn't flash
-                    unlockTimer = setTimeout(() => {
-                        const el = document.activeElement;
-                        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) {
-                            viewport.setAttribute('content', base);
-                            window.scrollTo(0, 0);
-                            document.documentElement.scrollTop = 0;
-                        }
-                    }, 150);
-                };
-
-                document.addEventListener('focusin', lock);
-                document.addEventListener('focusout', unlock);
-                return () => {
-                    document.removeEventListener('focusin', lock);
-                    document.removeEventListener('focusout', unlock);
-                    clearTimeout(unlockTimer);
-                };
-            }, []);
 
             // ==========================================
             // SOCIAL FEATURES - ENCRYPTION

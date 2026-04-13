@@ -3,7 +3,7 @@
 	"appName": "Your Library",
 	"webDir": "www",
 	"ios": {
-		"contentInset": "always",
+		"contentInset": "never",
 		"scrollEnabled": false,
 		"backgroundColor": "#faf8f3"
 	},

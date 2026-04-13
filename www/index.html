@@ -6,8 +6,14 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.5
+    YOUR LIBRARY - VERSION 2.4.11
     ========================================
+    v2.4.11: Add viewport height lock on input focus to prevent iOS keyboard layout shift
+    v2.4.10: Install @capacitor/keyboard so resize:none config actually applies; add visualViewport backstop
+    v2.4.9: Fix iOS viewport shift after search — keyboard dismiss + scroll reset
+    v2.4.8: Fix black background and page bounce on iOS — fixed-position container
+    v2.4.7: Fixed layout — header+tabs stay fixed, only content scrolls; fix search page horizontal overflow
+    v2.4.6: Fix iOS overscroll bounce and horizontal scroll
     v2.4.5: iOS pre-release fixes
     v2.4.4: Hide all groups/community UI pending redesign
     v2.4.3: Compact reading data, Community as link → Groups page
@@ -41,26 +47,47 @@
             box-sizing: border-box;
         }
 
+        html {
+            height: 100%;
+            max-width: 100vw;
+            /* Cream fallback so WKWebView never shows black behind the page */
+            background: #faf8f3;
+        }
+
         body {
             font-family: 'Work Sans', sans-serif;
             background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
             color: #3d2817;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
+            min-height: 100%;
             overflow-x: hidden;
+            max-width: 100vw;
+            overscroll-behavior: none;
+            /* Safe-area padding moved to .container */
+        }
+
+        /* The entire app lives in a fixed-position container.
+           Because the body has no scrollable content, WKWebView has
+           nothing to rubber-band — page bounce is gone entirely.
+           CSS overflow on .main-content handles all scrolling. */
+        .container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
         }
 
-        .container {
-            max-width: none; /* Remove limit - let content use full width */
-            margin: 0 auto;
-        }
-
         /* Header Section - Top 10% */
         .header-section {
+            flex-shrink: 0;
             height: 10vh;
             min-height: 80px;
             border-bottom: 3px solid #8b6f47;
@@ -256,17 +283,27 @@
             background: rgba(61, 40, 23, 0.05) !important;
         }
 
-        /* Main Content Area */
+        /* Main Content Area — scrolls independently; header+tabs stay fixed */
         .main-content {
-            padding: 2rem 25px; /* Reduced from 3rem (~48px) to 25px */
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain; /* prevents list edge-bounce on iOS */
+            padding: 0 25px 2rem;
         }
 
-        /* Tab Navigation */
+        /* Tab Navigation — sticky inside scroll container so tabs never scroll away */
         .tabs {
             display: flex;
             gap: 1rem;
             justify-content: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            padding: 0.75rem 0 0.5rem;
         }
 
         .tab {
@@ -618,6 +655,18 @@
             .shelf-controls h3 {
                 white-space: normal;
                 width: 100%;
+            }
+
+            /* Search results overlay: prevent horizontal overflow on narrow screens */
+            .full-results-header {
+                padding: 0.75rem 0.75rem 0.25rem;
+            }
+            .full-results-content {
+                padding: 0 0.75rem 1.5rem;
+            }
+            .full-results-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
             }
         }
 
@@ -1586,6 +1635,7 @@
             background: white;
             z-index: 1500;
             overflow-y: auto;
+            overflow-x: hidden;
             animation: slideIn 0.3s ease-out;
         }
 
@@ -2882,7 +2932,7 @@
             }
 
             .main-content {
-                padding: 0.75rem;
+                padding: 0 0.75rem 1rem;
             }
 
             .auth-container {
@@ -3816,7 +3866,7 @@
         // ║              v3.3 Code Base (WORKING) + Organization               ║
         // ╚════════════════════════════════════════════════════════════════════╝
         
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useLayoutEffect } = React;
         
         // ==========================================
         // SUPABASE INITIALIZATION - v7.1
@@ -4263,6 +4313,93 @@
                 showScannedBookPopup, showSettings, showScanModeSelector, showConfirm,
                 showMoveModal, showAssignModal, showCreateShelfModal, showAddShelfModal,
                 scanMode, scannerMode]);
+
+            // iOS keyboard viewport fix — runs before paint (useLayoutEffect) so the overlay
+            // never appears in a shifted position. Blurs active input to dismiss keyboard,
+            // then resets any scroll offset the keyboard may have caused.
+            useLayoutEffect(() => {
+                if (showFullResults) {
+                    if (document.activeElement && document.activeElement !== document.body) {
+                        document.activeElement.blur();
+                    }
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                }
+            }, [showFullResults]);
+
+            // Whenever the keyboard dismisses (any input loses focus and focus doesn't
+            // move to another input), reset the viewport offset so nothing stays shifted.
+            useEffect(() => {
+                const handleFocusOut = () => {
+                    setTimeout(() => {
+                        const el = document.activeElement;
+                        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT')) {
+                            window.scrollTo(0, 0);
+                            document.documentElement.scrollTop = 0;
+                        }
+                    }, 100);
+                };
+                document.addEventListener('focusout', handleFocusOut);
+                return () => document.removeEventListener('focusout', handleFocusOut);
+            }, []);
+
+            // visualViewport backstop — iOS fires scroll/resize on the visual viewport
+            // whenever the keyboard appears or disappears, which is what displaces the
+            // fixed container. Reset immediately every time it happens.
+            useEffect(() => {
+                const vv = window.visualViewport;
+                if (!vv) return;
+                const reset = () => {
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                };
+                vv.addEventListener('scroll', reset);
+                vv.addEventListener('resize', reset);
+                return () => {
+                    vv.removeEventListener('scroll', reset);
+                    vv.removeEventListener('resize', reset);
+                };
+            }, []);
+
+            // Viewport height lock — the most direct prevention.
+            // focusin fires BEFORE the keyboard animates up, so we capture the
+            // pre-keyboard innerHeight and write it into the viewport meta tag.
+            // iOS cannot shrink or scroll the layout when the height is locked.
+            // focusout removes the lock (with a short delay to handle focus
+            // jumping from one input to another without a visible flash).
+            useEffect(() => {
+                const viewport = document.querySelector('meta[name="viewport"]');
+                if (!viewport) return;
+                const base = viewport.getAttribute('content');
+                let unlockTimer = null;
+
+                const lock = (e) => {
+                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') return;
+                    clearTimeout(unlockTimer);
+                    viewport.setAttribute('content', `${base}, height=${window.innerHeight}px`);
+                };
+
+                const unlock = (e) => {
+                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') return;
+                    // Delay so focus jumping between inputs doesn't flash
+                    unlockTimer = setTimeout(() => {
+                        const el = document.activeElement;
+                        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) {
+                            viewport.setAttribute('content', base);
+                            window.scrollTo(0, 0);
+                            document.documentElement.scrollTop = 0;
+                        }
+                    }, 150);
+                };
+
+                document.addEventListener('focusin', lock);
+                document.addEventListener('focusout', unlock);
+                return () => {
+                    document.removeEventListener('focusin', lock);
+                    document.removeEventListener('focusout', unlock);
+                    clearTimeout(unlockTimer);
+                };
+            }, []);
 
             // ==========================================
             // SOCIAL FEATURES - ENCRYPTION

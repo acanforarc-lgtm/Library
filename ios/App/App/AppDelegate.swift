@@ -20,6 +20,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 scrollView.isScrollEnabled = false
                 scrollView.bounces = false
                 scrollView.contentInsetAdjustmentBehavior = .never
+                scrollView.minimumZoomScale = 1.0
+                scrollView.maximumZoomScale = 1.0
             }
         }
         return true

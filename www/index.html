@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.13
+    YOUR LIBRARY - VERSION 2.4.14
     ========================================
+    v2.4.14: Fix iOS auto-zoom on search input — add maximum-scale=1.0/user-scalable=no to viewport + native minimumZoomScale=1.0/maximumZoomScale=1.0
     v2.4.13: Fix black bottom (contentInset:never so WKWebView fills screen) + remove viewport height lock that caused zoom after keyboard dismiss
     v2.4.12: Native Swift fix — WKWebView scrollView.contentInsetAdjustmentBehavior = .never to block keyboard-triggered layout displacement
     v2.4.11: Add viewport height lock on input focus to prevent iOS keyboard layout shift

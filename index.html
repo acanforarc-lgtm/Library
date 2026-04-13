@@ -3864,7 +3864,7 @@
         // ║              v3.3 Code Base (WORKING) + Organization               ║
         // ╚════════════════════════════════════════════════════════════════════╝
         
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useLayoutEffect } = React;
         
         // ==========================================
         // SUPABASE INITIALIZATION - v7.1
@@ -4312,10 +4312,10 @@
                 showMoveModal, showAssignModal, showCreateShelfModal, showAddShelfModal,
                 scanMode, scannerMode]);
 
-            // iOS keyboard viewport fix — when the search overlay opens, the keyboard may
-            // have shifted the visual viewport. Blur the active input to dismiss the keyboard,
-            // then reset any scroll offset before the overlay renders in the wrong position.
-            useEffect(() => {
+            // iOS keyboard viewport fix — runs before paint (useLayoutEffect) so the overlay
+            // never appears in a shifted position. Blurs active input to dismiss keyboard,
+            // then resets any scroll offset the keyboard may have caused.
+            useLayoutEffect(() => {
                 if (showFullResults) {
                     if (document.activeElement && document.activeElement !== document.body) {
                         document.activeElement.blur();

@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.8
+    YOUR LIBRARY - VERSION 2.4.9
     ========================================
+    v2.4.9: Fix iOS viewport shift after search — keyboard dismiss + scroll reset
     v2.4.8: Fix black background and page bounce on iOS — fixed-position container
     v2.4.7: Fixed layout — header+tabs stay fixed, only content scrolls; fix search page horizontal overflow
     v2.4.6: Fix iOS overscroll bounce and horizontal scroll
@@ -4310,6 +4311,35 @@
                 showScannedBookPopup, showSettings, showScanModeSelector, showConfirm,
                 showMoveModal, showAssignModal, showCreateShelfModal, showAddShelfModal,
                 scanMode, scannerMode]);
+
+            // iOS keyboard viewport fix — when the search overlay opens, the keyboard may
+            // have shifted the visual viewport. Blur the active input to dismiss the keyboard,
+            // then reset any scroll offset before the overlay renders in the wrong position.
+            useEffect(() => {
+                if (showFullResults) {
+                    if (document.activeElement && document.activeElement !== document.body) {
+                        document.activeElement.blur();
+                    }
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                }
+            }, [showFullResults]);
+
+            // Whenever the keyboard dismisses (any input loses focus and focus doesn't
+            // move to another input), reset the viewport offset so nothing stays shifted.
+            useEffect(() => {
+                const handleFocusOut = () => {
+                    setTimeout(() => {
+                        const el = document.activeElement;
+                        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT')) {
+                            window.scrollTo(0, 0);
+                            document.documentElement.scrollTop = 0;
+                        }
+                    }, 100);
+                };
+                document.addEventListener('focusout', handleFocusOut);
+                return () => document.removeEventListener('focusout', handleFocusOut);
+            }, []);
 
             // ==========================================
             // SOCIAL FEATURES - ENCRYPTION

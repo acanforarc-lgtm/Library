@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.9
+    YOUR LIBRARY - VERSION 2.4.10
     ========================================
+    v2.4.10: Install @capacitor/keyboard so resize:none config actually applies; add visualViewport backstop
     v2.4.9: Fix iOS viewport shift after search — keyboard dismiss + scroll reset
     v2.4.8: Fix black background and page bounce on iOS — fixed-position container
     v2.4.7: Fixed layout — header+tabs stay fixed, only content scrolls; fix search page horizontal overflow
@@ -4339,6 +4340,24 @@
                 };
                 document.addEventListener('focusout', handleFocusOut);
                 return () => document.removeEventListener('focusout', handleFocusOut);
+            }, []);
+
+            // visualViewport backstop — iOS fires scroll/resize on the visual viewport
+            // whenever the keyboard appears or disappears, which is what displaces the
+            // fixed container. Reset immediately every time it happens.
+            useEffect(() => {
+                const vv = window.visualViewport;
+                if (!vv) return;
+                const reset = () => {
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                };
+                vv.addEventListener('scroll', reset);
+                vv.addEventListener('resize', reset);
+                return () => {
+                    vv.removeEventListener('scroll', reset);
+                    vv.removeEventListener('resize', reset);
+                };
             }, []);
 
             // ==========================================

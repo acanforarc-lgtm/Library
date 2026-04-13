@@ -1,6 +1,6 @@
 {
   "name": "library-app",
-  "version": "2.4.9",
+  "version": "2.4.10",
   "description": "Personal library catalog app",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
   "dependencies": {
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
-    "@capacitor/ios": "^8.2.0"
+    "@capacitor/ios": "^8.2.0",
+    "@capacitor/keyboard": "^8.0.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

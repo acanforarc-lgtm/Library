@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.14
+    YOUR LIBRARY - VERSION 2.4.15
     ========================================
+    v2.4.15: Close notification/account dropdowns on tap anywhere outside
     v2.4.14: Fix iOS auto-zoom on search input — add maximum-scale=1.0/user-scalable=no to viewport + native minimumZoomScale=1.0/maximumZoomScale=1.0
     v2.4.13: Fix black bottom (contentInset:never so WKWebView fills screen) + remove viewport height lock that caused zoom after keyboard dismiss
     v2.4.12: Native Swift fix — WKWebView scrollView.contentInsetAdjustmentBehavior = .never to block keyboard-triggered layout displacement
@@ -4111,6 +4112,14 @@
             const [authSuccess, setAuthSuccess] = useState('');
             const [showUserMenu, setShowUserMenu] = useState(false);
             const [showWelcome, setShowWelcome] = useState(false);
+
+            // Close notification/account dropdowns when tapping anywhere outside them
+            useEffect(() => {
+                if (!showNotifications && !showUserMenu) return;
+                const close = () => { setShowNotifications(false); setShowUserMenu(false); };
+                const timer = setTimeout(() => document.addEventListener('click', close), 0);
+                return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+            }, [showNotifications, showUserMenu]);
 
             // Check for logged in user on mount - SUPABASE v7.0
             useEffect(() => {

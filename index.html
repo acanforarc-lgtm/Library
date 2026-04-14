@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.17
+    YOUR LIBRARY - VERSION 2.4.18
     ========================================
+    v2.4.18: Fix chat input always visible — replace calc(100vh-230px) with flex:1 so messages panel fills exactly available space on any screen
     v2.4.17: Fix search results page — cream header matching main app, safe area top padding, compact search button
     v2.4.16: Fix black bar at bottom on launch — reset scroll offset at mount (JS) + vc.view/scrollView background cream + setContentOffset(.zero) in AppDelegate
     v2.4.15: Close notification/account dropdowns on tap anywhere outside
@@ -297,6 +298,10 @@
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-y: contain; /* prevents list edge-bounce on iOS */
             padding: 0 25px 2rem;
+            /* flex column so .messages-page can use flex:1 to fill remaining
+               space exactly — no magic calc(100vh - Xpx) needed */
+            display: flex;
+            flex-direction: column;
         }
 
         /* Tab Navigation — sticky inside scroll container so tabs never scroll away */
@@ -3324,8 +3329,8 @@
         /* ── Messaging ── */
         .messages-page {
             display: flex;
-            height: calc(100vh - 200px);
-            min-height: 500px;
+            flex: 1;
+            min-height: 300px;
             background: white;
             border-radius: 16px;
             overflow: hidden;
@@ -3550,8 +3555,8 @@
         @media (max-width: 600px) {
             .messages-page {
                 flex-direction: column;
-                height: calc(100vh - 230px);
-                min-height: unset;
+                flex: 1;
+                min-height: 0;
                 margin: 0;
                 position: relative;
                 overflow: hidden;

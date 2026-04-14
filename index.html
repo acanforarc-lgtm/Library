@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.16
+    YOUR LIBRARY - VERSION 2.4.17
     ========================================
+    v2.4.17: Fix search results page — cream header matching main app, safe area top padding, compact search button
     v2.4.16: Fix black bar at bottom on launch — reset scroll offset at mount (JS) + vc.view/scrollView background cream + setContentOffset(.zero) in AppDelegate
     v2.4.15: Close notification/account dropdowns on tap anywhere outside
     v2.4.14: Fix iOS auto-zoom on search input — add maximum-scale=1.0/user-scalable=no to viewport + native minimumZoomScale=1.0/maximumZoomScale=1.0
@@ -662,9 +663,9 @@
                 width: 100%;
             }
 
-            /* Search results overlay: prevent horizontal overflow on narrow screens */
+            /* Search results overlay: safe area + compact padding on mobile */
             .full-results-header {
-                padding: 0.75rem 0.75rem 0.25rem;
+                padding: calc(env(safe-area-inset-top) + 0.75rem) 0.75rem 0;
             }
             .full-results-content {
                 padding: 0 0.75rem 1.5rem;
@@ -1656,10 +1657,11 @@
         }
 
         .full-results-header {
-            background: linear-gradient(135deg, #8b6f47 0%, #6d5538 100%);
-            padding: 2rem 3rem 0.25rem;
-            color: white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            padding: calc(env(safe-area-inset-top) + 1rem) 1.5rem 0;
+            color: #3d2817;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid #e0d5c5;
             position: sticky;
             top: 0;
             z-index: 10;
@@ -1669,16 +1671,17 @@
             font-family: 'Libre Baskerville', serif;
             font-size: 2rem;
             margin-bottom: 0.5rem;
+            color: #3d2817;
         }
 
         .full-results-subtitle {
-            opacity: 0.9;
+            opacity: 0.7;
         }
 
         .full-results-sort {
             position: absolute;
             top: 2rem;
-            right: 7rem; /* FIX #4: Moved right from 5rem to 7rem */
+            right: 7rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -1686,31 +1689,31 @@
 
         .full-results-sort label {
             font-size: 0.9rem;
-            opacity: 0.9;
+            color: #8b6f47;
         }
 
         .full-results-sort select {
             padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
+            background: white;
+            border: 1px solid #c9a87c;
+            color: #3d2817;
             border-radius: 6px;
             font-size: 0.9rem;
             cursor: pointer;
         }
 
         .full-results-sort select option {
-            background: #8b6f47;
-            color: white;
+            background: white;
+            color: #3d2817;
         }
 
         .full-results-close {
             position: absolute;
             top: 2rem;
-            right: 3rem;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            color: white;
+            right: 1.5rem;
+            background: rgba(139, 111, 71, 0.1);
+            border: 2px solid rgba(139, 111, 71, 0.3);
+            color: #3d2817;
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -1720,7 +1723,7 @@
         }
 
         .full-results-close:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(139, 111, 71, 0.2);
             transform: scale(1.1);
         }
 
@@ -10833,6 +10836,7 @@
                                     <button
                                         onClick={() => searchQuery.length >= 3 && searchBooks(searchQuery, true)}
                                         title="Search"
+                                        style={{padding: '0.4rem 0.7rem', fontSize: '1rem', flexShrink: 0}}
                                     >
                                         🔍
                                     </button>

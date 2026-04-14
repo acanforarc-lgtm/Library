@@ -8,20 +8,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Prevent the WKWebView scroll view from shifting when the keyboard appears.
-        // iOS normally scrolls the webview to reveal the focused input above the
-        // keyboard, which displaces our fixed-position layout container.
-        // Setting contentInsetAdjustmentBehavior = .never stops this at the OS level.
-        // Set UIWindow background to cream so no black shows behind the WKWebView
-        self.window?.backgroundColor = UIColor(red: 250/255, green: 248/255, blue: 243/255, alpha: 1)
+        let cream = UIColor(red: 250/255, green: 248/255, blue: 243/255, alpha: 1)
+        // Paint every native layer cream so no black ever shows through
+        self.window?.backgroundColor = cream
         DispatchQueue.main.async {
-            if let vc = self.window?.rootViewController as? CAPBridgeViewController,
-               let scrollView = vc.webView?.scrollView {
-                scrollView.isScrollEnabled = false
-                scrollView.bounces = false
-                scrollView.contentInsetAdjustmentBehavior = .never
-                scrollView.minimumZoomScale = 1.0
-                scrollView.maximumZoomScale = 1.0
+            if let vc = self.window?.rootViewController as? CAPBridgeViewController {
+                vc.view.backgroundColor = cream
+                if let scrollView = vc.webView?.scrollView {
+                    scrollView.backgroundColor = cream
+                    scrollView.isScrollEnabled = false
+                    scrollView.bounces = false
+                    scrollView.contentInsetAdjustmentBehavior = .never
+                    scrollView.minimumZoomScale = 1.0
+                    scrollView.maximumZoomScale = 1.0
+                    // Reset any non-zero content offset iOS may set on launch
+                    scrollView.setContentOffset(.zero, animated: false)
+                }
             }
         }
         return true

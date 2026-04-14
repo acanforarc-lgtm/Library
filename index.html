@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.15
+    YOUR LIBRARY - VERSION 2.4.16
     ========================================
+    v2.4.16: Fix black bar at bottom on launch — reset scroll offset at mount (JS) + vc.view/scrollView background cream + setContentOffset(.zero) in AppDelegate
     v2.4.15: Close notification/account dropdowns on tap anywhere outside
     v2.4.14: Fix iOS auto-zoom on search input — add maximum-scale=1.0/user-scalable=no to viewport + native minimumZoomScale=1.0/maximumZoomScale=1.0
     v2.4.13: Fix black bottom (contentInset:never so WKWebView fills screen) + remove viewport height lock that caused zoom after keyboard dismiss
@@ -4120,6 +4121,14 @@
                 const timer = setTimeout(() => document.addEventListener('click', close), 0);
                 return () => { clearTimeout(timer); document.removeEventListener('click', close); };
             }, [showNotifications, showUserMenu]);
+
+            // Reset scroll offset on mount — iOS WKWebView can launch with a
+            // non-zero content offset that shows a black gap at the bottom
+            useEffect(() => {
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+            }, []);
 
             // Check for logged in user on mount - SUPABASE v7.0
             useEffect(() => {

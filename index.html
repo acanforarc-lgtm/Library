@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.20
+    YOUR LIBRARY - VERSION 2.4.21
     ========================================
+    v2.4.21: Fix friends tab and container centering — center sub-tabs, remove double horizontal padding
     v2.4.20: Fix wrong viewport height on launch — revert contentInset:always so WKWebView initialises correct CSS viewport; drop setContentOffset hacks
     v2.4.19: Fix persistent white bar at bottom — triple scroll reset on mount (immediate + rAF + 500ms) + applicationDidBecomeActive native reset
     v2.4.18: Fix chat input always visible — replace calc(100vh-230px) with flex:1 so messages panel fills exactly available space on any screen
@@ -3119,13 +3120,15 @@
 
         /* ── Social / Friends ── */
         .friends-container {
-            padding: 2rem;
+            padding: 1rem 0;
             max-width: 700px;
             margin: 0 auto;
+            width: 100%;
         }
 
         .friends-tabs {
             display: flex;
+            justify-content: center;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
             border-bottom: 2px solid #e0d5c5;

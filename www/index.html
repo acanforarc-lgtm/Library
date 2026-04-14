@@ -6,8 +6,10 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.24
+    YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.26: Duplicate book warning on add; reading data (status/rating/notes) shared by ISBN across all copies and persisted to Supabase; isbn stored on insert
+    v2.4.25: Book popup — remove X button (Close button handles dismiss), restore meta icons, center meta with flex-wrap
     v2.4.24: Book popup meta grid — add overflow-wrap/word-break so long ISBNs don't overflow columns
     v2.4.23: Book popup — smaller title, metadata moved below header in 2-column grid, removed emoji prefixes from meta
     v2.4.22: Fix book popup buttons — white text on Close button, remove emoji icons, rename to Assign/Remove/Close
@@ -2013,12 +2015,12 @@
         .book-info-meta {
             font-size: 0.85rem;
             color: #8b6f47;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.3rem 1rem;
-            margin-top: 0.75rem;
-            overflow-wrap: break-word;
-            word-break: break-word;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem 1.25rem;
+            margin-top: 1rem;
+            text-align: center;
         }
 
         .book-info-description {
@@ -5856,6 +5858,15 @@
             const confirmAddBookFromSearch = async () => {
                 if (!pendingSearchBook) return;
 
+                // Duplicate warning — check by ISBN first, fall back to title
+                const isbn = pendingSearchBook.isbn;
+                const duplicate = isbn
+                    ? books.find(b => b.isbn && b.isbn === isbn)
+                    : books.find(b => b.title?.toLowerCase() === pendingSearchBook.title?.toLowerCase());
+                if (duplicate) {
+                    showMessage(`⚠️ "${pendingSearchBook.title}" is already in your library. Adding another copy.`);
+                }
+
                 try {
                     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
                     if (authError || !user) {
@@ -5876,6 +5887,9 @@
                         }
                     }
 
+                    // Carry over existing reading data if a copy already exists with same isbn
+                    const existingUserData = duplicate?.userData || null;
+
                     const { data, error } = await supabaseClient
                         .from('books')
                         .insert([{
@@ -5884,9 +5898,11 @@
                             author: pendingSearchBook.author,
                             cover: pendingSearchBook.cover || null,
                             color: getRandomColor(),
+                            isbn: pendingSearchBook.isbn || null,
                             shelf_id: targetShelfId,
                             board_index: boardIndex,
-                            position: position
+                            position: position,
+                            userData: existingUserData
                         }])
                         .select();
 
@@ -6693,6 +6709,15 @@
                         const { data: { user } } = await supabaseClient.auth.getUser();
                         if (!user) { showMessage('❌ Not logged in'); setScannerInput(''); return; }
 
+                        // Warn on duplicate scan
+                        const scanIsbn = book.isbn || cleanIsbn;
+                        const scanDupe = scanIsbn
+                            ? books.find(b => b.isbn && b.isbn === scanIsbn)
+                            : books.find(b => b.title?.toLowerCase() === (book.title || '').toLowerCase());
+                        if (scanDupe) {
+                            showMessage(`⚠️ "${book.title}" is already in your library. Adding another copy.`);
+                        }
+
                         const { data: inserted, error: insertError } = await supabaseClient
                             .from('books')
                             .insert([{
@@ -6701,9 +6726,11 @@
                                 author: book.author || 'Unknown Author',
                                 cover: book.cover || null,
                                 color: getRandomColor(),
+                                isbn: scanIsbn || null,
                                 shelf_id: targetShelfId,
                                 board_index: targetBoardIndex,
-                                position: targetPosition
+                                position: targetPosition,
+                                userData: scanDupe?.userData || null
                             }])
                             .select();
 
@@ -7374,15 +7401,43 @@
             // Update user-facing book data (status, rating, notes) in local state.
             // These fields live under book.userData and are read throughout the UI.
             const updateBookUserData = (bookId, field, value) => {
+                // Find the source book to get its isbn for cross-copy sharing
+                const sourceBook = books.find(b => b.id === bookId);
+                const isbn = sourceBook?.isbn || null;
+
                 const merge = (book) => ({
                     ...book,
                     userData: { ...(book.userData || {}), [field]: value }
                 });
 
-                setBooks(prev => prev.map(b => b.id === bookId ? merge(b) : b));
+                // Update all books sharing the same isbn (or just the one if no isbn)
+                setBooks(prev => prev.map(b =>
+                    (isbn ? b.isbn === isbn : b.id === bookId) ? merge(b) : b
+                ));
 
-                if (shelfBookData?.id === bookId) setShelfBookData(prev => merge(prev));
-                if (bookInfoData?.id === bookId) setBookInfoData(prev => merge(prev));
+                // Keep popup state in sync for both tabs
+                if (shelfBookData && (shelfBookData.id === bookId || (isbn && shelfBookData.isbn === isbn)))
+                    setShelfBookData(prev => merge(prev));
+                if (bookInfoData && (bookInfoData.id === bookId || (isbn && bookInfoData.isbn === isbn)))
+                    setBookInfoData(prev => merge(prev));
+
+                // Persist to Supabase
+                const newUserData = { ...(sourceBook?.userData || {}), [field]: value };
+                try {
+                    if (isbn && currentUser?.id) {
+                        // Update all copies with the same isbn for this user
+                        supabaseClient.from('books')
+                            .update({ userData: newUserData })
+                            .eq('user_id', currentUser.id)
+                            .eq('isbn', isbn)
+                            .then(({ error }) => { if (error) console.warn('userData save failed:', error); });
+                    } else {
+                        supabaseClient.from('books')
+                            .update({ userData: newUserData })
+                            .eq('id', bookId)
+                            .then(({ error }) => { if (error) console.warn('userData save failed:', error); });
+                    }
+                } catch (e) { console.warn('userData save error:', e); }
             };
 
             // ==========================================
@@ -8394,8 +8449,7 @@
                     {showShelfBookPopup && shelfBookData && (
                         <div className="book-detail-overlay" onClick={closeShelfBookPopup}>
                             <div className="book-info-popup" onClick={(e) => e.stopPropagation()}>
-                                <button className="book-detail-close" onClick={closeShelfBookPopup}>×</button>
-                                
+
                                 <div className="book-info-content">
                                     <div className="book-info-header">
                                         {shelfBookData.cover ? (
@@ -8416,14 +8470,14 @@
                                         </div>
                                     </div>
                                     <div className="book-info-meta">
-                                        {shelfBookData.isbn && <div>ISBN: {shelfBookData.isbn}</div>}
-                                        {shelfBookData.publishYear && <div>{shelfBookData.publishYear}</div>}
-                                        {shelfBookData.pageCount && <div>{shelfBookData.pageCount} pages</div>}
+                                        {shelfBookData.isbn && <div>📚 {shelfBookData.isbn}</div>}
+                                        {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
+                                        {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
                                         {shelfBookData.description && (
                                             <div
                                                 style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
                                                 onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
-                                            >Summary</div>
+                                            >📝 Summary</div>
                                         )}
                                     </div>
 
@@ -8538,8 +8592,7 @@
                     {showBookInfo && bookInfoData && (
                         <div className="book-detail-overlay" onClick={closeBookInfo}>
                             <div className="book-info-popup" onClick={(e) => e.stopPropagation()}>
-                                <button className="book-detail-close" onClick={closeBookInfo}>×</button>
-                                
+
                                 <div className="book-info-content">
                                     <div className="book-info-header">
                                         {bookInfoData.cover ? (
@@ -8560,14 +8613,14 @@
                                         </div>
                                     </div>
                                     <div className="book-info-meta">
-                                        {bookInfoData.isbn && <div>ISBN: {bookInfoData.isbn}</div>}
-                                        {bookInfoData.publishYear && <div>{bookInfoData.publishYear}</div>}
-                                        {bookInfoData.pageCount && <div>{bookInfoData.pageCount} pages</div>}
+                                        {bookInfoData.isbn && <div>📚 {bookInfoData.isbn}</div>}
+                                        {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
+                                        {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
                                         {bookInfoData.description && (
                                             <div
                                                 style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
                                                 onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
-                                            >Summary</div>
+                                            >📝 Summary</div>
                                         )}
                                     </div>
 

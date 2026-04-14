@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.24
+    YOUR LIBRARY - VERSION 2.4.25
     ========================================
+    v2.4.25: Book popup — remove X button (Close button handles dismiss), restore meta icons, center meta with flex-wrap
     v2.4.24: Book popup meta grid — add overflow-wrap/word-break so long ISBNs don't overflow columns
     v2.4.23: Book popup — smaller title, metadata moved below header in 2-column grid, removed emoji prefixes from meta
     v2.4.22: Fix book popup buttons — white text on Close button, remove emoji icons, rename to Assign/Remove/Close
@@ -2013,12 +2014,12 @@
         .book-info-meta {
             font-size: 0.85rem;
             color: #8b6f47;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.3rem 1rem;
-            margin-top: 0.75rem;
-            overflow-wrap: break-word;
-            word-break: break-word;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem 1.25rem;
+            margin-top: 1rem;
+            text-align: center;
         }
 
         .book-info-description {
@@ -8394,8 +8395,7 @@
                     {showShelfBookPopup && shelfBookData && (
                         <div className="book-detail-overlay" onClick={closeShelfBookPopup}>
                             <div className="book-info-popup" onClick={(e) => e.stopPropagation()}>
-                                <button className="book-detail-close" onClick={closeShelfBookPopup}>×</button>
-                                
+
                                 <div className="book-info-content">
                                     <div className="book-info-header">
                                         {shelfBookData.cover ? (
@@ -8416,14 +8416,14 @@
                                         </div>
                                     </div>
                                     <div className="book-info-meta">
-                                        {shelfBookData.isbn && <div>ISBN: {shelfBookData.isbn}</div>}
-                                        {shelfBookData.publishYear && <div>{shelfBookData.publishYear}</div>}
-                                        {shelfBookData.pageCount && <div>{shelfBookData.pageCount} pages</div>}
+                                        {shelfBookData.isbn && <div>📚 {shelfBookData.isbn}</div>}
+                                        {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
+                                        {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
                                         {shelfBookData.description && (
                                             <div
                                                 style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
                                                 onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
-                                            >Summary</div>
+                                            >📝 Summary</div>
                                         )}
                                     </div>
 
@@ -8538,8 +8538,7 @@
                     {showBookInfo && bookInfoData && (
                         <div className="book-detail-overlay" onClick={closeBookInfo}>
                             <div className="book-info-popup" onClick={(e) => e.stopPropagation()}>
-                                <button className="book-detail-close" onClick={closeBookInfo}>×</button>
-                                
+
                                 <div className="book-info-content">
                                     <div className="book-info-header">
                                         {bookInfoData.cover ? (
@@ -8560,14 +8559,14 @@
                                         </div>
                                     </div>
                                     <div className="book-info-meta">
-                                        {bookInfoData.isbn && <div>ISBN: {bookInfoData.isbn}</div>}
-                                        {bookInfoData.publishYear && <div>{bookInfoData.publishYear}</div>}
-                                        {bookInfoData.pageCount && <div>{bookInfoData.pageCount} pages</div>}
+                                        {bookInfoData.isbn && <div>📚 {bookInfoData.isbn}</div>}
+                                        {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
+                                        {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
                                         {bookInfoData.description && (
                                             <div
                                                 style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
                                                 onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
-                                            >Summary</div>
+                                            >📝 Summary</div>
                                         )}
                                     </div>
 

@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.27: Your Books page — compact Netflix-style layout; smaller covers (100px), tighter row/section spacing
     v2.4.26: Duplicate book warning on add; reading data (status/rating/notes) shared by ISBN across all copies and persisted to Supabase; isbn stored on insert
     v2.4.25: Book popup — remove X button (Close button handles dismiss), restore meta icons, center meta with flex-wrap
     v2.4.24: Book popup meta grid — add overflow-wrap/word-break so long ISBNs don't overflow columns
@@ -1844,24 +1845,24 @@
 
         /* Netflix-Style Categories */
         .category-section {
-            margin-bottom: 3rem;
+            margin-bottom: 1.25rem;
         }
 
         .category-header {
             font-family: 'Crimson Pro', serif;
-            font-size: 1.5rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: #3d2817;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             padding: 0 0.5rem;
         }
 
         .category-scroll {
             display: flex;
-            gap: 1rem;
+            gap: 0.6rem;
             overflow-x: auto;
             overflow-y: hidden;
-            padding: 1rem 0.5rem 1.25rem; /* extra bottom padding = larger scroll hit area */
+            padding: 0.6rem 0.5rem 1rem; /* extra bottom padding = larger scroll hit area */
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
             cursor: grab;
@@ -1888,7 +1889,7 @@
 
         .category-book {
             flex-shrink: 0;
-            width: 140px;
+            width: 100px;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -1898,8 +1899,8 @@
         }
 
         .category-book-cover {
-            width: 140px;
-            height: 210px;
+            width: 100px;
+            height: 150px;
             object-fit: cover;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -1907,8 +1908,8 @@
         }
 
         .category-book-cover-placeholder {
-            width: 140px;
-            height: 210px;
+            width: 100px;
+            height: 150px;
             background: linear-gradient(135deg, #2d4a3e, #8b6f47);
             border-radius: 8px;
             display: flex;

@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.23
+    YOUR LIBRARY - VERSION 2.4.24
     ========================================
+    v2.4.24: Book popup meta grid — add overflow-wrap/word-break so long ISBNs don't overflow columns
     v2.4.23: Book popup — smaller title, metadata moved below header in 2-column grid, removed emoji prefixes from meta
     v2.4.22: Fix book popup buttons — white text on Close button, remove emoji icons, rename to Assign/Remove/Close
     v2.4.21: Fix friends tab and container centering — center sub-tabs, remove double horizontal padding
@@ -2016,6 +2017,8 @@
             grid-template-columns: 1fr 1fr;
             gap: 0.3rem 1rem;
             margin-top: 0.75rem;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .book-info-description {

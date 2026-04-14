@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.18
+    YOUR LIBRARY - VERSION 2.4.19
     ========================================
+    v2.4.19: Fix persistent white bar at bottom — triple scroll reset on mount (immediate + rAF + 500ms) + applicationDidBecomeActive native reset
     v2.4.18: Fix chat input always visible — replace calc(100vh-230px) with flex:1 so messages panel fills exactly available space on any screen
     v2.4.17: Fix search results page — cream header matching main app, safe area top padding, compact search button
     v2.4.16: Fix black bar at bottom on launch — reset scroll offset at mount (JS) + vc.view/scrollView background cream + setContentOffset(.zero) in AppDelegate
@@ -4130,12 +4131,19 @@
                 return () => { clearTimeout(timer); document.removeEventListener('click', close); };
             }, [showNotifications, showUserMenu]);
 
-            // Reset scroll offset on mount — iOS WKWebView can launch with a
-            // non-zero content offset that shows a black gap at the bottom
+            // Reset scroll offset on mount — iOS WKWebView sets a non-zero content
+            // offset after JS loads, so we reset at three points:
+            // 1) immediately, 2) after first paint, 3) after 500ms post-load settle
             useEffect(() => {
-                window.scrollTo(0, 0);
-                document.documentElement.scrollTop = 0;
-                document.body.scrollTop = 0;
+                const reset = () => {
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                };
+                reset();
+                requestAnimationFrame(reset);
+                const timer = setTimeout(reset, 500);
+                return () => clearTimeout(timer);
             }, []);
 
             // Check for logged in user on mount - SUPABASE v7.0

@@ -39,6 +39,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        // Reset any scroll offset iOS may have set during webview load
+        if let vc = self.window?.rootViewController as? CAPBridgeViewController,
+           let scrollView = vc.webView?.scrollView {
+            scrollView.setContentOffset(.zero, animated: false)
+        }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

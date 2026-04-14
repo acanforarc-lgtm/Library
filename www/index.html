@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.21
+    YOUR LIBRARY - VERSION 2.4.22
     ========================================
+    v2.4.22: Fix book popup buttons — white text on Close button, remove emoji icons, rename to Assign/Remove/Close
     v2.4.21: Fix friends tab and container centering — center sub-tabs, remove double horizontal padding
     v2.4.20: Fix wrong viewport height on launch — revert contentInset:always so WKWebView initialises correct CSS viewport; drop setContentOffset hacks
     v2.4.19: Fix persistent white bar at bottom — triple scroll reset on mount (immediate + rAF + 500ms) + applicationDidBecomeActive native reset
@@ -2058,6 +2059,7 @@
             cursor: pointer;
             transition: all 0.2s;
             font-size: 0.95rem;
+            color: white;
         }
 
         .btn-info-remove {
@@ -8482,20 +8484,20 @@
                                                 className="btn-info btn-info-assign"
                                                 onClick={openMoveModal}
                                             >
-                                                📚 Move
+                                                Assign
                                             </button>
                                             <button
                                                 className="btn-info btn-info-remove"
                                                 onClick={removeFromCurrentShelf}
                                             >
-                                                🗑 Remove
+                                                Remove
                                             </button>
                                             <button
                                                 className="btn-info"
                                                 onClick={() => setShowShelfBookPopup(false)}
                                                 style={{background: '#8b6f47'}}
                                             >
-                                                ✓ Close
+                                                Close
                                             </button>
                                         </div>
                                     </div>
@@ -8627,20 +8629,20 @@
                                                 className="btn-info btn-info-assign"
                                                 onClick={() => { setSelectedShelfForAdd(''); setSelectedBoardForAdd(''); setAssignWizardStep(1); setShowAssignModal(true); }}
                                             >
-                                                📚 Assign to Shelf
+                                                Assign
                                             </button>
                                             <button
                                                 className="btn-info btn-info-remove"
                                                 onClick={() => removeBookFromLibrary(bookInfoData.id)}
                                             >
-                                                🗑 Remove from Library
+                                                Remove
                                             </button>
                                             <button
                                                 className="btn-info"
                                                 onClick={closeBookInfo}
                                                 style={{background: '#8b6f47'}}
                                             >
-                                                ✓ Close
+                                                Close
                                             </button>
                                         </div>
                                     </div>

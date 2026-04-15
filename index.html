@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.28: Fix blank space at bottom on launch — set --app-height from window.innerHeight before first paint; sync in React on mount
     v2.4.27: Your Books page — compact Netflix-style layout; smaller covers (100px), tighter row/section spacing
     v2.4.26: Duplicate book warning on add; reading data (status/rating/notes) shared by ISBN across all copies and persisted to Supabase; isbn stored on insert
     v2.4.25: Book popup — remove X button (Close button handles dismiss), restore meta icons, center meta with flex-wrap
@@ -55,6 +56,20 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+    <script>
+        // Runs synchronously before React mounts so the CSS variable is
+        // available on the very first paint — prevents the blank-bottom
+        // gap that WKWebView shows when it resolves layout too early.
+        (function () {
+            function setAppHeight() {
+                document.documentElement.style.setProperty(
+                    '--app-height', window.innerHeight + 'px'
+                );
+            }
+            setAppHeight();
+            window.addEventListener('resize', setAppHeight);
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
@@ -90,7 +105,7 @@
             top: 0;
             left: 0;
             right: 0;
-            bottom: 0;
+            height: var(--app-height, 100vh); /* JS sets this before first paint */
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -4144,6 +4159,23 @@
                 const timer = setTimeout(() => document.addEventListener('click', close), 0);
                 return () => { clearTimeout(timer); document.removeEventListener('click', close); };
             }, [showNotifications, showUserMenu]);
+
+            // Sync --app-height on React mount so any late iOS layout pass is
+            // captured. The inline <script> sets it before first paint; these
+            // delayed syncs catch the rare case where WKWebView adjusts the
+            // viewport after JS execution begins.
+            useEffect(() => {
+                const syncH = () => {
+                    document.documentElement.style.setProperty(
+                        '--app-height', window.innerHeight + 'px'
+                    );
+                };
+                syncH();
+                requestAnimationFrame(syncH);
+                const t1 = setTimeout(syncH, 200);
+                const t2 = setTimeout(syncH, 600);
+                return () => { clearTimeout(t1); clearTimeout(t2); };
+            }, []);
 
             // Reset scroll offset on mount — iOS WKWebView sets a non-zero content
             // offset after JS loads, so we reset at three points:

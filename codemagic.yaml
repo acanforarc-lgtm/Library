@@ -45,8 +45,10 @@ workflows:
 
       - name: Build IPA
         script: |
-          BUILD_NUMBER=$(($(git rev-list --count HEAD) + 10))
-          echo "Setting build number to $BUILD_NUMBER (git commit count + 10 offset)"
+          # Use date-hour timestamp (e.g. 2026041521) — always unique, always
+          # increasing, never depends on git clone depth. Fits in INT32 max.
+          BUILD_NUMBER=$(date -u +%Y%m%d%H)
+          echo "Setting build number to $BUILD_NUMBER (UTC date+hour: $(date -u))"
           sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $BUILD_NUMBER/g" ios/App/App.xcodeproj/project.pbxproj
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \

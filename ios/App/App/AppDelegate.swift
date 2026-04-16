@@ -6,35 +6,47 @@ import WebKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    // Keeps the KVO observation alive for the lifetime of the app
+    private var scrollOffsetObservation: NSKeyValueObservation?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         let cream = UIColor(red: 250/255, green: 248/255, blue: 243/255, alpha: 1)
-        // Paint every native layer cream so no gap ever shows as white/black
         self.window?.backgroundColor = cream
         DispatchQueue.main.async {
-            if let vc = self.window?.rootViewController as? CAPBridgeViewController {
-                vc.view.backgroundColor = cream
-                // Accessing vc.view triggers viewDidLoad which creates the WKWebView
-                if let scrollView = vc.webView?.scrollView {
-                    scrollView.backgroundColor = cream
-                    scrollView.isScrollEnabled = false
-                    scrollView.bounces = false
-                    scrollView.minimumZoomScale = 1.0
-                    scrollView.maximumZoomScale = 1.0
-                    // Stop iOS auto-adjusting content insets for safe areas —
-                    // our CSS env(safe-area-inset-*) handles that in the web layer
-                    scrollView.contentInsetAdjustmentBehavior = .never
-                    // Explicitly zero out any offset/inset that the default .automatic
-                    // behavior may have already applied before we switched to .never
-                    scrollView.contentInset = .zero
-                    scrollView.contentOffset = .zero
-                }
-                // Second pass after 150 ms — WKWebView can re-apply a content offset
-                // during its first layout/paint pass, after our sync reset above
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    vc.webView?.scrollView.contentInset = .zero
-                    vc.webView?.scrollView.contentOffset = .zero
-                }
+            guard let vc = self.window?.rootViewController as? CAPBridgeViewController else { return }
+            vc.view.backgroundColor = cream
+            // Accessing vc.view triggers viewDidLoad → WKWebView is created
+            guard let webView = vc.webView else { return }
+            let scrollView = webView.scrollView
+
+            // Make the WKWebView itself cream so any uncovered area never flashes white
+            webView.backgroundColor = cream
+            webView.isOpaque = false
+
+            scrollView.backgroundColor = cream
+            scrollView.isScrollEnabled = false
+            scrollView.bounces = false
+            scrollView.minimumZoomScale = 1.0
+            scrollView.maximumZoomScale = 1.0
+
+            // Prevent iOS auto-adjusting content insets — CSS env(safe-area-inset-*)
+            // handles safe areas in the web layer
+            scrollView.contentInsetAdjustmentBehavior = .never
+            scrollView.contentInset = .zero
+            scrollView.contentOffset = .zero
+
+            // KVO observer: enforces contentOffset = .zero whenever WKWebView
+            // internally tries to set it during its layout/paint passes.
+            // This fires immediately and synchronously whenever the value changes,
+            // so there is no timing window where a non-zero offset can persist.
+            // isScrollEnabled=false means no legitimate user scroll will ever
+            // set a non-zero offset, so this is always safe to enforce.
+            self.scrollOffsetObservation = scrollView.observe(
+                \.contentOffset,
+                options: [.new]
+            ) { sv, change in
+                guard let newOffset = change.newValue, newOffset != .zero else { return }
+                sv.contentOffset = .zero
             }
         }
         return true

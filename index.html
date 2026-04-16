@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.35: Babel pre-compile at build time (removes ~2MB runtime); fix Add to Library broken insert; fix Settings title behind camera bump
     v2.4.34: Fix white bottom gap — KVO observer on scrollView.contentOffset enforces zero the instant WKWebView sets it; webView cream bg hides any residual
     v2.4.33: window.scroll lock + native contentOffset resets (partial)
     v2.4.32: Fix white gap at bottom — zero out WKWebView scrollView contentOffset+contentInset after setting .never; add 150ms delayed reset for post-layout pass
@@ -2284,9 +2285,9 @@
         }
 
         .settings-header {
-            background: white;
-            border-bottom: 1px solid #e0e0e0;
-            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            border-bottom: 1px solid #e0d5c5;
+            padding: calc(env(safe-area-inset-top) + 0.75rem) 1.5rem 0.75rem;
             display: flex;
             align-items: center;
             gap: 1rem;
@@ -5919,22 +5920,25 @@
                     // Carry over existing reading data if a copy already exists with same isbn
                     const existingUserData = duplicate?.userData || null;
 
-                    const { data, error } = await supabaseClient
-                        .from('books')
-                        .insert([{
-                            user_id: user.id,
-                            title: pendingSearchBook.title,
-                            author: pendingSearchBook.author,
-                            cover: pendingSearchBook.cover || null,
-                            color: getRandomColor(),
-                            isbn: pendingSearchBook.isbn || null,
-                            shelf_id: targetShelfId,
-                            board_index: boardIndex,
-                            position: position,
-                            userData: existingUserData
-                        }])
-                        .select();
-
+                    const insertRow = {
+                        user_id: user.id,
+                        title: pendingSearchBook.title,
+                        author: pendingSearchBook.author,
+                        cover: pendingSearchBook.cover || null,
+                        color: getRandomColor(),
+                        isbn: pendingSearchBook.isbn || null,
+                        shelf_id: targetShelfId,
+                        board_index: boardIndex,
+                        position: position,
+                        userData: existingUserData
+                    };
+                    let { data, error } = await supabaseClient
+                        .from('books').insert([insertRow]).select();
+                    // If schema doesn't have isbn/userData columns yet, retry without them
+                    if (error && error.message && (error.message.includes('isbn') || error.message.includes('userData') || error.message.includes('column'))) {
+                        const { isbn, userData, ...baseRow } = insertRow;
+                        ({ data, error } = await supabaseClient.from('books').insert([baseRow]).select());
+                    }
                     if (error) throw error;
 
                     // Ensure book metadata is in cache for library popup enrichment
@@ -6747,22 +6751,24 @@
                             showMessage(`⚠️ "${book.title}" is already in your library. Adding another copy.`);
                         }
 
-                        const { data: inserted, error: insertError } = await supabaseClient
-                            .from('books')
-                            .insert([{
-                                user_id: user.id,
-                                title: book.title || 'Unknown Title',
-                                author: book.author || 'Unknown Author',
-                                cover: book.cover || null,
-                                color: getRandomColor(),
-                                isbn: scanIsbn || null,
-                                shelf_id: targetShelfId,
-                                board_index: targetBoardIndex,
-                                position: targetPosition,
-                                userData: scanDupe?.userData || null
-                            }])
-                            .select();
-
+                        const scanRow = {
+                            user_id: user.id,
+                            title: book.title || 'Unknown Title',
+                            author: book.author || 'Unknown Author',
+                            cover: book.cover || null,
+                            color: getRandomColor(),
+                            isbn: scanIsbn || null,
+                            shelf_id: targetShelfId,
+                            board_index: targetBoardIndex,
+                            position: targetPosition,
+                            userData: scanDupe?.userData || null
+                        };
+                        let { data: inserted, error: insertError } = await supabaseClient
+                            .from('books').insert([scanRow]).select();
+                        if (insertError && insertError.message && (insertError.message.includes('isbn') || insertError.message.includes('userData') || insertError.message.includes('column'))) {
+                            const { isbn, userData, ...baseScanRow } = scanRow;
+                            ({ data: inserted, error: insertError } = await supabaseClient.from('books').insert([baseScanRow]).select());
+                        }
                         if (insertError) throw insertError;
 
                         setBooks(prev => [...prev, inserted[0]]);

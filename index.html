@@ -4027,6 +4027,7 @@
             const msgLongPressTimer = React.useRef(null);
             const msgSubscriptionRef = React.useRef(null);
             const globalMsgSubRef = React.useRef(null);
+            const globalNotifSubRef = React.useRef(null);
             const activeConversationRef = React.useRef(null);
             const messagesEndRef = React.useRef(null);
             const chatMessagesRef = React.useRef(null);
@@ -4252,8 +4253,23 @@
                     })
                     .subscribe();
 
+                // Real-time subscription: reload notifications when a new one arrives
+                if (globalNotifSubRef.current) globalNotifSubRef.current.unsubscribe();
+                globalNotifSubRef.current = supabaseClient
+                    .channel(`notifs-${currentUser.id}`)
+                    .on('postgres_changes', {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'notifications',
+                        filter: `user_id=eq.${currentUser.id}`
+                    }, () => {
+                        loadNotifications();
+                    })
+                    .subscribe();
+
                 return () => {
                     if (globalMsgSubRef.current) globalMsgSubRef.current.unsubscribe();
+                    if (globalNotifSubRef.current) globalNotifSubRef.current.unsubscribe();
                 };
             }, [currentUser?.id]);
 
@@ -4575,13 +4591,14 @@
                         }, { onConflict: 'user_id,friend_id' });
                     if (error) throw error;
 
-                    await supabaseClient.from('notifications').insert({
+                    const { error: notifError } = await supabaseClient.from('notifications').insert({
                         user_id: targetUserId,
                         type: 'friend_request',
                         title: 'New Friend Request',
                         content: `${currentUser.name} wants to be your friend`,
                         related_user_id: currentUser.id
                     });
+                    if (notifError) console.error('friend_request notification failed:', notifError);
 
                     setSentRequests(prev => [...new Set([...prev, targetUserId])]);
                     setRequestCooldowns(prev => ({ ...prev, [targetUserId]: Date.now() + 60000 }));
@@ -4608,13 +4625,14 @@
                         requested_by: requesterId
                     }, { onConflict: 'user_id,friend_id' });
 
-                    await supabaseClient.from('notifications').insert({
+                    const { error: acceptNotifError } = await supabaseClient.from('notifications').insert({
                         user_id: requesterId,
                         type: 'friend_accepted',
                         title: 'Friend Request Accepted',
                         content: `${currentUser.name} accepted your friend request`,
                         related_user_id: currentUser.id
                     });
+                    if (acceptNotifError) console.error('friend_accepted notification failed:', acceptNotifError);
 
                     showMessage('Friend request accepted!');
                     loadFriends();
@@ -4963,6 +4981,12 @@
                         const kp = generateKeyPair();
                         storeSecretKey(kp.secretKey);
                         await supabaseClient.from('user_profiles').update({ encryption_public_key: kp.publicKey }).eq('id', data.user.id);
+                        await supabaseClient.from('notifications').insert({
+                            user_id: data.user.id,
+                            type: 'welcome',
+                            title: 'Welcome to Your Library!',
+                            content: 'Start adding books, connect with friends, and build your shelf.'
+                        });
                         loadUserData(data.user.email);
                         setShowAuth(false);
                         setAuthEmail('');

@@ -8,7 +8,8 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
-    v2.4.31: Fix white gap at bottom — contentInset:never so WKWebView makes no scroll inset adjustments; pure bottom:0 now works correctly
+    v2.4.32: Fix white gap at bottom — zero out WKWebView scrollView contentOffset+contentInset after setting .never; add 150ms delayed reset for post-layout pass
+    v2.4.31: contentInset:never in Capacitor config (redundant but explicit); remove JS --app-height approach
     v2.4.30: Book rows — tighten gap 0.6→0.4rem; center-align title and author under each cover
     v2.4.29: Fix white gap at bottom — use window.screen.height (never stale) instead of window.innerHeight (stale until keyboard forces layout)
     v2.4.28: Fix blank space at bottom on launch — set --app-height from window.innerHeight before first paint; sync in React on mount

@@ -9,20 +9,31 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         let cream = UIColor(red: 250/255, green: 248/255, blue: 243/255, alpha: 1)
-        // Paint every native layer cream so no gap ever shows as black
+        // Paint every native layer cream so no gap ever shows as white/black
         self.window?.backgroundColor = cream
         DispatchQueue.main.async {
             if let vc = self.window?.rootViewController as? CAPBridgeViewController {
                 vc.view.backgroundColor = cream
+                // Accessing vc.view triggers viewDidLoad which creates the WKWebView
                 if let scrollView = vc.webView?.scrollView {
                     scrollView.backgroundColor = cream
                     scrollView.isScrollEnabled = false
                     scrollView.bounces = false
-                    // .never prevents iOS from adjusting scroll insets when keyboard opens,
-                    // which would otherwise displace our fixed-position layout
-                    scrollView.contentInsetAdjustmentBehavior = .never
                     scrollView.minimumZoomScale = 1.0
                     scrollView.maximumZoomScale = 1.0
+                    // Stop iOS auto-adjusting content insets for safe areas —
+                    // our CSS env(safe-area-inset-*) handles that in the web layer
+                    scrollView.contentInsetAdjustmentBehavior = .never
+                    // Explicitly zero out any offset/inset that the default .automatic
+                    // behavior may have already applied before we switched to .never
+                    scrollView.contentInset = .zero
+                    scrollView.contentOffset = .zero
+                }
+                // Second pass after 150 ms — WKWebView can re-apply a content offset
+                // during its first layout/paint pass, after our sync reset above
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    vc.webView?.scrollView.contentInset = .zero
+                    vc.webView?.scrollView.contentOffset = .zero
                 }
             }
         }

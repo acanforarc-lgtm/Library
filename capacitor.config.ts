@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Library',
   webDir: 'www',
   ios: {
-    contentInset: 'always',
+    contentInset: 'never',
+    backgroundColor: '#faf8f3',
   },
   plugins: {
     SplashScreen: {

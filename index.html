@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.31: Fix white gap at bottom — contentInset:never so WKWebView makes no scroll inset adjustments; pure bottom:0 now works correctly
     v2.4.30: Book rows — tighten gap 0.6→0.4rem; center-align title and author under each cover
     v2.4.29: Fix white gap at bottom — use window.screen.height (never stale) instead of window.innerHeight (stale until keyboard forces layout)
     v2.4.28: Fix blank space at bottom on launch — set --app-height from window.innerHeight before first paint; sync in React on mount
@@ -58,24 +59,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
-    <script>
-        // iOS WKWebView reports a stale window.innerHeight on first execution —
-        // the safe-area layout pass hasn't run yet so it can be ~34px short
-        // (home indicator height), leaving a white gap at the bottom.
-        // window.screen.height is the physical device height in CSS pixels,
-        // computed at display time before any layout — always correct.
-        (function () {
-            var h = window.screen.height;
-            document.documentElement.style.setProperty('--app-height', h + 'px');
-            // Keep it synced for orientation changes
-            window.addEventListener('resize', function () {
-                document.documentElement.style.setProperty(
-                    '--app-height', window.screen.height + 'px'
-                );
-            });
-        })();
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -110,7 +94,7 @@
             top: 0;
             left: 0;
             right: 0;
-            height: var(--app-height, 100vh); /* JS sets this before first paint */
+            bottom: 0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -4166,22 +4150,6 @@
                 const timer = setTimeout(() => document.addEventListener('click', close), 0);
                 return () => { clearTimeout(timer); document.removeEventListener('click', close); };
             }, [showNotifications, showUserMenu]);
-
-            // Sync --app-height on React mount. Use screen.height (physical device
-            // height in CSS px) — unlike window.innerHeight it is never stale from
-            // an incomplete WKWebView safe-area layout pass.
-            useEffect(() => {
-                const syncH = () => {
-                    document.documentElement.style.setProperty(
-                        '--app-height', window.screen.height + 'px'
-                    );
-                };
-                syncH();
-                requestAnimationFrame(syncH);
-                const t1 = setTimeout(syncH, 200);
-                const t2 = setTimeout(syncH, 600);
-                return () => { clearTimeout(t1); clearTimeout(t2); };
-            }, []);
 
             // Reset scroll offset on mount — iOS WKWebView sets a non-zero content
             // offset after JS loads, so we reset at three points:

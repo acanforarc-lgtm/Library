@@ -9,14 +9,14 @@
     "open:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
     "@capacitor/ios": "^8.2.0",
     "@capacitor/keyboard": "^8.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0",
-    "@babel/preset-react": "^7.24.0",
     "typescript": "^5.9.3"
   }
 }

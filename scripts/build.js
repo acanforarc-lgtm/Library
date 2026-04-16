@@ -3,7 +3,8 @@
 // 1. Extracts the <script type="text/babel"> block from index.html
 // 2. Pre-compiles JSX → plain JS using @babel/core (no runtime Babel needed)
 // 3. Removes the babel.min.js CDN script tag
-// 4. Writes the result to www/index.html
+// 4. Wraps compiled code in DOMContentLoaded (matching browser-Babel timing)
+// 5. Writes the result to www/index.html
 
 const fs   = require('fs');
 const path = require('path');
@@ -36,13 +37,20 @@ const { code } = babel.transformSync(jsxCode, {
     ['@babel/preset-react', { runtime: 'classic' }]
   ],
   filename: 'app.jsx',
+  sourceType: 'script',
   // No preset-env needed — WKWebView on iOS 15+ supports all modern JS
 });
 console.log(`Compiled: ${(jsxCode.length / 1024).toFixed(0)} KB → ${(code.length / 1024).toFixed(0)} KB`);
 
-// --- 4. Splice the compiled code back in as a plain <script> ---
-html = html.slice(0, startIdx) + '<script>\n' + code + '\n</script>' + html.slice(endIdx + END.length);
+// --- 4. Wrap in DOMContentLoaded (matches browser-Babel execution timing) ---
+// Browser Babel processes type="text/babel" scripts after DOMContentLoaded,
+// ensuring all CDN scripts (React, Supabase, etc.) are available. Wrap the
+// pre-compiled code in the same listener for identical runtime behaviour.
+const wrappedCode = `document.addEventListener('DOMContentLoaded', function() {\n${code}\n});`;
+
+// --- 5. Splice the compiled code back in as a plain <script> ---
+html = html.slice(0, startIdx) + '<script>\n' + wrappedCode + '\n</script>' + html.slice(endIdx + END.length);
 
 fs.mkdirSync(path.dirname(dest), { recursive: true });
 fs.writeFileSync(dest, html);
-console.log('Built: index.html → www/index.html (Babel pre-compiled)');
+console.log('Built: index.html → www/index.html (Babel pre-compiled, DOMContentLoaded wrapped)');

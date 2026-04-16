@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.38: Fix welcome modal — setShowWelcome(true) was missing after sign-up; modal existed but never triggered
     v2.4.37: Revert Babel pre-compile — back to browser Babel (babel.min.js CDN); simpler and proven reliable
     v2.4.36: Fix blank app — wrap compiled JSX in DOMContentLoaded (matches browser-Babel timing); move @babel/core to dependencies so Codemagic always installs it
     v2.4.35: Babel pre-compile at build time (removes ~2MB runtime); fix Add to Library broken insert; fix Settings title behind camera bump
@@ -4969,6 +4970,7 @@
                         setAuthPassword('');
                         setAuthName('');
                         setAuthUsername('');
+                        setShowWelcome(true);
                         showMessage('✅ Welcome to Your Library!');
                         return;
                     }

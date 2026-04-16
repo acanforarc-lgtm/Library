@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.4.26
     ========================================
+    v2.4.33: Fix white bottom gap — window.scroll lock catches WKWebView contentOffset shifts at any timing; no more relying on delayed resets
     v2.4.32: Fix white gap at bottom — zero out WKWebView scrollView contentOffset+contentInset after setting .never; add 150ms delayed reset for post-layout pass
     v2.4.31: contentInset:never in Capacitor config (redundant but explicit); remove JS --app-height approach
     v2.4.30: Book rows — tighten gap 0.6→0.4rem; center-align title and author under each cover
@@ -4399,6 +4400,25 @@
                 };
                 document.addEventListener('focusout', handleFocusOut);
                 return () => document.removeEventListener('focusout', handleFocusOut);
+            }, []);
+
+            // Document-scroll lock — WKWebView can set a non-zero contentOffset
+            // during its page-load/paint pass (after our mount-time resets have
+            // already run). This fires the JS 'scroll' event on window. Catching
+            // it here and resetting immediately is the only way to guarantee the
+            // fixed container stays at position 0 regardless of timing.
+            // NOTE: scrolling inside .main-content fires scroll on that element,
+            // NOT on window, so this never interferes with content scrolling.
+            useEffect(() => {
+                const lockScroll = () => {
+                    if (window.scrollY !== 0 || window.scrollX !== 0) {
+                        window.scrollTo(0, 0);
+                        document.documentElement.scrollTop = 0;
+                        document.body.scrollTop = 0;
+                    }
+                };
+                window.addEventListener('scroll', lockScroll);
+                return () => window.removeEventListener('scroll', lockScroll);
             }, []);
 
             // visualViewport backstop — iOS fires scroll/resize on the visual viewport

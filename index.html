@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.4.26
+    YOUR LIBRARY - VERSION 2.5.1
     ========================================
+    v2.5.1: Social profiles — public/private/hidden visibility, follow system, granular privacy toggles, public profile overlay (Books+Shelves+Room stub), account verification requests, verified badge
     v2.4.37: Revert Babel pre-compile — back to browser Babel (babel.min.js CDN); simpler and proven reliable
     v2.4.36: Fix blank app — wrap compiled JSX in DOMContentLoaded (matches browser-Babel timing); move @babel/core to dependencies so Codemagic always installs it
     v2.4.35: Babel pre-compile at build time (removes ~2MB runtime); fix Add to Library broken insert; fix Settings title behind camera bump
@@ -3888,6 +3889,406 @@
             .group-chat-messages { max-height: 320px; }
             .group-msg { max-width: 85%; }
         }
+
+        /* ============================================
+           v2.5.1 — PUBLIC PROFILE & PRIVACY STYLES
+           ============================================ */
+
+        /* Full-screen profile overlay (same pattern as settings-overlay) */
+        .profile-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .profile-overlay-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            border-bottom: 2px solid #d4b896;
+            background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 100%);
+        }
+        .profile-back-btn {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: #8b6f47;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            line-height: 1;
+        }
+        .profile-overlay-title {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #3d2817;
+        }
+        .profile-scroll-body {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Profile hero header */
+        .profile-hero {
+            text-align: center;
+            padding: 1.75rem 1.5rem 1.25rem;
+            border-bottom: 1.5px solid #e0c9a6;
+        }
+        .profile-avatar-lg {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #3d2817;
+            color: #f5f0e8;
+            font-size: 2.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.9rem;
+            position: relative;
+        }
+        .verified-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: #1877f2;
+            color: #fff;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #faf8f3;
+        }
+        .profile-display-name {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3d2817;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+        .verified-inline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #1877f2;
+            color: #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .profile-at-username {
+            color: #8b6f47;
+            font-size: 0.95rem;
+            margin: 0.2rem 0 0.6rem;
+        }
+        .profile-bio {
+            font-size: 0.9rem;
+            color: #5a3e28;
+            margin: 0.5rem auto;
+            max-width: 320px;
+            line-height: 1.4;
+        }
+        .profile-stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 0.9rem 0;
+        }
+        .profile-stat {
+            text-align: center;
+            cursor: pointer;
+        }
+        .profile-stat-num {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #3d2817;
+        }
+        .profile-stat-label {
+            font-size: 0.75rem;
+            color: #8b6f47;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .profile-action-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 0.9rem;
+        }
+        .profile-follow-btn {
+            background: #3d2817;
+            color: #f5f0e8;
+            border: none;
+            border-radius: 20px;
+            padding: 0.5rem 1.4rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .profile-follow-btn:hover { background: #5a3e28; }
+        .profile-follow-btn.following {
+            background: transparent;
+            color: #3d2817;
+            border: 1.5px solid #8b6f47;
+        }
+        .profile-follow-btn.requested {
+            background: #e0c9a6;
+            color: #3d2817;
+        }
+        .profile-msg-btn {
+            background: transparent;
+            color: #3d2817;
+            border: 1.5px solid #8b6f47;
+            border-radius: 20px;
+            padding: 0.5rem 1.2rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Locked profile card */
+        .locked-profile-card {
+            text-align: center;
+            padding: 3rem 1.5rem;
+        }
+        .locked-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .locked-title {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #3d2817;
+            margin-bottom: 0.5rem;
+        }
+        .locked-subtitle {
+            color: #8b6f47;
+            font-size: 0.95rem;
+        }
+
+        /* Profile content tabs */
+        .profile-tabs {
+            display: flex;
+            border-bottom: 2px solid #e0c9a6;
+            background: rgba(255,255,255,0.4);
+        }
+        .profile-tab-btn {
+            flex: 1;
+            padding: 0.75rem 0.5rem;
+            background: none;
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #8b6f47;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .profile-tab-btn.active {
+            color: #3d2817;
+            border-bottom-color: #3d2817;
+        }
+        .profile-tab-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        /* Profile books rows */
+        .profile-books-section {
+            padding: 0;
+        }
+        .profile-row-header {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #3d2817;
+            padding: 1rem 1.25rem 0.5rem;
+        }
+        .profile-book-scroll {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding: 0 1.25rem 1rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        .profile-book-scroll::-webkit-scrollbar { display: none; }
+        .profile-book-card {
+            flex-shrink: 0;
+            width: 80px;
+            cursor: pointer;
+        }
+        .profile-book-cover {
+            width: 80px;
+            height: 112px;
+            object-fit: cover;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        .profile-book-cover-placeholder {
+            width: 80px;
+            height: 112px;
+            background: #c8a882;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: #fff;
+            text-align: center;
+            padding: 0.4rem;
+            line-height: 1.2;
+        }
+        .profile-book-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #3d2817;
+            margin-top: 0.3rem;
+            text-align: center;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .profile-book-rating {
+            font-size: 0.65rem;
+            color: #c9a87c;
+            text-align: center;
+        }
+
+        /* Profile shelves tab */
+        .profile-shelves-list {
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .profile-shelf-card {
+            background: #fff;
+            border: 1.5px solid #e0c9a6;
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+        }
+        .profile-shelf-name {
+            font-weight: 700;
+            color: #3d2817;
+            font-size: 1rem;
+            margin-bottom: 0.3rem;
+        }
+        .profile-shelf-meta {
+            font-size: 0.8rem;
+            color: #8b6f47;
+            margin-bottom: 0.6rem;
+        }
+        .profile-shelf-covers {
+            display: flex;
+            gap: 0.4rem;
+        }
+        .profile-shelf-cover-thumb {
+            width: 36px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 3px;
+        }
+        .profile-shelf-cover-placeholder {
+            width: 36px;
+            height: 50px;
+            background: #c8a882;
+            border-radius: 3px;
+        }
+
+        /* Privacy settings toggle rows */
+        .privacy-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0e8dc;
+        }
+        .privacy-toggle-row:last-child { border-bottom: none; }
+        .privacy-toggle-label {
+            font-size: 0.9rem;
+            color: #3d2817;
+            font-weight: 500;
+        }
+        .privacy-toggle-sub {
+            font-size: 0.75rem;
+            color: #8b6f47;
+            margin-top: 0.15rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #ccc;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-slider:before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: #3d2817; }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+        /* Visibility selector pills */
+        .visibility-pills {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .visibility-pill {
+            flex: 1;
+            min-width: 80px;
+            border: 1.5px solid #d4b896;
+            border-radius: 8px;
+            padding: 0.6rem 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.15s;
+        }
+        .visibility-pill.active {
+            background: #3d2817;
+            border-color: #3d2817;
+            color: #f5f0e8;
+        }
+        .visibility-pill-icon { font-size: 1.3rem; margin-bottom: 0.2rem; }
+        .visibility-pill-label { font-size: 0.78rem; font-weight: 600; }
+        .visibility-pill-desc { font-size: 0.68rem; color: #8b6f47; margin-top: 0.15rem; }
+        .visibility-pill.active .visibility-pill-desc { color: #c9a87c; }
     </style>
     <!-- QuaggaJS for Barcode Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
@@ -4097,6 +4498,29 @@
             const roomContainerRef = React.useRef(null);
             const roomStateRef = React.useRef(null); // holds all Three.js objects
 
+            // ── v2.5.1 Social Profile & Privacy state ─────────────────────────
+            const [viewingProfile, setViewingProfile] = useState(null);       // user profile being viewed
+            const [profileTab, setProfileTab] = useState('books');             // 'books' | 'shelves' | 'room'
+            const [profileBooks, setProfileBooks] = useState([]);
+            const [profileShelves, setProfileShelves] = useState([]);
+            const [profileFollowStatus, setProfileFollowStatus] = useState('none'); // 'none'|'following'|'requested'|'friends'
+            const [profileFollowerCount, setProfileFollowerCount] = useState(0);
+            const [profileFollowingCount, setProfileFollowingCount] = useState(0);
+            const [profileBooksRead, setProfileBooksRead] = useState(0);
+            const [profileLoading, setProfileLoading] = useState(false);
+            const [myVisibility, setMyVisibility] = useState('public'); // 'public'|'private'|'hidden'
+            const [myPrivacySettings, setMyPrivacySettings] = useState({
+                show_currently_reading: true, show_recently_read: true,
+                show_plan_to_read: true, show_highly_rated: true,
+                show_ratings: true, show_reviews: true,
+                show_interests: true, show_shelves_tab: true, show_follower_counts: true
+            });
+            const [verificationForm, setVerificationForm] = useState({
+                category: 'author', public_name: '', public_link: '', justification: ''
+            });
+            const [verificationSubmitting, setVerificationSubmitting] = useState(false);
+            const [verificationSubmitted, setVerificationSubmitted] = useState(false);
+
             const scannerInitialized = React.useRef(false);
             const [starHover, setStarHover] = useState(0);
             const [userProfile, setUserProfile] = useState({
@@ -4106,18 +4530,28 @@
                 username: ''
             });
 
-            // Load username from DB when settings opens
+            // Load username + visibility from DB when settings opens
             useEffect(() => {
                 if (showSettings && currentUser?.id) {
                     supabaseClient
                         .from('user_profiles')
-                        .select('username, bio')
+                        .select('username, bio, visibility, display_name')
                         .eq('id', currentUser.id)
                         .maybeSingle()
                         .then(({ data }) => {
                             if (data) {
-                                setUserProfile(p => ({ ...p, username: data.username || '', bio: data.bio || '' }));
+                                setUserProfile(p => ({ ...p, username: data.username || '', bio: data.bio || '', name: data.display_name || p.name }));
+                                if (data.visibility) setMyVisibility(data.visibility);
                             }
+                        });
+                    // Load granular privacy settings
+                    supabaseClient
+                        .from('profile_privacy_settings')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .maybeSingle()
+                        .then(({ data }) => {
+                            if (data) setMyPrivacySettings(data);
                         });
                 }
             }, [showSettings]);
@@ -4546,14 +4980,25 @@
                 try {
                     const { data } = await supabaseClient
                         .from('user_profiles')
-                        .select('id, username, display_name, avatar_url')
+                        .select('id, username, display_name, avatar_url, is_public, visibility, is_verified')
                         .ilike('username', `%${query}%`)
-                        .eq('is_public', true)
+                        .neq('visibility', 'hidden')  // hidden accounts don't appear in search
                         .neq('id', currentUser.id)
                         .limit(20);
-                    setFriendSearchResults(data || []);
+                    // Filter out accounts that are explicitly hidden (fallback for old schema)
+                    setFriendSearchResults((data || []).filter(u => u.is_public !== false || u.visibility === 'private'));
                 } catch (err) {
-                    console.error('searchUsers error:', err);
+                    // Fallback if visibility column doesn't exist yet
+                    try {
+                        const { data } = await supabaseClient
+                            .from('user_profiles')
+                            .select('id, username, display_name, avatar_url, is_public, is_verified')
+                            .ilike('username', `%${query}%`)
+                            .eq('is_public', true)
+                            .neq('id', currentUser.id)
+                            .limit(20);
+                        setFriendSearchResults(data || []);
+                    } catch (e) { console.error('searchUsers error:', e); }
                 } finally {
                     setFriendSearchLoading(false);
                 }
@@ -4698,6 +5143,209 @@
                     }
                 });
                 setShowConfirm(true);
+            };
+
+            // ==========================================
+            // v2.5.1 — PUBLIC PROFILES & PRIVACY
+            // ==========================================
+
+            // Open another user's public profile
+            const openUserProfile = async (user) => {
+                if (!user?.id) return;
+                setViewingProfile(user);
+                setProfileTab('books');
+                setProfileBooks([]);
+                setProfileShelves([]);
+                setProfileFollowStatus('none');
+                setProfileFollowerCount(0);
+                setProfileFollowingCount(0);
+                setProfileBooksRead(0);
+                setProfileLoading(true);
+                try {
+                    // Load full profile row (visibility, bio, verified, etc.)
+                    const { data: prof } = await supabaseClient
+                        .from('user_profiles')
+                        .select('id, username, display_name, bio, avatar_url, is_public, visibility, is_verified')
+                        .eq('id', user.id)
+                        .maybeSingle();
+                    if (prof) setViewingProfile(prof);
+
+                    // Check follow / friendship status
+                    const { data: fship } = await supabaseClient
+                        .from('friendships')
+                        .select('id, status, requested_by')
+                        .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${user.id}),and(user_id.eq.${user.id},friend_id.eq.${currentUser.id})`)
+                        .maybeSingle();
+                    if (fship) {
+                        if (fship.status === 'accepted') setProfileFollowStatus('friends');
+                        else if (fship.status === 'pending') {
+                            setProfileFollowStatus(fship.requested_by === currentUser.id ? 'requested' : 'incoming');
+                        }
+                    }
+
+                    // Count followers / following
+                    const [{ count: follCount }, { count: follgCount }] = await Promise.all([
+                        supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                            .eq('friend_id', user.id).eq('status', 'accepted'),
+                        supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                            .eq('user_id', user.id).eq('status', 'accepted')
+                    ]);
+                    setProfileFollowerCount(follCount || 0);
+                    setProfileFollowingCount(follgCount || 0);
+
+                    // Only load content if profile is accessible
+                    const visibility = prof?.visibility || (prof?.is_public === false ? 'private' : 'public');
+                    const canView = visibility === 'public' || fship?.status === 'accepted';
+                    if (canView) {
+                        const [{ data: bks }, { data: shvs }] = await Promise.all([
+                            supabaseClient.from('books').select('*').eq('user_id', user.id),
+                            supabaseClient.from('shelves').select('*').eq('user_id', user.id)
+                        ]);
+                        const allBooks = bks || [];
+                        setProfileBooks(allBooks);
+                        setProfileBooksRead(allBooks.filter(b => b.userData?.status === 'finished').length);
+                        // Only show public shelves (fallback: all if column missing)
+                        setProfileShelves((shvs || []).filter(s => s.is_public !== false));
+                    }
+                } catch (err) {
+                    console.error('openUserProfile error:', err);
+                } finally {
+                    setProfileLoading(false);
+                }
+            };
+
+            // Follow (public → instant accepted) or send request (private → pending)
+            const handleProfileFollow = async () => {
+                if (!currentUser?.id || !viewingProfile?.id) return;
+                const targetId = viewingProfile.id;
+                const visibility = viewingProfile.visibility || (viewingProfile.is_public === false ? 'private' : 'public');
+
+                if (profileFollowStatus === 'friends' || profileFollowStatus === 'following') {
+                    // Unfollow / remove friend
+                    await supabaseClient.from('friendships')
+                        .delete()
+                        .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${targetId}),and(user_id.eq.${targetId},friend_id.eq.${currentUser.id})`);
+                    setProfileFollowStatus('none');
+                    setProfileFollowerCount(c => Math.max(0, c - 1));
+                    loadFriends();
+                } else if (profileFollowStatus === 'requested') {
+                    // Cancel request
+                    await supabaseClient.from('friendships')
+                        .delete()
+                        .eq('user_id', currentUser.id).eq('friend_id', targetId);
+                    setProfileFollowStatus('none');
+                } else if (profileFollowStatus === 'incoming') {
+                    // Accept incoming request
+                    const { data: req } = await supabaseClient.from('friendships')
+                        .select('id').eq('user_id', targetId).eq('friend_id', currentUser.id).maybeSingle();
+                    if (req) {
+                        await supabaseClient.from('friendships').update({ status: 'accepted' }).eq('id', req.id);
+                        await supabaseClient.from('friendships').upsert({
+                            user_id: currentUser.id, friend_id: targetId,
+                            status: 'accepted', requested_by: targetId
+                        }, { onConflict: 'user_id,friend_id' });
+                        setProfileFollowStatus('friends');
+                        setProfileFollowerCount(c => c + 1);
+                        loadFriends();
+                    }
+                } else {
+                    // None → follow or request
+                    if (visibility === 'public') {
+                        // Instant follow — accepted immediately
+                        await supabaseClient.from('friendships').upsert({
+                            user_id: currentUser.id, friend_id: targetId,
+                            status: 'accepted', requested_by: currentUser.id,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,friend_id' });
+                        // Reciprocal for symmetry
+                        await supabaseClient.from('friendships').upsert({
+                            user_id: targetId, friend_id: currentUser.id,
+                            status: 'accepted', requested_by: currentUser.id,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,friend_id' });
+                        await supabaseClient.from('notifications').insert({
+                            user_id: targetId, type: 'follow',
+                            title: 'New Follower',
+                            content: `${currentUser.user_metadata?.name || 'Someone'} started following you`,
+                            related_user_id: currentUser.id
+                        });
+                        setProfileFollowStatus('friends');
+                        setProfileFollowerCount(c => c + 1);
+                        loadFriends();
+                    } else {
+                        // Private → send friend request
+                        await supabaseClient.from('friendships').upsert({
+                            user_id: currentUser.id, friend_id: targetId,
+                            status: 'pending', requested_by: currentUser.id,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,friend_id' });
+                        await supabaseClient.from('notifications').insert({
+                            user_id: targetId, type: 'friend_request',
+                            title: 'New Follow Request',
+                            content: `${currentUser.user_metadata?.name || 'Someone'} wants to follow you`,
+                            related_user_id: currentUser.id
+                        });
+                        setProfileFollowStatus('requested');
+                        showMessage('Follow request sent!');
+                    }
+                }
+            };
+
+            // Save top-level visibility (Public / Private / Hidden)
+            const saveVisibility = async (v) => {
+                setMyVisibility(v);
+                try {
+                    await supabaseClient.from('user_profiles')
+                        .update({ visibility: v, is_public: v === 'public' })
+                        .eq('id', currentUser.id);
+                    showMessage('Visibility updated.');
+                } catch (err) {
+                    console.warn('saveVisibility error (column may not exist yet):', err);
+                    // Fallback: just update is_public
+                    await supabaseClient.from('user_profiles')
+                        .update({ is_public: v === 'public' })
+                        .eq('id', currentUser.id);
+                    showMessage('Visibility updated.');
+                }
+            };
+
+            // Save granular privacy settings
+            const savePrivacySettings = async (settings) => {
+                setMyPrivacySettings(settings);
+                try {
+                    await supabaseClient.from('profile_privacy_settings')
+                        .upsert({ user_id: currentUser.id, ...settings }, { onConflict: 'user_id' });
+                    showMessage('Privacy settings saved.');
+                } catch (err) {
+                    console.warn('savePrivacySettings error (table may not exist yet):', err);
+                    showMessage('Privacy settings saved locally.');
+                }
+            };
+
+            // Submit verification request
+            const submitVerificationRequest = async () => {
+                if (!verificationForm.public_name || !verificationForm.public_link) {
+                    showMessage('Please fill in your name and a link to your public presence.');
+                    return;
+                }
+                setVerificationSubmitting(true);
+                try {
+                    await supabaseClient.from('verification_requests').insert({
+                        user_id: currentUser.id,
+                        category: verificationForm.category,
+                        public_name: verificationForm.public_name,
+                        public_link: verificationForm.public_link,
+                        justification: verificationForm.justification,
+                        status: 'pending'
+                    });
+                    setVerificationSubmitted(true);
+                    showMessage('Verification request submitted! We\'ll review it and notify you.');
+                } catch (err) {
+                    showMessage('Could not submit request. The verification table may not be set up yet.');
+                    console.warn('submitVerificationRequest error:', err);
+                } finally {
+                    setVerificationSubmitting(false);
+                }
             };
 
             // ==========================================
@@ -9788,18 +10436,19 @@
                                             {friendSearchResults.map(user => {
                                                 const isFriend = friends.some(f => f.id === user.id);
                                                 const hasSent = sentRequests.includes(user.id);
+                                                const isPublic = user.visibility === 'public' || user.is_public !== false;
                                                 return (
-                                                    <div key={user.id} className="friend-card">
+                                                    <div key={user.id} className="friend-card" style={{cursor:'pointer'}} onClick={() => openUserProfile(user)}>
                                                         <div className="friend-avatar">
                                                             {(user.display_name || user.username || '?').charAt(0).toUpperCase()}
                                                         </div>
                                                         <div className="friend-info">
-                                                            <div className="friend-name">{user.display_name || user.username}</div>
+                                                            <div className="friend-name">{user.display_name || user.username}{user.is_verified && <span style={{marginLeft:'0.3rem', color:'#1877f2', fontSize:'0.85em'}}>✓</span>}</div>
                                                             <div className="friend-username">@{user.username}</div>
                                                         </div>
-                                                        <div className="friend-actions">
+                                                        <div className="friend-actions" onClick={e => e.stopPropagation()}>
                                                             {isFriend ? (
-                                                                <span style={{color: '#2d4a3e', fontWeight: '600', fontSize: '0.9rem'}}>✓ Friends</span>
+                                                                <span style={{color: '#2d4a3e', fontWeight: '600', fontSize: '0.9rem'}}>✓ Following</span>
                                                             ) : hasSent ? (() => {
                                                                 const expiry = requestCooldowns[user.id];
                                                                 const remaining = expiry ? Math.ceil((expiry - Date.now()) / 1000) : 0;
@@ -9815,9 +10464,9 @@
                                                             })() : (
                                                                 <button
                                                                     className="friend-btn accept"
-                                                                    onClick={() => sendFriendRequest(user.id)}
+                                                                    onClick={() => isPublic ? openUserProfile(user) : sendFriendRequest(user.id)}
                                                                 >
-                                                                    + Add Friend
+                                                                    {isPublic ? '+ Follow' : '+ Request'}
                                                                 </button>
                                                             )}
                                                         </div>
@@ -11337,26 +11986,32 @@
                             </div>
                             {/* Mobile tab bar */}
                             <div className="settings-tab-bar">
-                                {[['account','Account'],['security','Security'],['stats','Stats'],['preferences','Prefs']].map(([id, label]) => (
+                                {[['account','Account'],['privacy','Privacy'],['security','Security'],['stats','Stats'],['preferences','Prefs']].map(([id, label]) => (
                                     <button key={id} className={`settings-tab-pill${settingsTab === id ? ' active' : ''}`} onClick={() => setSettingsTab(id)}>{label}</button>
                                 ))}
                             </div>
                             <div className="settings-container">
                                 <div className="settings-sidebar">
                                     <div className="settings-sidebar-title">Settings</div>
-                                    <div 
+                                    <div
                                         className={`settings-tab ${settingsTab === 'account' ? 'active' : ''}`}
                                         onClick={() => setSettingsTab('account')}
                                     >
                                         Account
                                     </div>
-                                    <div 
+                                    <div
+                                        className={`settings-tab ${settingsTab === 'privacy' ? 'active' : ''}`}
+                                        onClick={() => setSettingsTab('privacy')}
+                                    >
+                                        Privacy
+                                    </div>
+                                    <div
                                         className={`settings-tab ${settingsTab === 'security' ? 'active' : ''}`}
                                         onClick={() => setSettingsTab('security')}
                                     >
                                         Security
                                     </div>
-                                    <div 
+                                    <div
                                         className={`settings-tab ${settingsTab === 'stats' ? 'active' : ''}`}
                                         onClick={() => setSettingsTab('stats')}
                                     >
@@ -11438,6 +12093,121 @@
                                                     }).eq('id', currentUser.id);
                                                     showMessage('✅ Profile saved!');
                                                 }}>Save Changes</button>
+                                            </div>
+
+                                            {/* Verification Request */}
+                                            <div className="settings-card">
+                                                <h3 className="settings-card-title">Request Verification</h3>
+                                                <p style={{color:'#666', marginBottom:'1rem', fontSize:'0.9rem'}}>
+                                                    Verified accounts receive a blue ✓ badge and priority in search results. Eligible: authors, publishers, book reviewers, librarians, and educators.
+                                                </p>
+                                                {verificationSubmitted ? (
+                                                    <div style={{background:'#e8f5e8', border:'1.5px solid #a8d5a2', borderRadius:'8px', padding:'0.9rem', color:'#2d6a2d', fontSize:'0.9rem'}}>
+                                                        ✓ Your request has been submitted. We'll notify you by email once reviewed.
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="settings-form-group">
+                                                            <label>Category</label>
+                                                            <select value={verificationForm.category} onChange={e => setVerificationForm(f => ({...f, category: e.target.value}))}
+                                                                style={{width:'100%', padding:'0.6rem', border:'1.5px solid #d4b896', borderRadius:'6px', background:'#fff', fontSize:'0.9rem'}}>
+                                                                <option value="author">Author</option>
+                                                                <option value="publisher">Publisher / Imprint</option>
+                                                                <option value="reviewer">Book Reviewer / Bookstagrammer</option>
+                                                                <option value="librarian">Librarian / Library</option>
+                                                                <option value="educator">Educator / Academic</option>
+                                                                <option value="other">Other</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="settings-form-group">
+                                                            <label>Public Name / Pen Name</label>
+                                                            <input type="text" maxLength={100} placeholder="Your public name"
+                                                                value={verificationForm.public_name}
+                                                                onChange={e => setVerificationForm(f => ({...f, public_name: e.target.value}))} />
+                                                        </div>
+                                                        <div className="settings-form-group">
+                                                            <label>Link to Public Presence</label>
+                                                            <input type="url" placeholder="https://..."
+                                                                value={verificationForm.public_link}
+                                                                onChange={e => setVerificationForm(f => ({...f, public_link: e.target.value}))} />
+                                                            <div style={{fontSize:'0.75rem', color:'#8b6f47', marginTop:'0.25rem'}}>Website, Goodreads profile, social account, etc.</div>
+                                                        </div>
+                                                        <div className="settings-form-group">
+                                                            <label>Brief Justification (max 300 chars)</label>
+                                                            <textarea maxLength={300} placeholder="Tell us why you qualify..."
+                                                                value={verificationForm.justification}
+                                                                onChange={e => setVerificationForm(f => ({...f, justification: e.target.value}))}
+                                                                style={{height:'80px'}} />
+                                                        </div>
+                                                        <button className="settings-btn" disabled={verificationSubmitting} onClick={submitVerificationRequest}>
+                                                            {verificationSubmitting ? 'Submitting…' : 'Submit Request'}
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {settingsTab === 'privacy' && (
+                                        <>
+                                            <h2 className="settings-section-title">Privacy</h2>
+                                            <p className="settings-section-subtitle">Control who can see your profile and reading activity</p>
+
+                                            {/* Top-level visibility */}
+                                            <div className="settings-card">
+                                                <h3 className="settings-card-title">Profile Visibility</h3>
+                                                <p style={{color:'#666', fontSize:'0.85rem', marginBottom:'1rem'}}>Choose who can see your profile.</p>
+                                                <div className="visibility-pills">
+                                                    {[
+                                                        { v:'public',  icon:'🌐', label:'Public',  desc:'Open to everyone' },
+                                                        { v:'private', icon:'🔒', label:'Private', desc:'Approved followers only' },
+                                                        { v:'hidden',  icon:'👻', label:'Hidden',  desc:'Only you' }
+                                                    ].map(({ v, icon, label, desc }) => (
+                                                        <div key={v} className={`visibility-pill${myVisibility === v ? ' active' : ''}`} onClick={() => saveVisibility(v)}>
+                                                            <div className="visibility-pill-icon">{icon}</div>
+                                                            <div className="visibility-pill-label">{label}</div>
+                                                            <div className="visibility-pill-desc">{desc}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Granular content toggles */}
+                                            <div className="settings-card">
+                                                <h3 className="settings-card-title">What Others Can See</h3>
+                                                <p style={{color:'#666', fontSize:'0.85rem', marginBottom:'1rem'}}>Toggle what visitors and followers can see on your profile.</p>
+                                                {[
+                                                    { key:'show_currently_reading', label:'Currently Reading', sub:'Show your active reads' },
+                                                    { key:'show_recently_read',     label:'Recently Read',     sub:'Show books you just finished' },
+                                                    { key:'show_plan_to_read',      label:'Plan to Read',      sub:'Show your reading wishlist' },
+                                                    { key:'show_highly_rated',      label:'Highly Rated Books',sub:'Show 4+ star books' },
+                                                    { key:'show_ratings',           label:'Star Ratings',      sub:'Show your ratings on books' },
+                                                    { key:'show_reviews',           label:'Written Reviews',   sub:'Show your notes/thoughts' },
+                                                    { key:'show_interests',         label:'Reading Interests', sub:'Show your genre tags' },
+                                                    { key:'show_shelves_tab',       label:'Shelves Tab',       sub:'Show your shelves to visitors' },
+                                                    { key:'show_follower_counts',   label:'Follower Counts',   sub:'Show follower/following numbers' },
+                                                ].map(({ key, label, sub }) => (
+                                                    <div key={key} className="privacy-toggle-row">
+                                                        <div>
+                                                            <div className="privacy-toggle-label">{label}</div>
+                                                            <div className="privacy-toggle-sub">{sub}</div>
+                                                        </div>
+                                                        <label className="toggle-switch">
+                                                            <input type="checkbox" checked={!!myPrivacySettings[key]}
+                                                                onChange={e => {
+                                                                    const updated = { ...myPrivacySettings, [key]: e.target.checked };
+                                                                    savePrivacySettings(updated);
+                                                                }} />
+                                                            <span className="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Blocked accounts placeholder */}
+                                            <div className="settings-card">
+                                                <h3 className="settings-card-title">Blocked Accounts</h3>
+                                                <p style={{color:'#666', fontSize:'0.85rem'}}>Blocked users cannot find or follow you. Manage blocks from a user's profile page.</p>
                                             </div>
                                         </>
                                     )}
@@ -11761,6 +12531,186 @@
                     )}
                     
                     {/* Friend Profile Modal */}
+                    {/* ==================== PUBLIC PROFILE OVERLAY v2.5.1 ==================== */}
+                    {viewingProfile && (
+                        <div className="profile-overlay">
+                            <div className="profile-overlay-header">
+                                <button className="profile-back-btn" onClick={() => setViewingProfile(null)}>←</button>
+                                <span className="profile-overlay-title">Profile</span>
+                            </div>
+                            <div className="profile-scroll-body">
+                                {profileLoading ? (
+                                    <div style={{textAlign:'center', padding:'4rem 1rem', color:'#8b6f47'}}>Loading profile…</div>
+                                ) : (() => {
+                                    const vp = viewingProfile;
+                                    const visibility = vp.visibility || (vp.is_public === false ? 'private' : 'public');
+                                    const isSelf = vp.id === currentUser?.id;
+                                    const canView = isSelf || visibility === 'public' || profileFollowStatus === 'friends';
+                                    const followBtnLabel = profileFollowStatus === 'friends' ? 'Following' :
+                                        profileFollowStatus === 'requested' ? 'Requested' :
+                                        profileFollowStatus === 'incoming' ? 'Accept Request' : 'Follow';
+                                    const followBtnClass = profileFollowStatus === 'friends' ? 'following' :
+                                        profileFollowStatus === 'requested' ? 'requested' : '';
+
+                                    const currentlyReading = profileBooks.filter(b => b.userData?.status === 'reading');
+                                    const recentlyRead = [...profileBooks.filter(b => b.userData?.status === 'finished')]
+                                        .sort((a,b) => new Date(b.updated_at||0) - new Date(a.updated_at||0)).slice(0, 20);
+                                    const highlyRated = profileBooks.filter(b => (b.userData?.rating || 0) >= 4);
+                                    const planToRead = profileBooks.filter(b => b.userData?.status === 'want');
+
+                                    const BookRow = ({ title, bks }) => {
+                                        if (!bks || bks.length === 0) return null;
+                                        return (
+                                            <div>
+                                                <div className="profile-row-header">{title}</div>
+                                                <div className="profile-book-scroll">
+                                                    {bks.map(book => (
+                                                        <div key={book.id} className="profile-book-card">
+                                                            {book.cover ? (
+                                                                <img src={book.cover} alt={book.title} className="profile-book-cover" />
+                                                            ) : (
+                                                                <div className="profile-book-cover-placeholder">{book.title}</div>
+                                                            )}
+                                                            <div className="profile-book-title">{book.title}</div>
+                                                            {book.userData?.rating > 0 && (
+                                                                <div className="profile-book-rating">{'★'.repeat(book.userData.rating)}</div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    };
+
+                                    return (
+                                        <>
+                                            {/* Profile Header */}
+                                            <div className="profile-hero">
+                                                <div className="profile-avatar-lg" style={vp.avatar_url ? {background:'none', padding:0} : {}}>
+                                                    {vp.avatar_url ? (
+                                                        <img src={vp.avatar_url} alt="avatar" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} />
+                                                    ) : (
+                                                        (vp.display_name || vp.username || '?').charAt(0).toUpperCase()
+                                                    )}
+                                                    {vp.is_verified && <span className="verified-badge">✓</span>}
+                                                </div>
+                                                <div className="profile-display-name">
+                                                    {vp.display_name || vp.username}
+                                                    {vp.is_verified && <span className="verified-inline">✓</span>}
+                                                </div>
+                                                <div className="profile-at-username">@{vp.username}</div>
+                                                {vp.bio && <div className="profile-bio">{vp.bio}</div>}
+                                                <div className="profile-stats-row">
+                                                    <div className="profile-stat">
+                                                        <div className="profile-stat-num">{profileFollowerCount}</div>
+                                                        <div className="profile-stat-label">Followers</div>
+                                                    </div>
+                                                    <div className="profile-stat">
+                                                        <div className="profile-stat-num">{profileFollowingCount}</div>
+                                                        <div className="profile-stat-label">Following</div>
+                                                    </div>
+                                                    <div className="profile-stat">
+                                                        <div className="profile-stat-num">{profileBooksRead}</div>
+                                                        <div className="profile-stat-label">Books Read</div>
+                                                    </div>
+                                                </div>
+                                                {!isSelf && (
+                                                    <div className="profile-action-row">
+                                                        <button
+                                                            className={`profile-follow-btn ${followBtnClass}`}
+                                                            onClick={handleProfileFollow}
+                                                        >
+                                                            {visibility === 'public' && profileFollowStatus === 'none' ? '+ Follow' : followBtnLabel}
+                                                        </button>
+                                                        {(profileFollowStatus === 'friends') && (
+                                                            <button className="profile-msg-btn" onClick={() => { setViewingProfile(null); openMessagesWith(vp.id); }}>
+                                                                Message
+                                                            </button>
+                                                        )}
+                                                        <button className="profile-msg-btn" style={{color:'#a00'}} onClick={() => {
+                                                            const v = vp;
+                                                            setViewingProfile(null);
+                                                            setConfirmAction({ title:'Block User', message:`Block ${v.display_name || v.username}? They won't be able to find or follow you.`, onConfirm: () => blockUser(v.id) });
+                                                            setShowConfirm(true);
+                                                        }}>Block</button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Locked profile card for private/hidden non-followers */}
+                                            {!canView ? (
+                                                <div className="locked-profile-card">
+                                                    <div className="locked-icon">🔒</div>
+                                                    <div className="locked-title">This account is {visibility}</div>
+                                                    <div className="locked-subtitle">
+                                                        {profileFollowStatus === 'requested'
+                                                            ? 'Your follow request is pending.'
+                                                            : 'Follow this account to see their books and shelves.'}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {/* Content Tabs */}
+                                                    <div className="profile-tabs">
+                                                        <button className={`profile-tab-btn${profileTab === 'books' ? ' active' : ''}`} onClick={() => setProfileTab('books')}>Books</button>
+                                                        <button className={`profile-tab-btn${profileTab === 'shelves' ? ' active' : ''}`} onClick={() => setProfileTab('shelves')}>Shelves</button>
+                                                        <button className="profile-tab-btn" disabled title="Coming Soon">Room ☁️</button>
+                                                    </div>
+
+                                                    {/* Books Tab */}
+                                                    {profileTab === 'books' && (
+                                                        <div className="profile-books-section">
+                                                            {profileBooks.length === 0 ? (
+                                                                <div style={{textAlign:'center', padding:'3rem 1rem', color:'#8b6f47'}}>No books in this library yet.</div>
+                                                            ) : (
+                                                                <>
+                                                                    <BookRow title="Currently Reading" bks={currentlyReading} />
+                                                                    <BookRow title="Recently Read" bks={recentlyRead} />
+                                                                    <BookRow title="Highly Rated" bks={highlyRated} />
+                                                                    <BookRow title="Plan to Read" bks={planToRead} />
+                                                                    {currentlyReading.length === 0 && recentlyRead.length === 0 && highlyRated.length === 0 && planToRead.length === 0 && (
+                                                                        <div style={{textAlign:'center', padding:'3rem 1rem', color:'#8b6f47'}}>No categorized books to show.</div>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Shelves Tab */}
+                                                    {profileTab === 'shelves' && (
+                                                        <div className="profile-shelves-list">
+                                                            {profileShelves.length === 0 ? (
+                                                                <div style={{textAlign:'center', padding:'3rem 1rem', color:'#8b6f47'}}>No public shelves to show.</div>
+                                                            ) : (
+                                                                profileShelves.map(shelf => {
+                                                                    const shelfBooks = profileBooks.filter(b => b.shelf_id === shelf.id).slice(0, 5);
+                                                                    return (
+                                                                        <div key={shelf.id} className="profile-shelf-card">
+                                                                            <div className="profile-shelf-name">{shelf.name}</div>
+                                                                            <div className="profile-shelf-meta">{profileBooks.filter(b => b.shelf_id === shelf.id).length} books</div>
+                                                                            <div className="profile-shelf-covers">
+                                                                                {shelfBooks.map(b => b.cover ? (
+                                                                                    <img key={b.id} src={b.cover} alt={b.title} className="profile-shelf-cover-thumb" />
+                                                                                ) : (
+                                                                                    <div key={b.id} className="profile-shelf-cover-placeholder" />
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ==================== FRIEND QUICK-ACTION POPUP ==================== */}
                     {selectedFriend && (
                         <div className="book-detail-overlay" onClick={() => setSelectedFriend(null)}>
                             <div className="book-info-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '360px', textAlign: 'center'}}>
@@ -11774,8 +12724,8 @@
                                     <button className="friend-btn accept" style={{width: '100%', justifyContent: 'center'}} onClick={() => { setSelectedFriend(null); openMessagesWith(selectedFriend.id); }}>
                                         💬 Message
                                     </button>
-                                    <button className="friend-btn" style={{width: '100%', justifyContent: 'center', background: '#e8f0e8', color: '#2d4a3e'}} onClick={() => { showMessage('View Library coming soon'); setSelectedFriend(null); }}>
-                                        📚 View Library
+                                    <button className="friend-btn" style={{width: '100%', justifyContent: 'center', background: '#e8f0e8', color: '#2d4a3e'}} onClick={() => { const f = selectedFriend; setSelectedFriend(null); openUserProfile(f); }}>
+                                        📚 View Profile
                                     </button>
                                     <button className="friend-btn danger" style={{width: '100%', justifyContent: 'center'}} onClick={() => {
                                         const f = selectedFriend;

@@ -1935,6 +1935,28 @@
             font-size: 0.8rem;
         }
 
+        /* Desktop: switch rows to a full-width grid so there's no dead space */
+        @media (min-width: 1024px) {
+            .category-scroll {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                overflow-x: visible;
+                overflow-y: visible;
+                gap: 1rem;
+                padding: 0.5rem 0.5rem 1rem;
+                cursor: default;
+            }
+            .category-book {
+                width: auto;
+            }
+            .category-book-cover {
+                width: 100%;
+            }
+            .category-book-cover-placeholder {
+                width: 100%;
+            }
+        }
+
         .category-book-title {
             font-family: 'Crimson Pro', serif;
             font-size: 0.9rem;

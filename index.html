@@ -3954,6 +3954,7 @@
             margin: 0 auto 0.9rem;
             position: relative;
         }
+        /* VERIFIED BADGE — deferred to future version
         .verified-badge {
             position: absolute;
             bottom: 0;
@@ -3970,6 +3971,7 @@
             justify-content: center;
             border: 2px solid #faf8f3;
         }
+        */
         .profile-display-name {
             font-family: 'Crimson Pro', serif;
             font-size: 1.5rem;
@@ -3980,6 +3982,7 @@
             justify-content: center;
             gap: 0.4rem;
         }
+        /* VERIFIED INLINE — deferred to future version
         .verified-inline {
             display: inline-flex;
             align-items: center;
@@ -3992,6 +3995,7 @@
             font-size: 0.7rem;
             font-weight: 700;
         }
+        */
         .profile-at-username {
             color: #8b6f47;
             font-size: 0.95rem;
@@ -4515,11 +4519,12 @@
                 show_ratings: true, show_reviews: true,
                 show_interests: true, show_shelves_tab: true, show_follower_counts: true
             });
-            const [verificationForm, setVerificationForm] = useState({
-                category: 'author', public_name: '', public_link: '', justification: ''
-            });
-            const [verificationSubmitting, setVerificationSubmitting] = useState(false);
-            const [verificationSubmitted, setVerificationSubmitted] = useState(false);
+            // VERIFICATION STATE — deferred to future version
+            // const [verificationForm, setVerificationForm] = useState({
+            //     category: 'author', public_name: '', public_link: '', justification: ''
+            // });
+            // const [verificationSubmitting, setVerificationSubmitting] = useState(false);
+            // const [verificationSubmitted, setVerificationSubmitted] = useState(false);
 
             const scannerInitialized = React.useRef(false);
             const [starHover, setStarHover] = useState(0);
@@ -5322,31 +5327,31 @@
                 }
             };
 
-            // Submit verification request
-            const submitVerificationRequest = async () => {
-                if (!verificationForm.public_name || !verificationForm.public_link) {
-                    showMessage('Please fill in your name and a link to your public presence.');
-                    return;
-                }
-                setVerificationSubmitting(true);
-                try {
-                    await supabaseClient.from('verification_requests').insert({
-                        user_id: currentUser.id,
-                        category: verificationForm.category,
-                        public_name: verificationForm.public_name,
-                        public_link: verificationForm.public_link,
-                        justification: verificationForm.justification,
-                        status: 'pending'
-                    });
-                    setVerificationSubmitted(true);
-                    showMessage('Verification request submitted! We\'ll review it and notify you.');
-                } catch (err) {
-                    showMessage('Could not submit request. The verification table may not be set up yet.');
-                    console.warn('submitVerificationRequest error:', err);
-                } finally {
-                    setVerificationSubmitting(false);
-                }
-            };
+            // VERIFICATION SUBMIT — deferred to future version
+            // const submitVerificationRequest = async () => {
+            //     if (!verificationForm.public_name || !verificationForm.public_link) {
+            //         showMessage('Please fill in your name and a link to your public presence.');
+            //         return;
+            //     }
+            //     setVerificationSubmitting(true);
+            //     try {
+            //         await supabaseClient.from('verification_requests').insert({
+            //             user_id: currentUser.id,
+            //             category: verificationForm.category,
+            //             public_name: verificationForm.public_name,
+            //             public_link: verificationForm.public_link,
+            //             justification: verificationForm.justification,
+            //             status: 'pending'
+            //         });
+            //         setVerificationSubmitted(true);
+            //         showMessage('Verification request submitted! We\'ll review it and notify you.');
+            //     } catch (err) {
+            //         showMessage('Could not submit request. The verification table may not be set up yet.');
+            //         console.warn('submitVerificationRequest error:', err);
+            //     } finally {
+            //         setVerificationSubmitting(false);
+            //     }
+            // };
 
             // ==========================================
             // SOCIAL FEATURES - MESSAGING
@@ -10443,7 +10448,7 @@
                                                             {(user.display_name || user.username || '?').charAt(0).toUpperCase()}
                                                         </div>
                                                         <div className="friend-info">
-                                                            <div className="friend-name">{user.display_name || user.username}{user.is_verified && <span style={{marginLeft:'0.3rem', color:'#1877f2', fontSize:'0.85em'}}>✓</span>}</div>
+                                                            <div className="friend-name">{user.display_name || user.username}{/* user.is_verified && <span style={{marginLeft:'0.3rem', color:'#1877f2', fontSize:'0.85em'}}>✓</span> */}</div>
                                                             <div className="friend-username">@{user.username}</div>
                                                         </div>
                                                         <div className="friend-actions" onClick={e => e.stopPropagation()}>
@@ -12095,56 +12100,12 @@
                                                 }}>Save Changes</button>
                                             </div>
 
-                                            {/* Verification Request */}
+                                            {/* VERIFICATION REQUEST — deferred to future version
                                             <div className="settings-card">
                                                 <h3 className="settings-card-title">Request Verification</h3>
-                                                <p style={{color:'#666', marginBottom:'1rem', fontSize:'0.9rem'}}>
-                                                    Verified accounts receive a blue ✓ badge and priority in search results. Eligible: authors, publishers, book reviewers, librarians, and educators.
-                                                </p>
-                                                {verificationSubmitted ? (
-                                                    <div style={{background:'#e8f5e8', border:'1.5px solid #a8d5a2', borderRadius:'8px', padding:'0.9rem', color:'#2d6a2d', fontSize:'0.9rem'}}>
-                                                        ✓ Your request has been submitted. We'll notify you by email once reviewed.
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="settings-form-group">
-                                                            <label>Category</label>
-                                                            <select value={verificationForm.category} onChange={e => setVerificationForm(f => ({...f, category: e.target.value}))}
-                                                                style={{width:'100%', padding:'0.6rem', border:'1.5px solid #d4b896', borderRadius:'6px', background:'#fff', fontSize:'0.9rem'}}>
-                                                                <option value="author">Author</option>
-                                                                <option value="publisher">Publisher / Imprint</option>
-                                                                <option value="reviewer">Book Reviewer / Bookstagrammer</option>
-                                                                <option value="librarian">Librarian / Library</option>
-                                                                <option value="educator">Educator / Academic</option>
-                                                                <option value="other">Other</option>
-                                                            </select>
-                                                        </div>
-                                                        <div className="settings-form-group">
-                                                            <label>Public Name / Pen Name</label>
-                                                            <input type="text" maxLength={100} placeholder="Your public name"
-                                                                value={verificationForm.public_name}
-                                                                onChange={e => setVerificationForm(f => ({...f, public_name: e.target.value}))} />
-                                                        </div>
-                                                        <div className="settings-form-group">
-                                                            <label>Link to Public Presence</label>
-                                                            <input type="url" placeholder="https://..."
-                                                                value={verificationForm.public_link}
-                                                                onChange={e => setVerificationForm(f => ({...f, public_link: e.target.value}))} />
-                                                            <div style={{fontSize:'0.75rem', color:'#8b6f47', marginTop:'0.25rem'}}>Website, Goodreads profile, social account, etc.</div>
-                                                        </div>
-                                                        <div className="settings-form-group">
-                                                            <label>Brief Justification (max 300 chars)</label>
-                                                            <textarea maxLength={300} placeholder="Tell us why you qualify..."
-                                                                value={verificationForm.justification}
-                                                                onChange={e => setVerificationForm(f => ({...f, justification: e.target.value}))}
-                                                                style={{height:'80px'}} />
-                                                        </div>
-                                                        <button className="settings-btn" disabled={verificationSubmitting} onClick={submitVerificationRequest}>
-                                                            {verificationSubmitting ? 'Submitting…' : 'Submit Request'}
-                                                        </button>
-                                                    </>
-                                                )}
+                                                ...
                                             </div>
+                                            */}
                                         </>
                                     )}
 
@@ -12592,11 +12553,11 @@
                                                     ) : (
                                                         (vp.display_name || vp.username || '?').charAt(0).toUpperCase()
                                                     )}
-                                                    {vp.is_verified && <span className="verified-badge">✓</span>}
+                                                    {/* vp.is_verified && <span className="verified-badge">✓</span> */}
                                                 </div>
                                                 <div className="profile-display-name">
                                                     {vp.display_name || vp.username}
-                                                    {vp.is_verified && <span className="verified-inline">✓</span>}
+                                                    {/* vp.is_verified && <span className="verified-inline">✓</span> */}
                                                 </div>
                                                 <div className="profile-at-username">@{vp.username}</div>
                                                 {vp.bio && <div className="profile-bio">{vp.bio}</div>}

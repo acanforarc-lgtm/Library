@@ -4514,6 +4514,14 @@
             const [profileFollowingCount, setProfileFollowingCount] = useState(0);
             const [profileBooksRead, setProfileBooksRead] = useState(0);
             const [profileLoading, setProfileLoading] = useState(false);
+            const [showFollowListModal, setShowFollowListModal] = useState(false);
+            const [followListType, setFollowListType] = useState('followers'); // 'followers'|'following'
+            const [followList, setFollowList] = useState([]);
+            const [followListLoading, setFollowListLoading] = useState(false);
+            const [showReportModal, setShowReportModal] = useState(false);
+            const [reportingUser, setReportingUser] = useState(null);
+            const [reportReason, setReportReason] = useState('');
+            const [reportSubmitting, setReportSubmitting] = useState(false);
             const [myVisibility, setMyVisibility] = useState('public'); // 'public'|'private'|'hidden'
             const [myPrivacySettings, setMyPrivacySettings] = useState({
                 show_currently_reading: true, show_recently_read: true,
@@ -5147,6 +5155,66 @@
                     loadBlockedUsers();
                 } catch (err) {
                     showMessage('Could not unblock user.');
+                }
+            };
+
+            // Toggle shelf public/private
+            const toggleShelfPublic = async (shelfId, currentIsPublic) => {
+                const newVal = !currentIsPublic;
+                setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, is_public: newVal } : s));
+                try {
+                    await supabaseClient.from('shelves').update({ is_public: newVal }).eq('id', shelfId);
+                    showMessage(newVal ? 'Shelf is now public.' : 'Shelf is now private.');
+                } catch (err) {
+                    setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, is_public: currentIsPublic } : s));
+                    showMessage('Could not update shelf visibility.');
+                }
+            };
+
+            // Load followers or following list for a profile
+            const loadFollowList = async (userId, type) => {
+                setFollowListLoading(true);
+                setFollowList([]);
+                try {
+                    let ids = [];
+                    if (type === 'followers') {
+                        const { data } = await supabaseClient.from('friendships')
+                            .select('user_id').eq('friend_id', userId).eq('status', 'accepted');
+                        ids = (data || []).map(r => r.user_id);
+                    } else {
+                        const { data } = await supabaseClient.from('friendships')
+                            .select('friend_id').eq('user_id', userId).eq('status', 'accepted');
+                        ids = (data || []).map(r => r.friend_id);
+                    }
+                    if (ids.length === 0) { setFollowList([]); setFollowListLoading(false); return; }
+                    const { data: profiles } = await supabaseClient.from('user_profiles')
+                        .select('id, username, display_name, avatar_url')
+                        .in('id', ids);
+                    setFollowList(profiles || []);
+                } catch (err) {
+                    console.error('loadFollowList error:', err);
+                } finally {
+                    setFollowListLoading(false);
+                }
+            };
+
+            // Submit a user report
+            const submitUserReport = async () => {
+                if (!reportReason.trim()) { showMessage('Please enter a reason.'); return; }
+                setReportSubmitting(true);
+                try {
+                    await supabaseClient.from('user_reports').insert({
+                        reporter_id: currentUser.id,
+                        reported_id: reportingUser.id,
+                        reason: reportReason.trim()
+                    });
+                    setShowReportModal(false);
+                    setReportReason('');
+                    showMessage('Report submitted. Thank you.');
+                } catch (err) {
+                    showMessage('Could not submit report.');
+                } finally {
+                    setReportSubmitting(false);
                 }
             };
 
@@ -10148,7 +10216,7 @@
                                             }}
                                         >
                                         <div className="shelf-header">
-                                            <h3 className="shelf-title">{shelf.name}</h3>
+                                            <h3 className="shelf-title">{shelf.name}{shelf.is_public === false && <span title="Private shelf" style={{marginLeft:'0.4rem', fontSize:'0.75em', opacity:0.6}}>🔒</span>}</h3>
                                             <div className="shelf-actions">
                                                 <div className="shelf-menu-wrap">
                                                     <button
@@ -10328,6 +10396,9 @@
                                             </button>
                                             <button className="shelf-menu-item" onClick={() => { openBookSelector(shelf.id); setOpenShelfMenu(null); }}>
                                                 ➕ Add Books
+                                            </button>
+                                            <button className="shelf-menu-item" onClick={() => { toggleShelfPublic(shelf.id, shelf.is_public !== false); setOpenShelfMenu(null); }}>
+                                                {shelf.is_public === false ? '🔓 Make Public' : '🔒 Make Private'}
                                             </button>
                                             <button className="shelf-menu-item danger" onClick={() => { deleteShelf(shelf.id); setOpenShelfMenu(null); }}>
                                                 🗑 Delete Shelf
@@ -12300,6 +12371,74 @@
                         </div>
                     )}
 
+                    {/* Followers / Following List Modal */}
+                    {showFollowListModal && (
+                        <div className="book-detail-overlay" onClick={() => setShowFollowListModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'420px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowFollowListModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <div style={{display:'flex', gap:'1rem', marginBottom:'1rem', borderBottom:'2px solid #f0e8d8', paddingBottom:'0.75rem'}}>
+                                        {['followers','following'].map(t => (
+                                            <button key={t} onClick={() => { setFollowListType(t); loadFollowList(viewingProfile?.id, t); }}
+                                                style={{flex:1, padding:'0.4rem', background: followListType === t ? '#c9a87c' : 'transparent', border:'none', borderRadius:'6px', fontWeight:'700', fontSize:'0.9rem', color: followListType === t ? '#fff' : '#8b6f47', cursor:'pointer', textTransform:'capitalize'}}>
+                                                {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {followListLoading ? (
+                                        <div style={{textAlign:'center', padding:'2rem', color:'#8b6f47'}}>Loading…</div>
+                                    ) : followList.length === 0 ? (
+                                        <div style={{textAlign:'center', padding:'2rem', color:'#aaa', fontStyle:'italic'}}>No {followListType} yet.</div>
+                                    ) : (
+                                        <div style={{display:'flex', flexDirection:'column', gap:'0', maxHeight:'55vh', overflowY:'auto'}}>
+                                            {followList.map(u => (
+                                                <div key={u.id} style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.65rem 0', borderBottom:'1px solid #f0e8d8', cursor:'pointer'}}
+                                                    onClick={() => { setShowFollowListModal(false); openUserProfile(u); }}>
+                                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'#c9a87c', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'1rem', flexShrink:0}}>
+                                                        {(u.display_name || u.username || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div style={{flex:1, minWidth:0}}>
+                                                        <div style={{fontWeight:'600', fontSize:'0.9rem', color:'#3d2b1f', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{u.display_name || u.username}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47'}}>@{u.username}</div>
+                                                    </div>
+                                                    <span style={{color:'#c9a87c', fontSize:'0.8rem'}}>›</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Report User Modal */}
+                    {showReportModal && reportingUser && (
+                        <div className="book-detail-overlay" onClick={() => setShowReportModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'380px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowReportModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h2 className="book-detail-title" style={{marginBottom:'0.25rem'}}>Report User</h2>
+                                    <p style={{color:'#8b6f47', fontSize:'0.85rem', marginBottom:'1.25rem'}}>Reporting <strong>{reportingUser.display_name || reportingUser.username}</strong>. Reports are reviewed by our team.</p>
+                                    <div className="settings-form-group">
+                                        <label>Reason</label>
+                                        <select value={reportReason} onChange={e => setReportReason(e.target.value)}
+                                            style={{width:'100%', padding:'0.6rem', border:'1.5px solid #d4b896', borderRadius:'6px', background:'#fff', fontSize:'0.9rem', marginBottom:'0.75rem'}}>
+                                            <option value="">Select a reason…</option>
+                                            <option value="spam">Spam or fake account</option>
+                                            <option value="harassment">Harassment or bullying</option>
+                                            <option value="impersonation">Impersonating someone</option>
+                                            <option value="inappropriate">Inappropriate content</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <button className="settings-btn" style={{width:'100%'}} disabled={!reportReason || reportSubmitting} onClick={submitUserReport}>
+                                        {reportSubmitting ? 'Submitting…' : 'Submit Report'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Blocked Accounts Modal */}
                     {showBlockedModal && (
                         <div className="book-detail-overlay" onClick={() => setShowBlockedModal(false)}>
@@ -12641,11 +12780,11 @@
                                                 <div className="profile-at-username">@{vp.username}</div>
                                                 {vp.bio && <div className="profile-bio">{vp.bio}</div>}
                                                 <div className="profile-stats-row">
-                                                    <div className="profile-stat">
+                                                    <div className="profile-stat" style={{cursor:'pointer'}} onClick={() => { setFollowListType('followers'); loadFollowList(vp.id, 'followers'); setShowFollowListModal(true); }}>
                                                         <div className="profile-stat-num">{profileFollowerCount}</div>
                                                         <div className="profile-stat-label">Followers</div>
                                                     </div>
-                                                    <div className="profile-stat">
+                                                    <div className="profile-stat" style={{cursor:'pointer'}} onClick={() => { setFollowListType('following'); loadFollowList(vp.id, 'following'); setShowFollowListModal(true); }}>
                                                         <div className="profile-stat-num">{profileFollowingCount}</div>
                                                         <div className="profile-stat-label">Following</div>
                                                     </div>
@@ -12673,6 +12812,7 @@
                                                             setConfirmAction({ title:'Block User', message:`Block ${v.display_name || v.username}? They won't be able to find or follow you.`, onConfirm: () => blockUser(v.id) });
                                                             setShowConfirm(true);
                                                         }}>Block</button>
+                                                        <button className="profile-msg-btn" style={{color:'#888'}} onClick={() => { setReportingUser(vp); setReportReason(''); setShowReportModal(true); }}>Report</button>
                                                     </div>
                                                 )}
                                             </div>

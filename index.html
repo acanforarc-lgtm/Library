@@ -4514,6 +4514,8 @@
             const [profileFollowingCount, setProfileFollowingCount] = useState(0);
             const [profileBooksRead, setProfileBooksRead] = useState(0);
             const [profileLoading, setProfileLoading] = useState(false);
+            const [myFollowerCount, setMyFollowerCount] = useState(0);
+            const [myFollowingCount, setMyFollowingCount] = useState(0);
             const [showFollowListModal, setShowFollowListModal] = useState(false);
             const [followListType, setFollowListType] = useState('followers'); // 'followers'|'following'
             const [followList, setFollowList] = useState([]);
@@ -4569,6 +4571,14 @@
                             if (data) setMyPrivacySettings(data);
                         });
                     loadBlockedUsers();
+                    // Load own follower/following counts
+                    const uid = currentUser.id;
+                    supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                        .eq('friend_id', uid).eq('status', 'accepted')
+                        .then(({ count }) => setMyFollowerCount(count || 0));
+                    supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                        .eq('user_id', uid).eq('status', 'accepted')
+                        .then(({ count }) => setMyFollowingCount(count || 0));
                 }
             }, [showSettings]);
             
@@ -12143,6 +12153,26 @@
                                         <>
                                             <h2 className="settings-section-title">Account</h2>
                                             <p className="settings-section-subtitle">Manage your profile and personal information</p>
+
+                                            {/* Own social stats */}
+                                            <div className="settings-card" style={{textAlign:'center'}}>
+                                                <div style={{display:'flex', justifyContent:'space-around', gap:'0.5rem'}}>
+                                                    <div style={{cursor:'pointer'}} onClick={() => { setFollowListType('followers'); loadFollowList(currentUser.id, 'followers'); setShowFollowListModal(true); }}>
+                                                        <div style={{fontSize:'1.5rem', fontWeight:'700', color:'#3d2b1f'}}>{myFollowerCount}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', fontWeight:'600'}}>Followers</div>
+                                                    </div>
+                                                    <div style={{width:'1px', background:'#e8d5b7'}} />
+                                                    <div style={{cursor:'pointer'}} onClick={() => { setFollowListType('following'); loadFollowList(currentUser.id, 'following'); setShowFollowListModal(true); }}>
+                                                        <div style={{fontSize:'1.5rem', fontWeight:'700', color:'#3d2b1f'}}>{myFollowingCount}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', fontWeight:'600'}}>Following</div>
+                                                    </div>
+                                                    <div style={{width:'1px', background:'#e8d5b7'}} />
+                                                    <div>
+                                                        <div style={{fontSize:'1.5rem', fontWeight:'700', color:'#3d2b1f'}}>{books.filter(b => b.userData?.status === 'finished').length}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', fontWeight:'600'}}>Books Read</div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
                                             <div className="settings-card">
                                                 <h3 className="settings-card-title">Profile Information</h3>

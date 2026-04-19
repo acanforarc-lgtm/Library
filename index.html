@@ -8206,36 +8206,42 @@
             // Update user-facing book data (status, rating, notes) in local state.
             // These fields live under book.userData and are read throughout the UI.
             const updateBookUserData = (bookId, field, value) => {
-                // Find the source book to get its isbn for cross-copy sharing
                 const sourceBook = books.find(b => b.id === bookId);
                 const isbn = sourceBook?.isbn || null;
+                // Title-based fallback for books that predate the isbn column
+                const normTitle = sourceBook?.title?.toLowerCase().trim() || null;
+
+                const isSameBook = (b) => {
+                    if (isbn) return b.isbn === isbn;
+                    if (normTitle) return b.title?.toLowerCase().trim() === normTitle;
+                    return b.id === bookId;
+                };
 
                 const merge = (book) => ({
                     ...book,
                     userData: { ...(book.userData || {}), [field]: value }
                 });
 
-                // Update all books sharing the same isbn (or just the one if no isbn)
-                setBooks(prev => prev.map(b =>
-                    (isbn ? b.isbn === isbn : b.id === bookId) ? merge(b) : b
-                ));
+                setBooks(prev => prev.map(b => isSameBook(b) ? merge(b) : b));
 
-                // Keep popup state in sync for both tabs
-                if (shelfBookData && (shelfBookData.id === bookId || (isbn && shelfBookData.isbn === isbn)))
+                if (shelfBookData && isSameBook(shelfBookData))
                     setShelfBookData(prev => merge(prev));
-                if (bookInfoData && (bookInfoData.id === bookId || (isbn && bookInfoData.isbn === isbn)))
+                if (bookInfoData && isSameBook(bookInfoData))
                     setBookInfoData(prev => merge(prev));
 
-                // Persist to Supabase
                 const newUserData = { ...(sourceBook?.userData || {}), [field]: value };
                 try {
                     if (isbn && currentUser?.id) {
-                        // Update all copies with the same isbn for this user
                         supabaseClient.from('books')
                             .update({ userData: newUserData })
-                            .eq('user_id', currentUser.id)
-                            .eq('isbn', isbn)
+                            .eq('user_id', currentUser.id).eq('isbn', isbn)
                             .then(({ error }) => { if (error) console.warn('userData save failed:', error); });
+                    } else if (normTitle && currentUser?.id) {
+                        // Fallback: match all copies by exact title for this user
+                        supabaseClient.from('books')
+                            .update({ userData: newUserData })
+                            .eq('user_id', currentUser.id).ilike('title', normTitle)
+                            .then(({ error }) => { if (error) console.warn('userData save by title failed:', error); });
                     } else {
                         supabaseClient.from('books')
                             .update({ userData: newUserData })

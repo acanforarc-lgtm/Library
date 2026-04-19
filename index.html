@@ -7141,7 +7141,7 @@
 
             // Fetch all recommendation sections — all powered by Google Books
             const fetchAllRecommendations = async (userBooks, userShelves) => {
-                const cacheKey = 'recSections_v3';
+                const cacheKey = 'recSections_v4';
                 const cached = sessionStorage.getItem(cacheKey);
                 if (cached) { try { setRecSections(JSON.parse(cached)); return; } catch(_) {} }
                 if (sessionStorage.getItem('recs_fetching')) return;
@@ -7155,7 +7155,7 @@
                         .catch(() => null);
 
                 const toBooks = (data) =>
-                    (data?.items || []).filter(i => i.volumeInfo.imageLinks).map(parseGbItem).slice(0, 30);
+                    (data?.items || []).map(parseGbItem).slice(0, 30);
 
                 const sections = [];
                 const promises = [];
@@ -7209,7 +7209,7 @@
 
                 // 5. New releases
                 promises.push(
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=15&printType=books${GBOOKS_KEY}`,
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=30&printType=books${GBOOKS_KEY}`,
                         { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null).catch(() => null)
                         .then(data => {

@@ -4441,6 +4441,7 @@
             const [selectedFriend, setSelectedFriend] = useState(null);
             const [friends, setFriends] = useState([]);
             const [friendRequests, setFriendRequests] = useState([]);
+            const [blockedUsers, setBlockedUsers] = useState([]);
             const [sentRequests, setSentRequests] = useState([]);
             const [requestCooldowns, setRequestCooldowns] = useState({});
             const [friendSearch, setFriendSearch] = useState('');
@@ -4558,6 +4559,7 @@
                         .then(({ data }) => {
                             if (data) setMyPrivacySettings(data);
                         });
+                    loadBlockedUsers();
                 }
             }, [showSettings]);
             
@@ -4928,6 +4930,29 @@
                 }
             };
 
+            const loadBlockedUsers = async () => {
+                if (!currentUser?.id) return;
+                try {
+                    const { data: blocks } = await supabaseClient
+                        .from('blocked_users')
+                        .select('id, blocked_id')
+                        .eq('blocker_id', currentUser.id);
+                    if (!blocks || blocks.length === 0) { setBlockedUsers([]); return; }
+                    const ids = blocks.map(b => b.blocked_id);
+                    const { data: profiles } = await supabaseClient
+                        .from('user_profiles')
+                        .select('id, username, display_name, avatar_url')
+                        .in('id', ids);
+                    const merged = (blocks || []).map(b => ({
+                        blockId: b.id,
+                        ...(profiles || []).find(p => p.id === b.blocked_id)
+                    }));
+                    setBlockedUsers(merged);
+                } catch (err) {
+                    console.error('loadBlockedUsers error:', err);
+                }
+            };
+
             const loadFriendRequests = async () => {
                 if (!currentUser?.id) return;
                 try {
@@ -5108,8 +5133,19 @@
                         .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUser.id})`);
                     showMessage('User blocked.');
                     loadFriends();
+                    loadBlockedUsers();
                 } catch (err) {
                     showMessage('Could not block user.');
+                }
+            };
+
+            const unblockUser = async (blockId, displayName) => {
+                try {
+                    await supabaseClient.from('blocked_users').delete().eq('id', blockId);
+                    showMessage(`${displayName || 'User'} unblocked.`);
+                    loadBlockedUsers();
+                } catch (err) {
+                    showMessage('Could not unblock user.');
                 }
             };
 
@@ -12165,10 +12201,31 @@
                                                 ))}
                                             </div>
 
-                                            {/* Blocked accounts placeholder */}
+                                            {/* Blocked Accounts */}
                                             <div className="settings-card">
                                                 <h3 className="settings-card-title">Blocked Accounts</h3>
-                                                <p style={{color:'#666', fontSize:'0.85rem'}}>Blocked users cannot find or follow you. Manage blocks from a user's profile page.</p>
+                                                <p style={{color:'#666', fontSize:'0.85rem', marginBottom:'0.75rem'}}>Blocked users cannot find or follow you.</p>
+                                                {blockedUsers.length === 0 ? (
+                                                    <p style={{color:'#aaa', fontSize:'0.85rem', fontStyle:'italic'}}>No blocked accounts.</p>
+                                                ) : (
+                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.6rem'}}>
+                                                        {blockedUsers.map(u => (
+                                                            <div key={u.blockId} style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.5rem 0', borderBottom:'1px solid #f0e8d8'}}>
+                                                                <div style={{width:'36px', height:'36px', borderRadius:'50%', background:'#c9a87c', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'1rem', flexShrink:0}}>
+                                                                    {(u.display_name || u.username || '?').charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div style={{flex:1, minWidth:0}}>
+                                                                    <div style={{fontWeight:'600', fontSize:'0.9rem', color:'#3d2b1f'}}>{u.display_name || u.username}</div>
+                                                                    <div style={{fontSize:'0.78rem', color:'#8b6f47'}}>@{u.username}</div>
+                                                                </div>
+                                                                <button onClick={() => unblockUser(u.blockId, u.display_name || u.username)}
+                                                                    style={{padding:'0.35rem 0.75rem', background:'#fff', border:'1.5px solid #d4b896', borderRadius:'6px', color:'#8b4513', fontSize:'0.8rem', cursor:'pointer', fontWeight:'600', flexShrink:0}}>
+                                                                    Unblock
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </>
                                     )}

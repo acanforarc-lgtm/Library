@@ -1935,27 +1935,6 @@
             font-size: 0.8rem;
         }
 
-        /* Desktop: switch rows to a full-width grid so there's no dead space */
-        @media (min-width: 1024px) {
-            .category-scroll {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-                overflow-x: visible;
-                overflow-y: visible;
-                gap: 1rem;
-                padding: 0.5rem 0.5rem 1rem;
-                cursor: default;
-            }
-            .category-book {
-                width: auto;
-            }
-            .category-book-cover {
-                width: 100%;
-            }
-            .category-book-cover-placeholder {
-                width: 100%;
-            }
-        }
 
         .category-book-title {
             font-family: 'Crimson Pro', serif;
@@ -7169,14 +7148,14 @@
                 sessionStorage.setItem('recs_fetching', '1');
                 setRecsLoading(true);
 
-                const gbQuery = (q, n = 15) =>
+                const gbQuery = (q, n = 30) =>
                     fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=relevance&maxResults=${n}&printType=books${GBOOKS_KEY}`,
                         { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null);
 
                 const toBooks = (data) =>
-                    (data?.items || []).filter(i => i.volumeInfo.imageLinks).map(parseGbItem).slice(0, 12);
+                    (data?.items || []).filter(i => i.volumeInfo.imageLinks).map(parseGbItem).slice(0, 30);
 
                 const sections = [];
                 const promises = [];
@@ -7221,7 +7200,7 @@
 
                 // 4. Popular right now (curated query, ordered by relevance)
                 promises.push(
-                    gbQuery('subject:fiction', 20)
+                    gbQuery('subject:fiction', 30)
                         .then(data => {
                             const books = toBooks(data);
                             if (books.length >= 3) sections.push({ id: 'trending', title: 'Popular Right Now', label: '🔥 Widely read', books });

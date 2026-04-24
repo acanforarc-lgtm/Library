@@ -2935,7 +2935,7 @@
 
             /* Notification dropdown: anchor to top-right on mobile */
             .notif-dropdown {
-                top: 60px;
+                top: calc(env(safe-area-inset-top) + 62px);
                 right: 8px;
                 left: auto;
                 width: 260px;
@@ -2945,7 +2945,7 @@
             /* Account dropdown: anchor to top-left on mobile (avatar is top-left) */
             .header-avatar-mobile .user-dropdown {
                 position: fixed;
-                top: 60px;
+                top: calc(env(safe-area-inset-top) + 62px);
                 left: 8px;
                 right: auto;
                 width: 230px;
@@ -3280,12 +3280,15 @@
             position: relative;
             background: none;
             border: none;
+            -webkit-appearance: none;
+            appearance: none;
             font-size: 1.4rem;
             cursor: pointer;
             padding: 0.4rem;
             border-radius: 50%;
             transition: background 0.2s;
             line-height: 1;
+            outline: none;
         }
         .notif-bell:hover { background: rgba(139,111,71,0.12); }
 

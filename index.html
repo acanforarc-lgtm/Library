@@ -8985,7 +8985,7 @@
                         <div className="header-avatar-slot">
                             {currentUser && (
                                 <div className="user-menu header-avatar-mobile">
-                                    <div className="user-button" onClick={() => setShowUserMenu(!showUserMenu)} title={currentUser.name}>
+                                    <div className="user-button" onClick={() => { setShowUserMenu(v => !v); setShowNotifications(false); }} title={currentUser.name}>
                                         <div className="user-avatar">
                                             {currentUser.name.split(' ').map(w => w.charAt(0)).slice(0,2).join('').toUpperCase()}
                                         </div>
@@ -9213,7 +9213,7 @@
                             <div className="user-menu">
                                 <div
                                     className="user-button"
-                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    onClick={() => { setShowUserMenu(v => !v); setShowNotifications(false); }}
                                     title={currentUser.name}
                                 >
                                     <div className="user-avatar">

@@ -1935,6 +1935,7 @@
             font-size: 0.8rem;
         }
 
+
         .category-book-title {
             font-family: 'Crimson Pro', serif;
             font-size: 0.9rem;
@@ -2565,61 +2566,69 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(61, 40, 23, 0.85);
+            backdrop-filter: blur(4px);
             z-index: 3000;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            padding: 1.5rem;
         }
 
         .scanner-container {
             background: white;
             border-radius: 20px;
-            max-width: 600px;
+            max-width: 560px;
             width: 100%;
             max-height: 90vh;
             overflow: hidden;
             position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: popIn 0.3s ease-out;
         }
 
         .scanner-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 2px solid #f0e8d8;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            background: #fdf6e9;
         }
 
         .scanner-title {
-            font-family: 'Libre Baskerville', serif;
-            font-size: 1.5rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.4rem;
             color: #3d2817;
+            font-weight: 700;
         }
 
         .scanner-close {
-            background: none;
+            background: rgba(255,255,255,0.9);
             border: none;
-            font-size: 2rem;
+            font-size: 1.5rem;
             cursor: pointer;
             color: #3d2817;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            line-height: 1;
         }
 
         .scanner-close:hover {
-            background: #f5f5f5;
+            background: white;
+            transform: scale(1.1);
         }
 
         .scanner-video-container {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 380px;
             background: #000;
             display: flex;
             align-items: center;
@@ -2641,7 +2650,7 @@
             max-width: 300px;
             height: 150px;
             border: 3px solid #d4af37;
-            border-radius: 8px;
+            border-radius: 10px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
         }
 
@@ -2652,25 +2661,26 @@
             right: 0;
             text-align: center;
             color: white;
-            font-size: 1.1rem;
+            font-size: 1rem;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
         }
 
         .scanner-actions {
-            padding: 1.5rem;
+            padding: 1.25rem 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.85rem;
+            background: #fdf6e9;
         }
 
         .scanner-capture-btn {
-            padding: 1rem;
+            padding: 0.9rem;
             background: linear-gradient(135deg, #2d4a3e, #3d5a4d);
             color: white;
             border: none;
             border-radius: 10px;
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
@@ -2686,10 +2696,12 @@
 
         .scanner-status {
             text-align: center;
-            padding: 1rem;
-            background: #faf8f3;
+            padding: 0.75rem 1rem;
+            background: white;
             border-radius: 8px;
+            border: 1px solid #e0c9a6;
             color: #3d2817;
+            font-size: 0.9rem;
         }
 
         .scanner-loading {
@@ -2701,9 +2713,9 @@
         }
 
         .scanner-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #e0e0e0;
+            width: 44px;
+            height: 44px;
+            border: 4px solid #e0c9a6;
             border-top-color: #d4af37;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -2717,77 +2729,12 @@
             position: relative;
         }
 
-        /* Barcode Scanner */
-        .scanner-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 3000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-
-        .scanner-container {
-            background: white;
-            border-radius: 20px;
-            max-width: 600px;
-            width: 100%;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-
-        .scanner-header {
-            padding: 1.5rem 2rem;
-            border-bottom: 2px solid #f0f0f0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .scanner-title {
-            font-family: 'Libre Baskerville', serif;
-            font-size: 1.5rem;
-            color: #3d2817;
-        }
-
-        .scanner-close {
-            background: none;
-            border: none;
-            font-size: 2rem;
-            cursor: pointer;
-            color: #3d2817;
-            line-height: 1;
-        }
-
         .scanner-viewport {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 380px;
             background: #000;
             overflow: hidden;
-        }
-
-        #scanner-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .scanner-viewfinder {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 200px;
-            border: 3px solid #d4af37;
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
         }
 
         .scanner-viewfinder::before,
@@ -2934,7 +2881,7 @@
 
             /* Notification dropdown: anchor to top-right on mobile */
             .notif-dropdown {
-                top: 60px;
+                top: calc(env(safe-area-inset-top) + 62px);
                 right: 8px;
                 left: auto;
                 width: 260px;
@@ -2944,7 +2891,7 @@
             /* Account dropdown: anchor to top-left on mobile (avatar is top-left) */
             .header-avatar-mobile .user-dropdown {
                 position: fixed;
-                top: 60px;
+                top: calc(env(safe-area-inset-top) + 62px);
                 left: 8px;
                 right: auto;
                 width: 230px;
@@ -3025,7 +2972,7 @@
             }
 
             .settings-header {
-                padding: 0.85rem 1rem;
+                padding: calc(env(safe-area-inset-top) + 0.85rem) 1rem 0.85rem;
             }
 
             .book-detail-header {
@@ -3279,12 +3226,15 @@
             position: relative;
             background: none;
             border: none;
+            -webkit-appearance: none;
+            appearance: none;
             font-size: 1.4rem;
             cursor: pointer;
             padding: 0.4rem;
             border-radius: 50%;
             transition: background 0.2s;
             line-height: 1;
+            outline: none;
         }
         .notif-bell:hover { background: rgba(139,111,71,0.12); }
 
@@ -3909,7 +3859,7 @@
             display: flex;
             align-items: center;
             gap: 1rem;
-            padding: 1rem 1.25rem;
+            padding: calc(env(safe-area-inset-top) + 1rem) 1.25rem 1rem;
             border-bottom: 2px solid #d4b896;
             background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 100%);
         }
@@ -4377,6 +4327,10 @@
             const [rapidScanBoard, setRapidScanBoard] = useState('');
             const [rapidScanPosition, setRapidScanPosition] = useState('in-order'); // 'in-order' or 'random'
             const [rapidScanCounter, setRapidScanCounter] = useState(0); // Tracks position for in-order
+            const [sessionScannedBooks, setSessionScannedBooks] = useState([]);
+            const [showSessionLog, setShowSessionLog] = useState(false);
+            const [scanJustAdded, setScanJustAdded] = useState(false);
+            const newShelfNameRef = React.useRef(null);
 
             // Search state
             const [searchQuery, setSearchQuery] = useState('');
@@ -4406,6 +4360,7 @@
             const [showSettings, setShowSettings] = useState(false);
             const [settingsTab, setSettingsTab] = useState('account');
             const [showMoveModal, setShowMoveModal] = useState(false);
+            const [showBlockedModal, setShowBlockedModal] = useState(false);
             const [selectedShelfToMove, setSelectedShelfToMove] = useState('');
             const [showAssignModal, setShowAssignModal] = useState(false);
 
@@ -4441,6 +4396,7 @@
             const [selectedFriend, setSelectedFriend] = useState(null);
             const [friends, setFriends] = useState([]);
             const [friendRequests, setFriendRequests] = useState([]);
+            const [blockedUsers, setBlockedUsers] = useState([]);
             const [sentRequests, setSentRequests] = useState([]);
             const [requestCooldowns, setRequestCooldowns] = useState({});
             const [friendSearch, setFriendSearch] = useState('');
@@ -4512,6 +4468,16 @@
             const [profileFollowingCount, setProfileFollowingCount] = useState(0);
             const [profileBooksRead, setProfileBooksRead] = useState(0);
             const [profileLoading, setProfileLoading] = useState(false);
+            const [myFollowerCount, setMyFollowerCount] = useState(0);
+            const [myFollowingCount, setMyFollowingCount] = useState(0);
+            const [showFollowListModal, setShowFollowListModal] = useState(false);
+            const [followListType, setFollowListType] = useState('followers'); // 'followers'|'following'
+            const [followList, setFollowList] = useState([]);
+            const [followListLoading, setFollowListLoading] = useState(false);
+            const [showReportModal, setShowReportModal] = useState(false);
+            const [reportingUser, setReportingUser] = useState(null);
+            const [reportReason, setReportReason] = useState('');
+            const [reportSubmitting, setReportSubmitting] = useState(false);
             const [myVisibility, setMyVisibility] = useState('public'); // 'public'|'private'|'hidden'
             const [myPrivacySettings, setMyPrivacySettings] = useState({
                 show_currently_reading: true, show_recently_read: true,
@@ -4558,6 +4524,15 @@
                         .then(({ data }) => {
                             if (data) setMyPrivacySettings(data);
                         });
+                    loadBlockedUsers();
+                    // Load own follower/following counts
+                    const uid = currentUser.id;
+                    supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                        .eq('friend_id', uid).eq('status', 'accepted')
+                        .then(({ count }) => setMyFollowerCount(count || 0));
+                    supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                        .eq('user_id', uid).eq('status', 'accepted')
+                        .then(({ count }) => setMyFollowingCount(count || 0));
                 }
             }, [showSettings]);
             
@@ -4802,6 +4777,13 @@
                 return () => document.removeEventListener('mousedown', handleClickOutside);
             }, [showSearchDropdown]);
 
+            // Focus shelf name input when create shelf modal opens (fixes iOS keyboard)
+            useEffect(() => {
+                if (showCreateShelfModal) {
+                    setTimeout(() => newShelfNameRef.current?.focus(), 150);
+                }
+            }, [showCreateShelfModal]);
+
             // Lock body scroll when any modal is open
             useEffect(() => {
                 const anyModalOpen = showShelfBookPopup || showBookInfo || !!selectedBook ||
@@ -4925,6 +4907,29 @@
                     }
                 } catch (err) {
                     console.error('loadFriends error:', err);
+                }
+            };
+
+            const loadBlockedUsers = async () => {
+                if (!currentUser?.id) return;
+                try {
+                    const { data: blocks } = await supabaseClient
+                        .from('blocked_users')
+                        .select('id, blocked_id')
+                        .eq('blocker_id', currentUser.id);
+                    if (!blocks || blocks.length === 0) { setBlockedUsers([]); return; }
+                    const ids = blocks.map(b => b.blocked_id);
+                    const { data: profiles } = await supabaseClient
+                        .from('user_profiles')
+                        .select('id, username, display_name, avatar_url')
+                        .in('id', ids);
+                    const merged = (blocks || []).map(b => ({
+                        blockId: b.id,
+                        ...(profiles || []).find(p => p.id === b.blocked_id)
+                    }));
+                    setBlockedUsers(merged);
+                } catch (err) {
+                    console.error('loadBlockedUsers error:', err);
                 }
             };
 
@@ -5108,8 +5113,79 @@
                         .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUser.id})`);
                     showMessage('User blocked.');
                     loadFriends();
+                    loadBlockedUsers();
                 } catch (err) {
                     showMessage('Could not block user.');
+                }
+            };
+
+            const unblockUser = async (blockId, displayName) => {
+                try {
+                    await supabaseClient.from('blocked_users').delete().eq('id', blockId);
+                    showMessage(`${displayName || 'User'} unblocked.`);
+                    loadBlockedUsers();
+                } catch (err) {
+                    showMessage('Could not unblock user.');
+                }
+            };
+
+            // Toggle shelf public/private
+            const toggleShelfPublic = async (shelfId, currentIsPublic) => {
+                const newVal = !currentIsPublic;
+                setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, is_public: newVal } : s));
+                try {
+                    await supabaseClient.from('shelves').update({ is_public: newVal }).eq('id', shelfId);
+                    showMessage(newVal ? 'Shelf is now public.' : 'Shelf is now private.');
+                } catch (err) {
+                    setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, is_public: currentIsPublic } : s));
+                    showMessage('Could not update shelf visibility.');
+                }
+            };
+
+            // Load followers or following list for a profile
+            const loadFollowList = async (userId, type) => {
+                setFollowListLoading(true);
+                setFollowList([]);
+                try {
+                    let ids = [];
+                    if (type === 'followers') {
+                        const { data } = await supabaseClient.from('friendships')
+                            .select('user_id').eq('friend_id', userId).eq('status', 'accepted');
+                        ids = (data || []).map(r => r.user_id);
+                    } else {
+                        const { data } = await supabaseClient.from('friendships')
+                            .select('friend_id').eq('user_id', userId).eq('status', 'accepted');
+                        ids = (data || []).map(r => r.friend_id);
+                    }
+                    if (ids.length === 0) { setFollowList([]); setFollowListLoading(false); return; }
+                    const { data: profiles } = await supabaseClient.from('user_profiles')
+                        .select('id, username, display_name, avatar_url')
+                        .in('id', ids);
+                    setFollowList(profiles || []);
+                } catch (err) {
+                    console.error('loadFollowList error:', err);
+                } finally {
+                    setFollowListLoading(false);
+                }
+            };
+
+            // Submit a user report
+            const submitUserReport = async () => {
+                if (!reportReason.trim()) { showMessage('Please enter a reason.'); return; }
+                setReportSubmitting(true);
+                try {
+                    await supabaseClient.from('user_reports').insert({
+                        reporter_id: currentUser.id,
+                        reported_id: reportingUser.id,
+                        reason: reportReason.trim()
+                    });
+                    setShowReportModal(false);
+                    setReportReason('');
+                    showMessage('Report submitted. Thank you.');
+                } catch (err) {
+                    showMessage('Could not submit report.');
+                } finally {
+                    setReportSubmitting(false);
                 }
             };
 
@@ -7025,21 +7101,21 @@
 
             // Fetch all recommendation sections — all powered by Google Books
             const fetchAllRecommendations = async (userBooks, userShelves) => {
-                const cacheKey = 'recSections_v3';
+                const cacheKey = 'recSections_v4';
                 const cached = sessionStorage.getItem(cacheKey);
                 if (cached) { try { setRecSections(JSON.parse(cached)); return; } catch(_) {} }
                 if (sessionStorage.getItem('recs_fetching')) return;
                 sessionStorage.setItem('recs_fetching', '1');
                 setRecsLoading(true);
 
-                const gbQuery = (q, n = 15) =>
+                const gbQuery = (q, n = 30) =>
                     fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&orderBy=relevance&maxResults=${n}&printType=books${GBOOKS_KEY}`,
                         { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null);
 
                 const toBooks = (data) =>
-                    (data?.items || []).filter(i => i.volumeInfo.imageLinks).map(parseGbItem).slice(0, 12);
+                    (data?.items || []).map(parseGbItem).slice(0, 30);
 
                 const sections = [];
                 const promises = [];
@@ -7084,7 +7160,7 @@
 
                 // 4. Popular right now (curated query, ordered by relevance)
                 promises.push(
-                    gbQuery('subject:fiction', 20)
+                    gbQuery('subject:fiction', 30)
                         .then(data => {
                             const books = toBooks(data);
                             if (books.length >= 3) sections.push({ id: 'trending', title: 'Popular Right Now', label: '🔥 Widely read', books });
@@ -7093,7 +7169,7 @@
 
                 // 5. New releases
                 promises.push(
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=15&printType=books${GBOOKS_KEY}`,
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=30&printType=books${GBOOKS_KEY}`,
                         { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null).catch(() => null)
                         .then(data => {
@@ -7427,7 +7503,9 @@
                         if (insertError) throw insertError;
 
                         setBooks(prev => [...prev, inserted[0]]);
-                        showMessage(`✅ ${inserted[0].title} → ${selectedShelf.name} (Shelf ${targetBoardIndex + 1}, Pos ${targetPosition})`);
+                        setSessionScannedBooks(prev => [...prev, { title: inserted[0].title, author: inserted[0].author || book.author || '', cover: inserted[0].cover || book.cover || null }]);
+                        setScanJustAdded(true);
+                        setTimeout(() => setScanJustAdded(false), 2000);
 
                         // Play success beep
                         const beep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGa74+OlQRgWbbro8LRgFgY3kdXzx3koJlIx');
@@ -8091,36 +8169,42 @@
             // Update user-facing book data (status, rating, notes) in local state.
             // These fields live under book.userData and are read throughout the UI.
             const updateBookUserData = (bookId, field, value) => {
-                // Find the source book to get its isbn for cross-copy sharing
                 const sourceBook = books.find(b => b.id === bookId);
                 const isbn = sourceBook?.isbn || null;
+                // Title-based fallback for books that predate the isbn column
+                const normTitle = sourceBook?.title?.toLowerCase().trim() || null;
+
+                const isSameBook = (b) => {
+                    if (isbn) return b.isbn === isbn;
+                    if (normTitle) return b.title?.toLowerCase().trim() === normTitle;
+                    return b.id === bookId;
+                };
 
                 const merge = (book) => ({
                     ...book,
                     userData: { ...(book.userData || {}), [field]: value }
                 });
 
-                // Update all books sharing the same isbn (or just the one if no isbn)
-                setBooks(prev => prev.map(b =>
-                    (isbn ? b.isbn === isbn : b.id === bookId) ? merge(b) : b
-                ));
+                setBooks(prev => prev.map(b => isSameBook(b) ? merge(b) : b));
 
-                // Keep popup state in sync for both tabs
-                if (shelfBookData && (shelfBookData.id === bookId || (isbn && shelfBookData.isbn === isbn)))
+                if (shelfBookData && isSameBook(shelfBookData))
                     setShelfBookData(prev => merge(prev));
-                if (bookInfoData && (bookInfoData.id === bookId || (isbn && bookInfoData.isbn === isbn)))
+                if (bookInfoData && isSameBook(bookInfoData))
                     setBookInfoData(prev => merge(prev));
 
-                // Persist to Supabase
                 const newUserData = { ...(sourceBook?.userData || {}), [field]: value };
                 try {
                     if (isbn && currentUser?.id) {
-                        // Update all copies with the same isbn for this user
                         supabaseClient.from('books')
                             .update({ userData: newUserData })
-                            .eq('user_id', currentUser.id)
-                            .eq('isbn', isbn)
+                            .eq('user_id', currentUser.id).eq('isbn', isbn)
                             .then(({ error }) => { if (error) console.warn('userData save failed:', error); });
+                    } else if (normTitle && currentUser?.id) {
+                        // Fallback: match all copies by exact title for this user
+                        supabaseClient.from('books')
+                            .update({ userData: newUserData })
+                            .eq('user_id', currentUser.id).ilike('title', normTitle)
+                            .then(({ error }) => { if (error) console.warn('userData save by title failed:', error); });
                     } else {
                         supabaseClient.from('books')
                             .update({ userData: newUserData })
@@ -8475,7 +8559,9 @@
                     if (error) throw error;
 
                     setBooks([...books, data[0]]);
-                    showMessage(`✅ Added "${data[0].title}"`);
+                    setSessionScannedBooks(prev => [...prev, { title: data[0].title, author: data[0].author || '', cover: scannedBookData.cover || data[0].cover || null }]);
+                    setScanJustAdded(true);
+                    setTimeout(() => setScanJustAdded(false), 2000);
 
                     // Close popup and scanner in RIGHT ORDER
                     closeScanner();
@@ -8542,7 +8628,9 @@
                     if (error) throw error;
 
                     setBooks([...books, data[0]]);
-                    showMessage(`✅ Added "${data[0].title}"`);
+                    setSessionScannedBooks(prev => [...prev, { title: data[0].title, author: data[0].author || '', cover: scannedBookData.cover || data[0].cover || null }]);
+                    setScanJustAdded(true);
+                    setTimeout(() => setScanJustAdded(false), 2000);
                     closeScanner();
                     setShowScannedBookPopup(false);
                     setScannedBookData(null);
@@ -8863,7 +8951,7 @@
                         <div className="header-avatar-slot">
                             {currentUser && (
                                 <div className="user-menu header-avatar-mobile">
-                                    <div className="user-button" onClick={() => setShowUserMenu(!showUserMenu)} title={currentUser.name}>
+                                    <div className="user-button" onClick={(e) => { e.stopPropagation(); setShowUserMenu(v => !v); setShowNotifications(false); }} title={currentUser.name}>
                                         <div className="user-avatar">
                                             {currentUser.name.split(' ').map(w => w.charAt(0)).slice(0,2).join('').toUpperCase()}
                                         </div>
@@ -8905,7 +8993,7 @@
                         <div className="header-bell-slot">
                             {currentUser && (
                                 <div style={{position:'relative'}}>
-                                    <button className="notif-bell header-bell-mobile" onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }} title="Notifications">
+                                    <button className="notif-bell header-bell-mobile" onClick={(e) => { e.stopPropagation(); setShowNotifications(v => !v); setShowUserMenu(false); }} title="Notifications">
                                         🔔
                                         {unreadNotifications > 0 && <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>}
                                     </button>
@@ -9024,7 +9112,7 @@
                             <div className="header-bell-desktop" style={{position:'relative'}}>
                                 <button
                                     className="notif-bell"
-                                    onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }}
+                                    onClick={(e) => { e.stopPropagation(); setShowNotifications(v => !v); setShowUserMenu(false); }}
                                     title="Notifications"
                                 >
                                     🔔
@@ -9091,7 +9179,7 @@
                             <div className="user-menu">
                                 <div
                                     className="user-button"
-                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    onClick={(e) => { e.stopPropagation(); setShowUserMenu(v => !v); setShowNotifications(false); }}
                                     title={currentUser.name}
                                 >
                                     <div className="user-avatar">
@@ -9555,70 +9643,63 @@
                     {/* SCAN MODE SELECTOR */}
                     {showScanModeSelector && (
                         <div className="book-detail-overlay" onClick={() => setShowScanModeSelector(false)}>
-                            <div className="book-detail-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '500px'}}>
+                            <div className="book-detail-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '440px'}}>
                                 <button className="book-detail-close" onClick={() => setShowScanModeSelector(false)}>×</button>
-                                
-                                <h2 style={{textAlign: 'center', marginBottom: '2rem', fontFamily: 'Crimson Pro'}}>
-                                    Choose Scan Mode
-                                </h2>
-                                
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                                    <button
-                                        onClick={() => {
-                                            setScanMode('rapid');
-                                            setShowScanModeSelector(false);
-                                        }}
-                                        style={{
-                                            padding: '1.5rem',
-                                            background: 'linear-gradient(135deg, #4CAF50, #45a049)',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem'
-                                        }}
-                                    >
-                                        <span style={{fontSize: '2rem'}}>⚡</span>
-                                        <div style={{textAlign: 'left'}}>
-                                            <div>Rapid Scan</div>
-                                            <div style={{fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.9}}>
-                                                Scan fast, pre-set location
+                                <div className="book-detail-content">
+                                    <h2 style={{textAlign: 'center', marginBottom: '0.5rem', fontFamily: 'Crimson Pro, serif', color: '#3d2817', fontSize: '1.6rem'}}>
+                                        Physical Scanner
+                                    </h2>
+                                    <p style={{textAlign:'center', color:'#8b6f47', fontSize:'0.9rem', marginBottom:'1.75rem'}}>Choose how scanned books are added</p>
+
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '0.85rem'}}>
+                                        <button
+                                            onClick={() => { setScanMode('rapid'); setShowScanModeSelector(false); }}
+                                            style={{
+                                                padding: '1.25rem 1.5rem',
+                                                background: 'linear-gradient(135deg, #2d4a3e, #3d5a4d)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '12px',
+                                                fontSize: '1rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '1rem',
+                                                textAlign: 'left'
+                                            }}
+                                        >
+                                            <span style={{fontSize: '1.75rem', flexShrink:0}}>⚡</span>
+                                            <div>
+                                                <div style={{marginBottom:'0.2rem'}}>Rapid Scan</div>
+                                                <div style={{fontSize: '0.82rem', fontWeight: 400, opacity: 0.85}}>Pre-set shelf & location — scan at speed</div>
                                             </div>
-                                        </div>
-                                    </button>
-                                    
-                                    <button
-                                        onClick={() => {
-                                            setScanMode('detail');
-                                            setScannerMode(true);
-                                            setShowScanModeSelector(false);
-                                        }}
-                                        style={{
-                                            padding: '1.5rem',
-                                            background: 'linear-gradient(135deg, #2196F3, #1976D2)',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem'
-                                        }}
-                                    >
-                                        <span style={{fontSize: '2rem'}}>📋</span>
-                                        <div style={{textAlign: 'left'}}>
-                                            <div>Detail Scan</div>
-                                            <div style={{fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.9}}>
-                                                Review each book with ratings & notes
+                                        </button>
+
+                                        <button
+                                            onClick={() => { setScanMode('detail'); setScannerMode(true); setShowScanModeSelector(false); }}
+                                            style={{
+                                                padding: '1.25rem 1.5rem',
+                                                background: '#fdf6e9',
+                                                color: '#3d2817',
+                                                border: '2px solid #c9a87c',
+                                                borderRadius: '12px',
+                                                fontSize: '1rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '1rem',
+                                                textAlign: 'left'
+                                            }}
+                                        >
+                                            <span style={{fontSize: '1.75rem', flexShrink:0}}>📋</span>
+                                            <div>
+                                                <div style={{marginBottom:'0.2rem'}}>Detail Scan</div>
+                                                <div style={{fontSize: '0.82rem', fontWeight: 400, color:'#8b6f47'}}>Review each book before adding</div>
                                             </div>
-                                        </div>
-                                    </button>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -9726,27 +9807,19 @@
                                                 showMessage('⚠️ Please select a shelf board');
                                                 return;
                                             }
-                                            
-                                            setRapidScanCounter(0); // Reset counter
+                                            setRapidScanCounter(0);
+                                            setSessionScannedBooks([]);
                                             setScannerMode(true);
-                                            showMessage('🔫 Rapid scan ready! Start scanning!');
                                         }}
                                         disabled={!rapidScanShelf || (rapidScanShelf !== 'random' && !rapidScanBoard)}
+                                        className="book-detail-add-btn"
                                         style={{
-                                            padding: '1rem',
-                                            background: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) 
-                                                ? 'linear-gradient(135deg, #4CAF50, #45a049)' 
-                                                : '#ccc',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 'bold',
-                                            cursor: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) ? 'pointer' : 'not-allowed',
-                                            marginTop: '1rem'
+                                            marginTop: '0.5rem',
+                                            opacity: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) ? 1 : 0.45,
+                                            cursor: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) ? 'pointer' : 'not-allowed'
                                         }}
                                     >
-                                        🚀 Start Rapid Scanning
+                                        Start Rapid Scanning
                                     </button>
                                 </div>
                             </div>
@@ -9756,85 +9829,154 @@
                     {/* BLUETOOTH SCANNER MODE BANNER */}
                     {scannerMode && (
                         <div style={{
-                            background: scanMode === 'rapid' ? '#4CAF50' : '#2196F3',
-                            color: 'white',
-                            padding: '1rem 2rem',
-                            textAlign: 'center',
-                            fontWeight: 'bold',
-                            fontSize: '1.2rem',
-                            position: 'relative'
+                            background: '#fdf6e9',
+                            borderBottom: '2px solid #c9a87c',
+                            padding: '0.65rem 1.25rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem',
+                            position: 'relative',
+                            zIndex: 100
                         }}>
-                            {scanMode === 'rapid' ? (
-                                <>
-                                    ⚡ RAPID SCAN ACTIVE
-                                    {rapidScanShelf !== 'random' && (
-                                        <span style={{fontSize: '0.9rem', marginLeft: '1rem', opacity: 0.9}}>
-                                            → {shelves.find(s => s.id === parseInt(rapidScanShelf))?.name} 
-                                            {rapidScanBoard !== 'random' && ` / Shelf ${parseInt(rapidScanBoard) + 1}`}
-                                            {` / ${rapidScanPosition === 'in-order' ? '📖 In-Order' : '🎲 Random'}`}
-                                            {rapidScanPosition === 'in-order' && ` (${rapidScanCounter} books)`}
-                                        </span>
-                                    )}
-                                </>
-                            ) : (
-                                '📋 DETAIL SCAN ACTIVE - Review each book'
-                            )}
+                            {/* Left: mode label + location */}
+                            <div style={{display:'flex', alignItems:'center', gap:'0.6rem', flex:1, minWidth:0}}>
+                                <span style={{fontFamily:'Crimson Pro, serif', fontWeight:700, color:'#3d2817', fontSize:'0.95rem', whiteSpace:'nowrap'}}>
+                                    {scanMode === 'rapid' ? '⚡ Rapid Scan' : '📋 Detail Scan'}
+                                </span>
+                                {scanMode === 'rapid' && rapidScanShelf !== 'random' && (
+                                    <span style={{fontSize:'0.82rem', color:'#8b6f47', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                                        → {shelves.find(s => s.id === parseInt(rapidScanShelf))?.name}
+                                        {rapidScanBoard !== 'random' && ` / Shelf ${parseInt(rapidScanBoard) + 1}`}
+                                        {` / ${rapidScanPosition === 'in-order' ? 'In-Order' : 'Random'}`}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Center: success flash or session counter */}
+                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                {scanJustAdded ? (
+                                    <span style={{color:'#2d7a47', fontWeight:700, fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'0.3rem', background:'#e8f5ee', borderRadius:'20px', padding:'0.25rem 0.75rem', border:'1px solid #a8d5b5'}}>
+                                        ✓ Scan added
+                                    </span>
+                                ) : sessionScannedBooks.length > 0 ? (
+                                    <button
+                                        onClick={() => setShowSessionLog(v => !v)}
+                                        style={{
+                                            background: showSessionLog ? '#e0c9a6' : '#f5ece0',
+                                            border: '1px solid #c9a87c',
+                                            borderRadius: '20px',
+                                            padding: '0.25rem 0.75rem',
+                                            color: '#3d2817',
+                                            fontSize: '0.82rem',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {sessionScannedBooks.length} book{sessionScannedBooks.length !== 1 ? 's' : ''} {showSessionLog ? '▴' : '▾'}
+                                    </button>
+                                ) : (
+                                    <span style={{fontSize:'0.82rem', color:'#b8936d'}}>Ready to scan</span>
+                                )}
+                            </div>
+
+                            {/* Right: action buttons */}
+                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                {scanMode === 'rapid' && (
+                                    <button
+                                        onClick={() => { setScannerMode(false); setRapidScanCounter(0); }}
+                                        style={{
+                                            background: '#f0e8d8',
+                                            color: '#3d2817',
+                                            border: '1px solid #c9a87c',
+                                            padding: '0.35rem 0.75rem',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.82rem',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        ⚙ Change
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setScannerMode(false);
+                                        setScanMode(null);
+                                        setRapidScanCounter(0);
+                                        setSessionScannedBooks([]);
+                                        setShowSessionLog(false);
+                                    }}
+                                    style={{
+                                        background: '#3d2817',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '0.35rem 0.75rem',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.82rem',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    Stop
+                                </button>
+                            </div>
+
+                            {/* Hidden input for Bluetooth scanner focus */}
                             <input
                                 type="text"
                                 value={scannerInput}
                                 onChange={(e) => setScannerInput(e.target.value)}
-                                onKeyPress={(e) => {
-                                    if (e.key === 'Enter') {
-                                        handleScannerInput(scannerInput);
-                                    }
-                                }}
+                                onKeyPress={(e) => { if (e.key === 'Enter') handleScannerInput(scannerInput); }}
                                 autoFocus
-                                style={{
-                                    position: 'absolute',
-                                    left: '-9999px',
-                                    width: '1px',
-                                    height: '1px'
-                                }}
+                                style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px' }}
                             />
-                            {scanMode === 'rapid' && (
-                                <button 
-                                    onClick={() => {
-                                        setScannerMode(false);
-                                        setRapidScanCounter(0);
-                                    }}
-                                    style={{
-                                        marginLeft: '1rem',
-                                        background: 'rgba(255,255,255,0.2)',
-                                        color: 'white',
-                                        border: '2px solid white',
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontWeight: 'bold'
-                                    }}
-                                >
-                                    ⚙️ Change Presets
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => {
-                                    setScannerMode(false);
-                                    setScanMode(null);
-                                    setRapidScanCounter(0);
-                                }}
-                                style={{
-                                    marginLeft: '1rem',
+
+                            {/* Session log dropdown */}
+                            {showSessionLog && sessionScannedBooks.length > 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: '1rem',
                                     background: 'white',
-                                    color: scanMode === 'rapid' ? '#4CAF50' : '#2196F3',
-                                    border: 'none',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                Stop Scanning
-                            </button>
+                                    border: '2px solid #c9a87c',
+                                    borderRadius: '14px',
+                                    boxShadow: '0 8px 24px rgba(61,40,23,0.15)',
+                                    padding: '1rem',
+                                    zIndex: 500,
+                                    minWidth: '260px',
+                                    maxWidth: '380px',
+                                    maxHeight: '300px',
+                                    overflowY: 'auto'
+                                }}>
+                                    <div style={{fontFamily:'Crimson Pro, serif', fontWeight:700, color:'#3d2817', marginBottom:'0.75rem', fontSize:'1rem'}}>
+                                        This Session ({sessionScannedBooks.length})
+                                    </div>
+                                    {[...sessionScannedBooks].reverse().map((b, i) => (
+                                        <div key={i} style={{
+                                            display:'flex',
+                                            alignItems:'center',
+                                            gap:'0.6rem',
+                                            padding:'0.4rem 0',
+                                            borderBottom: i < sessionScannedBooks.length - 1 ? '1px solid #f0e8d8' : 'none'
+                                        }}>
+                                            {b.cover ? (
+                                                <img src={b.cover} style={{width:28, height:40, objectFit:'cover', borderRadius:3, flexShrink:0}} />
+                                            ) : (
+                                                <div style={{width:28, height:40, background:'#e0c9a6', borderRadius:3, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', color:'#8b6f47'}}>📚</div>
+                                            )}
+                                            <div style={{overflow:'hidden'}}>
+                                                <div style={{fontSize:'0.85rem', fontWeight:600, color:'#3d2817', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{b.title}</div>
+                                                <div style={{fontSize:'0.75rem', color:'#8b6f47', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{b.author}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -10111,7 +10253,7 @@
                                             }}
                                         >
                                         <div className="shelf-header">
-                                            <h3 className="shelf-title">{shelf.name}</h3>
+                                            <h3 className="shelf-title">{shelf.name}{shelf.is_public === false && <span title="Private shelf" style={{marginLeft:'0.4rem', fontSize:'0.75em', opacity:0.6}}>🔒</span>}</h3>
                                             <div className="shelf-actions">
                                                 <div className="shelf-menu-wrap">
                                                     <button
@@ -10291,6 +10433,9 @@
                                             </button>
                                             <button className="shelf-menu-item" onClick={() => { openBookSelector(shelf.id); setOpenShelfMenu(null); }}>
                                                 ➕ Add Books
+                                            </button>
+                                            <button className="shelf-menu-item" onClick={() => { toggleShelfPublic(shelf.id, shelf.is_public !== false); setOpenShelfMenu(null); }}>
+                                                {shelf.is_public === false ? '🔓 Make Public' : '🔒 Make Private'}
                                             </button>
                                             <button className="shelf-menu-item danger" onClick={() => { deleteShelf(shelf.id); setOpenShelfMenu(null); }}>
                                                 🗑 Delete Shelf
@@ -11429,13 +11574,13 @@
                                     <div style={{marginBottom: '1.5rem'}}>
                                         <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Shelf Name</label>
                                         <input
+                                            ref={newShelfNameRef}
                                             type="text"
                                             placeholder="e.g. Fantasy, Sci-Fi, Favourites..."
                                             value={newShelfName}
                                             onChange={e => setNewShelfName(e.target.value)}
                                             onKeyPress={e => e.key === 'Enter' && addShelf()}
                                             style={{width: '100%', padding: '0.75rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem'}}
-                                            autoFocus
                                         />
                                     </div>
 
@@ -12036,6 +12181,26 @@
                                             <h2 className="settings-section-title">Account</h2>
                                             <p className="settings-section-subtitle">Manage your profile and personal information</p>
 
+                                            {/* Own social stats */}
+                                            <div className="settings-card" style={{textAlign:'center'}}>
+                                                <div style={{display:'flex', justifyContent:'space-around', gap:'0.5rem'}}>
+                                                    <div style={{cursor:'pointer'}} onClick={() => { setFollowListType('followers'); loadFollowList(currentUser.id, 'followers'); setShowFollowListModal(true); }}>
+                                                        <div style={{fontSize:'1.5rem', fontWeight:'700', color:'#3d2b1f'}}>{myFollowerCount}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', fontWeight:'600'}}>Followers</div>
+                                                    </div>
+                                                    <div style={{width:'1px', background:'#e8d5b7'}} />
+                                                    <div style={{cursor:'pointer'}} onClick={() => { setFollowListType('following'); loadFollowList(currentUser.id, 'following'); setShowFollowListModal(true); }}>
+                                                        <div style={{fontSize:'1.5rem', fontWeight:'700', color:'#3d2b1f'}}>{myFollowingCount}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', fontWeight:'600'}}>Following</div>
+                                                    </div>
+                                                    <div style={{width:'1px', background:'#e8d5b7'}} />
+                                                    <div>
+                                                        <div style={{fontSize:'1.5rem', fontWeight:'700', color:'#3d2b1f'}}>{books.filter(b => b.userData?.status === 'finished').length}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47', fontWeight:'600'}}>Books Read</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div className="settings-card">
                                                 <h3 className="settings-card-title">Profile Information</h3>
                                                 <div className="settings-form-group">
@@ -12165,10 +12330,18 @@
                                                 ))}
                                             </div>
 
-                                            {/* Blocked accounts placeholder */}
-                                            <div className="settings-card">
-                                                <h3 className="settings-card-title">Blocked Accounts</h3>
-                                                <p style={{color:'#666', fontSize:'0.85rem'}}>Blocked users cannot find or follow you. Manage blocks from a user's profile page.</p>
+                                            {/* Blocked Accounts */}
+                                            <div className="settings-card" style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'1rem'}}>
+                                                <div>
+                                                    <h3 className="settings-card-title" style={{marginBottom:'0.2rem'}}>Blocked Accounts</h3>
+                                                    <p style={{color:'#666', fontSize:'0.85rem', margin:0}}>
+                                                        {blockedUsers.length === 0 ? 'No blocked accounts.' : `${blockedUsers.length} blocked ${blockedUsers.length === 1 ? 'account' : 'accounts'}`}
+                                                    </p>
+                                                </div>
+                                                <button onClick={() => { loadBlockedUsers(); setShowBlockedModal(true); }}
+                                                    className="settings-btn" style={{flexShrink:0, margin:0}}>
+                                                    Manage
+                                                </button>
                                             </div>
                                         </>
                                     )}
@@ -12249,6 +12422,108 @@
                                                 </p>
                                             </div>
                                         </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Followers / Following List Modal */}
+                    {showFollowListModal && (
+                        <div className="book-detail-overlay" onClick={() => setShowFollowListModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'420px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowFollowListModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <div style={{display:'flex', gap:'1rem', marginBottom:'1rem', borderBottom:'2px solid #f0e8d8', paddingBottom:'0.75rem'}}>
+                                        {['followers','following'].map(t => (
+                                            <button key={t} onClick={() => { setFollowListType(t); loadFollowList(viewingProfile?.id, t); }}
+                                                style={{flex:1, padding:'0.4rem', background: followListType === t ? '#c9a87c' : 'transparent', border:'none', borderRadius:'6px', fontWeight:'700', fontSize:'0.9rem', color: followListType === t ? '#fff' : '#8b6f47', cursor:'pointer', textTransform:'capitalize'}}>
+                                                {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {followListLoading ? (
+                                        <div style={{textAlign:'center', padding:'2rem', color:'#8b6f47'}}>Loading…</div>
+                                    ) : followList.length === 0 ? (
+                                        <div style={{textAlign:'center', padding:'2rem', color:'#aaa', fontStyle:'italic'}}>No {followListType} yet.</div>
+                                    ) : (
+                                        <div style={{display:'flex', flexDirection:'column', gap:'0', maxHeight:'55vh', overflowY:'auto'}}>
+                                            {followList.map(u => (
+                                                <div key={u.id} style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.65rem 0', borderBottom:'1px solid #f0e8d8', cursor:'pointer'}}
+                                                    onClick={() => { setShowFollowListModal(false); openUserProfile(u); }}>
+                                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'#c9a87c', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'1rem', flexShrink:0}}>
+                                                        {(u.display_name || u.username || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div style={{flex:1, minWidth:0}}>
+                                                        <div style={{fontWeight:'600', fontSize:'0.9rem', color:'#3d2b1f', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{u.display_name || u.username}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47'}}>@{u.username}</div>
+                                                    </div>
+                                                    <span style={{color:'#c9a87c', fontSize:'0.8rem'}}>›</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Report User Modal */}
+                    {showReportModal && reportingUser && (
+                        <div className="book-detail-overlay" onClick={() => setShowReportModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'380px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowReportModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h2 className="book-detail-title" style={{marginBottom:'0.25rem'}}>Report User</h2>
+                                    <p style={{color:'#8b6f47', fontSize:'0.85rem', marginBottom:'1.25rem'}}>Reporting <strong>{reportingUser.display_name || reportingUser.username}</strong>. Reports are reviewed by our team.</p>
+                                    <div className="settings-form-group">
+                                        <label>Reason</label>
+                                        <select value={reportReason} onChange={e => setReportReason(e.target.value)}
+                                            style={{width:'100%', padding:'0.6rem', border:'1.5px solid #d4b896', borderRadius:'6px', background:'#fff', fontSize:'0.9rem', marginBottom:'0.75rem'}}>
+                                            <option value="">Select a reason…</option>
+                                            <option value="spam">Spam or fake account</option>
+                                            <option value="harassment">Harassment or bullying</option>
+                                            <option value="impersonation">Impersonating someone</option>
+                                            <option value="inappropriate">Inappropriate content</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <button className="settings-btn" style={{width:'100%'}} disabled={!reportReason || reportSubmitting} onClick={submitUserReport}>
+                                        {reportSubmitting ? 'Submitting…' : 'Submit Report'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Blocked Accounts Modal */}
+                    {showBlockedModal && (
+                        <div className="book-detail-overlay" onClick={() => setShowBlockedModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'420px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowBlockedModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h2 className="book-detail-title" style={{marginBottom:'0.25rem'}}>Blocked Accounts</h2>
+                                    <p style={{color:'#8b6f47', fontSize:'0.85rem', marginBottom:'1rem'}}>Blocked users cannot find or follow you.</p>
+                                    {blockedUsers.length === 0 ? (
+                                        <p style={{color:'#aaa', fontSize:'0.9rem', fontStyle:'italic', textAlign:'center', padding:'1.5rem 0'}}>No blocked accounts.</p>
+                                    ) : (
+                                        <div style={{display:'flex', flexDirection:'column', gap:'0', maxHeight:'55vh', overflowY:'auto'}}>
+                                            {blockedUsers.map(u => (
+                                                <div key={u.blockId} style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.65rem 0', borderBottom:'1px solid #f0e8d8'}}>
+                                                    <div style={{width:'38px', height:'38px', borderRadius:'50%', background:'#c9a87c', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'1rem', flexShrink:0}}>
+                                                        {(u.display_name || u.username || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div style={{flex:1, minWidth:0}}>
+                                                        <div style={{fontWeight:'600', fontSize:'0.9rem', color:'#3d2b1f', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{u.display_name || u.username}</div>
+                                                        <div style={{fontSize:'0.78rem', color:'#8b6f47'}}>@{u.username}</div>
+                                                    </div>
+                                                    <button onClick={() => unblockUser(u.blockId, u.display_name || u.username)}
+                                                        style={{padding:'0.35rem 0.8rem', background:'#fff', border:'1.5px solid #d4b896', borderRadius:'6px', color:'#8b4513', fontSize:'0.8rem', cursor:'pointer', fontWeight:'600', flexShrink:0}}>
+                                                        Unblock
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -12562,11 +12837,11 @@
                                                 <div className="profile-at-username">@{vp.username}</div>
                                                 {vp.bio && <div className="profile-bio">{vp.bio}</div>}
                                                 <div className="profile-stats-row">
-                                                    <div className="profile-stat">
+                                                    <div className="profile-stat" style={{cursor:'pointer'}} onClick={() => { setFollowListType('followers'); loadFollowList(vp.id, 'followers'); setShowFollowListModal(true); }}>
                                                         <div className="profile-stat-num">{profileFollowerCount}</div>
                                                         <div className="profile-stat-label">Followers</div>
                                                     </div>
-                                                    <div className="profile-stat">
+                                                    <div className="profile-stat" style={{cursor:'pointer'}} onClick={() => { setFollowListType('following'); loadFollowList(vp.id, 'following'); setShowFollowListModal(true); }}>
                                                         <div className="profile-stat-num">{profileFollowingCount}</div>
                                                         <div className="profile-stat-label">Following</div>
                                                     </div>
@@ -12594,6 +12869,7 @@
                                                             setConfirmAction({ title:'Block User', message:`Block ${v.display_name || v.username}? They won't be able to find or follow you.`, onConfirm: () => blockUser(v.id) });
                                                             setShowConfirm(true);
                                                         }}>Block</button>
+                                                        <button className="profile-msg-btn" style={{color:'#888'}} onClick={() => { setReportingUser(vp); setReportReason(''); setShowReportModal(true); }}>Report</button>
                                                     </div>
                                                 )}
                                             </div>

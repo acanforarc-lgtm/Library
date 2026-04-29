@@ -1,3 +1,4 @@
 node_modules/
 www/
 Memory/
+.claude/settings.json

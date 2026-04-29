@@ -2566,61 +2566,69 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(61, 40, 23, 0.85);
+            backdrop-filter: blur(4px);
             z-index: 3000;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            padding: 1.5rem;
         }
 
         .scanner-container {
             background: white;
             border-radius: 20px;
-            max-width: 600px;
+            max-width: 560px;
             width: 100%;
             max-height: 90vh;
             overflow: hidden;
             position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: popIn 0.3s ease-out;
         }
 
         .scanner-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 2px solid #f0e8d8;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            background: #fdf6e9;
         }
 
         .scanner-title {
-            font-family: 'Libre Baskerville', serif;
-            font-size: 1.5rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.4rem;
             color: #3d2817;
+            font-weight: 700;
         }
 
         .scanner-close {
-            background: none;
+            background: rgba(255,255,255,0.9);
             border: none;
-            font-size: 2rem;
+            font-size: 1.5rem;
             cursor: pointer;
             color: #3d2817;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            line-height: 1;
         }
 
         .scanner-close:hover {
-            background: #f5f5f5;
+            background: white;
+            transform: scale(1.1);
         }
 
         .scanner-video-container {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 380px;
             background: #000;
             display: flex;
             align-items: center;
@@ -2642,7 +2650,7 @@
             max-width: 300px;
             height: 150px;
             border: 3px solid #d4af37;
-            border-radius: 8px;
+            border-radius: 10px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
         }
 
@@ -2653,25 +2661,26 @@
             right: 0;
             text-align: center;
             color: white;
-            font-size: 1.1rem;
+            font-size: 1rem;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
         }
 
         .scanner-actions {
-            padding: 1.5rem;
+            padding: 1.25rem 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.85rem;
+            background: #fdf6e9;
         }
 
         .scanner-capture-btn {
-            padding: 1rem;
+            padding: 0.9rem;
             background: linear-gradient(135deg, #2d4a3e, #3d5a4d);
             color: white;
             border: none;
             border-radius: 10px;
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
@@ -2687,10 +2696,12 @@
 
         .scanner-status {
             text-align: center;
-            padding: 1rem;
-            background: #faf8f3;
+            padding: 0.75rem 1rem;
+            background: white;
             border-radius: 8px;
+            border: 1px solid #e0c9a6;
             color: #3d2817;
+            font-size: 0.9rem;
         }
 
         .scanner-loading {
@@ -2702,9 +2713,9 @@
         }
 
         .scanner-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #e0e0e0;
+            width: 44px;
+            height: 44px;
+            border: 4px solid #e0c9a6;
             border-top-color: #d4af37;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -2718,77 +2729,12 @@
             position: relative;
         }
 
-        /* Barcode Scanner */
-        .scanner-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 3000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-
-        .scanner-container {
-            background: white;
-            border-radius: 20px;
-            max-width: 600px;
-            width: 100%;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-
-        .scanner-header {
-            padding: 1.5rem 2rem;
-            border-bottom: 2px solid #f0f0f0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .scanner-title {
-            font-family: 'Libre Baskerville', serif;
-            font-size: 1.5rem;
-            color: #3d2817;
-        }
-
-        .scanner-close {
-            background: none;
-            border: none;
-            font-size: 2rem;
-            cursor: pointer;
-            color: #3d2817;
-            line-height: 1;
-        }
-
         .scanner-viewport {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: 380px;
             background: #000;
             overflow: hidden;
-        }
-
-        #scanner-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .scanner-viewfinder {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 200px;
-            border: 3px solid #d4af37;
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
         }
 
         .scanner-viewfinder::before,
@@ -4381,6 +4327,10 @@
             const [rapidScanBoard, setRapidScanBoard] = useState('');
             const [rapidScanPosition, setRapidScanPosition] = useState('in-order'); // 'in-order' or 'random'
             const [rapidScanCounter, setRapidScanCounter] = useState(0); // Tracks position for in-order
+            const [sessionScannedBooks, setSessionScannedBooks] = useState([]);
+            const [showSessionLog, setShowSessionLog] = useState(false);
+            const [scanJustAdded, setScanJustAdded] = useState(false);
+            const newShelfNameRef = React.useRef(null);
 
             // Search state
             const [searchQuery, setSearchQuery] = useState('');
@@ -4826,6 +4776,13 @@
                 document.addEventListener('mousedown', handleClickOutside);
                 return () => document.removeEventListener('mousedown', handleClickOutside);
             }, [showSearchDropdown]);
+
+            // Focus shelf name input when create shelf modal opens (fixes iOS keyboard)
+            useEffect(() => {
+                if (showCreateShelfModal) {
+                    setTimeout(() => newShelfNameRef.current?.focus(), 150);
+                }
+            }, [showCreateShelfModal]);
 
             // Lock body scroll when any modal is open
             useEffect(() => {
@@ -7546,7 +7503,9 @@
                         if (insertError) throw insertError;
 
                         setBooks(prev => [...prev, inserted[0]]);
-                        showMessage(`✅ ${inserted[0].title} → ${selectedShelf.name} (Shelf ${targetBoardIndex + 1}, Pos ${targetPosition})`);
+                        setSessionScannedBooks(prev => [...prev, { title: inserted[0].title, author: inserted[0].author || book.author || '', cover: inserted[0].cover || book.cover || null }]);
+                        setScanJustAdded(true);
+                        setTimeout(() => setScanJustAdded(false), 2000);
 
                         // Play success beep
                         const beep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGa74+OlQRgWbbro8LRgFgY3kdXzx3koJlIx');
@@ -8600,7 +8559,9 @@
                     if (error) throw error;
 
                     setBooks([...books, data[0]]);
-                    showMessage(`✅ Added "${data[0].title}"`);
+                    setSessionScannedBooks(prev => [...prev, { title: data[0].title, author: data[0].author || '', cover: scannedBookData.cover || data[0].cover || null }]);
+                    setScanJustAdded(true);
+                    setTimeout(() => setScanJustAdded(false), 2000);
 
                     // Close popup and scanner in RIGHT ORDER
                     closeScanner();
@@ -8667,7 +8628,9 @@
                     if (error) throw error;
 
                     setBooks([...books, data[0]]);
-                    showMessage(`✅ Added "${data[0].title}"`);
+                    setSessionScannedBooks(prev => [...prev, { title: data[0].title, author: data[0].author || '', cover: scannedBookData.cover || data[0].cover || null }]);
+                    setScanJustAdded(true);
+                    setTimeout(() => setScanJustAdded(false), 2000);
                     closeScanner();
                     setShowScannedBookPopup(false);
                     setScannedBookData(null);
@@ -9680,70 +9643,63 @@
                     {/* SCAN MODE SELECTOR */}
                     {showScanModeSelector && (
                         <div className="book-detail-overlay" onClick={() => setShowScanModeSelector(false)}>
-                            <div className="book-detail-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '500px'}}>
+                            <div className="book-detail-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '440px'}}>
                                 <button className="book-detail-close" onClick={() => setShowScanModeSelector(false)}>×</button>
-                                
-                                <h2 style={{textAlign: 'center', marginBottom: '2rem', fontFamily: 'Crimson Pro'}}>
-                                    Choose Scan Mode
-                                </h2>
-                                
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                                    <button
-                                        onClick={() => {
-                                            setScanMode('rapid');
-                                            setShowScanModeSelector(false);
-                                        }}
-                                        style={{
-                                            padding: '1.5rem',
-                                            background: 'linear-gradient(135deg, #4CAF50, #45a049)',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem'
-                                        }}
-                                    >
-                                        <span style={{fontSize: '2rem'}}>⚡</span>
-                                        <div style={{textAlign: 'left'}}>
-                                            <div>Rapid Scan</div>
-                                            <div style={{fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.9}}>
-                                                Scan fast, pre-set location
+                                <div className="book-detail-content">
+                                    <h2 style={{textAlign: 'center', marginBottom: '0.5rem', fontFamily: 'Crimson Pro, serif', color: '#3d2817', fontSize: '1.6rem'}}>
+                                        Physical Scanner
+                                    </h2>
+                                    <p style={{textAlign:'center', color:'#8b6f47', fontSize:'0.9rem', marginBottom:'1.75rem'}}>Choose how scanned books are added</p>
+
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '0.85rem'}}>
+                                        <button
+                                            onClick={() => { setScanMode('rapid'); setShowScanModeSelector(false); }}
+                                            style={{
+                                                padding: '1.25rem 1.5rem',
+                                                background: 'linear-gradient(135deg, #2d4a3e, #3d5a4d)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '12px',
+                                                fontSize: '1rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '1rem',
+                                                textAlign: 'left'
+                                            }}
+                                        >
+                                            <span style={{fontSize: '1.75rem', flexShrink:0}}>⚡</span>
+                                            <div>
+                                                <div style={{marginBottom:'0.2rem'}}>Rapid Scan</div>
+                                                <div style={{fontSize: '0.82rem', fontWeight: 400, opacity: 0.85}}>Pre-set shelf & location — scan at speed</div>
                                             </div>
-                                        </div>
-                                    </button>
-                                    
-                                    <button
-                                        onClick={() => {
-                                            setScanMode('detail');
-                                            setScannerMode(true);
-                                            setShowScanModeSelector(false);
-                                        }}
-                                        style={{
-                                            padding: '1.5rem',
-                                            background: 'linear-gradient(135deg, #2196F3, #1976D2)',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem'
-                                        }}
-                                    >
-                                        <span style={{fontSize: '2rem'}}>📋</span>
-                                        <div style={{textAlign: 'left'}}>
-                                            <div>Detail Scan</div>
-                                            <div style={{fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.9}}>
-                                                Review each book with ratings & notes
+                                        </button>
+
+                                        <button
+                                            onClick={() => { setScanMode('detail'); setScannerMode(true); setShowScanModeSelector(false); }}
+                                            style={{
+                                                padding: '1.25rem 1.5rem',
+                                                background: '#fdf6e9',
+                                                color: '#3d2817',
+                                                border: '2px solid #c9a87c',
+                                                borderRadius: '12px',
+                                                fontSize: '1rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '1rem',
+                                                textAlign: 'left'
+                                            }}
+                                        >
+                                            <span style={{fontSize: '1.75rem', flexShrink:0}}>📋</span>
+                                            <div>
+                                                <div style={{marginBottom:'0.2rem'}}>Detail Scan</div>
+                                                <div style={{fontSize: '0.82rem', fontWeight: 400, color:'#8b6f47'}}>Review each book before adding</div>
                                             </div>
-                                        </div>
-                                    </button>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -9851,27 +9807,19 @@
                                                 showMessage('⚠️ Please select a shelf board');
                                                 return;
                                             }
-                                            
-                                            setRapidScanCounter(0); // Reset counter
+                                            setRapidScanCounter(0);
+                                            setSessionScannedBooks([]);
                                             setScannerMode(true);
-                                            showMessage('🔫 Rapid scan ready! Start scanning!');
                                         }}
                                         disabled={!rapidScanShelf || (rapidScanShelf !== 'random' && !rapidScanBoard)}
+                                        className="book-detail-add-btn"
                                         style={{
-                                            padding: '1rem',
-                                            background: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) 
-                                                ? 'linear-gradient(135deg, #4CAF50, #45a049)' 
-                                                : '#ccc',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 'bold',
-                                            cursor: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) ? 'pointer' : 'not-allowed',
-                                            marginTop: '1rem'
+                                            marginTop: '0.5rem',
+                                            opacity: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) ? 1 : 0.45,
+                                            cursor: rapidScanShelf && (rapidScanShelf === 'random' || rapidScanBoard) ? 'pointer' : 'not-allowed'
                                         }}
                                     >
-                                        🚀 Start Rapid Scanning
+                                        Start Rapid Scanning
                                     </button>
                                 </div>
                             </div>
@@ -9881,85 +9829,154 @@
                     {/* BLUETOOTH SCANNER MODE BANNER */}
                     {scannerMode && (
                         <div style={{
-                            background: scanMode === 'rapid' ? '#4CAF50' : '#2196F3',
-                            color: 'white',
-                            padding: '1rem 2rem',
-                            textAlign: 'center',
-                            fontWeight: 'bold',
-                            fontSize: '1.2rem',
-                            position: 'relative'
+                            background: '#fdf6e9',
+                            borderBottom: '2px solid #c9a87c',
+                            padding: '0.65rem 1.25rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem',
+                            position: 'relative',
+                            zIndex: 100
                         }}>
-                            {scanMode === 'rapid' ? (
-                                <>
-                                    ⚡ RAPID SCAN ACTIVE
-                                    {rapidScanShelf !== 'random' && (
-                                        <span style={{fontSize: '0.9rem', marginLeft: '1rem', opacity: 0.9}}>
-                                            → {shelves.find(s => s.id === parseInt(rapidScanShelf))?.name} 
-                                            {rapidScanBoard !== 'random' && ` / Shelf ${parseInt(rapidScanBoard) + 1}`}
-                                            {` / ${rapidScanPosition === 'in-order' ? '📖 In-Order' : '🎲 Random'}`}
-                                            {rapidScanPosition === 'in-order' && ` (${rapidScanCounter} books)`}
-                                        </span>
-                                    )}
-                                </>
-                            ) : (
-                                '📋 DETAIL SCAN ACTIVE - Review each book'
-                            )}
+                            {/* Left: mode label + location */}
+                            <div style={{display:'flex', alignItems:'center', gap:'0.6rem', flex:1, minWidth:0}}>
+                                <span style={{fontFamily:'Crimson Pro, serif', fontWeight:700, color:'#3d2817', fontSize:'0.95rem', whiteSpace:'nowrap'}}>
+                                    {scanMode === 'rapid' ? '⚡ Rapid Scan' : '📋 Detail Scan'}
+                                </span>
+                                {scanMode === 'rapid' && rapidScanShelf !== 'random' && (
+                                    <span style={{fontSize:'0.82rem', color:'#8b6f47', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                                        → {shelves.find(s => s.id === parseInt(rapidScanShelf))?.name}
+                                        {rapidScanBoard !== 'random' && ` / Shelf ${parseInt(rapidScanBoard) + 1}`}
+                                        {` / ${rapidScanPosition === 'in-order' ? 'In-Order' : 'Random'}`}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Center: success flash or session counter */}
+                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                {scanJustAdded ? (
+                                    <span style={{color:'#2d7a47', fontWeight:700, fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'0.3rem', background:'#e8f5ee', borderRadius:'20px', padding:'0.25rem 0.75rem', border:'1px solid #a8d5b5'}}>
+                                        ✓ Scan added
+                                    </span>
+                                ) : sessionScannedBooks.length > 0 ? (
+                                    <button
+                                        onClick={() => setShowSessionLog(v => !v)}
+                                        style={{
+                                            background: showSessionLog ? '#e0c9a6' : '#f5ece0',
+                                            border: '1px solid #c9a87c',
+                                            borderRadius: '20px',
+                                            padding: '0.25rem 0.75rem',
+                                            color: '#3d2817',
+                                            fontSize: '0.82rem',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {sessionScannedBooks.length} book{sessionScannedBooks.length !== 1 ? 's' : ''} {showSessionLog ? '▴' : '▾'}
+                                    </button>
+                                ) : (
+                                    <span style={{fontSize:'0.82rem', color:'#b8936d'}}>Ready to scan</span>
+                                )}
+                            </div>
+
+                            {/* Right: action buttons */}
+                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                {scanMode === 'rapid' && (
+                                    <button
+                                        onClick={() => { setScannerMode(false); setRapidScanCounter(0); }}
+                                        style={{
+                                            background: '#f0e8d8',
+                                            color: '#3d2817',
+                                            border: '1px solid #c9a87c',
+                                            padding: '0.35rem 0.75rem',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.82rem',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        ⚙ Change
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setScannerMode(false);
+                                        setScanMode(null);
+                                        setRapidScanCounter(0);
+                                        setSessionScannedBooks([]);
+                                        setShowSessionLog(false);
+                                    }}
+                                    style={{
+                                        background: '#3d2817',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '0.35rem 0.75rem',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.82rem',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    Stop
+                                </button>
+                            </div>
+
+                            {/* Hidden input for Bluetooth scanner focus */}
                             <input
                                 type="text"
                                 value={scannerInput}
                                 onChange={(e) => setScannerInput(e.target.value)}
-                                onKeyPress={(e) => {
-                                    if (e.key === 'Enter') {
-                                        handleScannerInput(scannerInput);
-                                    }
-                                }}
+                                onKeyPress={(e) => { if (e.key === 'Enter') handleScannerInput(scannerInput); }}
                                 autoFocus
-                                style={{
-                                    position: 'absolute',
-                                    left: '-9999px',
-                                    width: '1px',
-                                    height: '1px'
-                                }}
+                                style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px' }}
                             />
-                            {scanMode === 'rapid' && (
-                                <button 
-                                    onClick={() => {
-                                        setScannerMode(false);
-                                        setRapidScanCounter(0);
-                                    }}
-                                    style={{
-                                        marginLeft: '1rem',
-                                        background: 'rgba(255,255,255,0.2)',
-                                        color: 'white',
-                                        border: '2px solid white',
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontWeight: 'bold'
-                                    }}
-                                >
-                                    ⚙️ Change Presets
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => {
-                                    setScannerMode(false);
-                                    setScanMode(null);
-                                    setRapidScanCounter(0);
-                                }}
-                                style={{
-                                    marginLeft: '1rem',
+
+                            {/* Session log dropdown */}
+                            {showSessionLog && sessionScannedBooks.length > 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: '1rem',
                                     background: 'white',
-                                    color: scanMode === 'rapid' ? '#4CAF50' : '#2196F3',
-                                    border: 'none',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                Stop Scanning
-                            </button>
+                                    border: '2px solid #c9a87c',
+                                    borderRadius: '14px',
+                                    boxShadow: '0 8px 24px rgba(61,40,23,0.15)',
+                                    padding: '1rem',
+                                    zIndex: 500,
+                                    minWidth: '260px',
+                                    maxWidth: '380px',
+                                    maxHeight: '300px',
+                                    overflowY: 'auto'
+                                }}>
+                                    <div style={{fontFamily:'Crimson Pro, serif', fontWeight:700, color:'#3d2817', marginBottom:'0.75rem', fontSize:'1rem'}}>
+                                        This Session ({sessionScannedBooks.length})
+                                    </div>
+                                    {[...sessionScannedBooks].reverse().map((b, i) => (
+                                        <div key={i} style={{
+                                            display:'flex',
+                                            alignItems:'center',
+                                            gap:'0.6rem',
+                                            padding:'0.4rem 0',
+                                            borderBottom: i < sessionScannedBooks.length - 1 ? '1px solid #f0e8d8' : 'none'
+                                        }}>
+                                            {b.cover ? (
+                                                <img src={b.cover} style={{width:28, height:40, objectFit:'cover', borderRadius:3, flexShrink:0}} />
+                                            ) : (
+                                                <div style={{width:28, height:40, background:'#e0c9a6', borderRadius:3, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', color:'#8b6f47'}}>📚</div>
+                                            )}
+                                            <div style={{overflow:'hidden'}}>
+                                                <div style={{fontSize:'0.85rem', fontWeight:600, color:'#3d2817', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{b.title}</div>
+                                                <div style={{fontSize:'0.75rem', color:'#8b6f47', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{b.author}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -11557,13 +11574,13 @@
                                     <div style={{marginBottom: '1.5rem'}}>
                                         <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Shelf Name</label>
                                         <input
+                                            ref={newShelfNameRef}
                                             type="text"
                                             placeholder="e.g. Fantasy, Sci-Fi, Favourites..."
                                             value={newShelfName}
                                             onChange={e => setNewShelfName(e.target.value)}
                                             onKeyPress={e => e.key === 'Enter' && addShelf()}
                                             style={{width: '100%', padding: '0.75rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem'}}
-                                            autoFocus
                                         />
                                     </div>
 

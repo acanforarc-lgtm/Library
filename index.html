@@ -4468,6 +4468,7 @@
             const [profileFollowingCount, setProfileFollowingCount] = useState(0);
             const [profileBooksRead, setProfileBooksRead] = useState(0);
             const [profileLoading, setProfileLoading] = useState(false);
+            const [profileViewingShelf, setProfileViewingShelf] = useState(null);
             const [myFollowerCount, setMyFollowerCount] = useState(0);
             const [myFollowingCount, setMyFollowingCount] = useState(0);
             const [showFollowListModal, setShowFollowListModal] = useState(false);
@@ -12996,9 +12997,7 @@
                                                                     <BookRow title="Recently Read" bks={recentlyRead} />
                                                                     <BookRow title="Highly Rated" bks={highlyRated} />
                                                                     <BookRow title="Plan to Read" bks={planToRead} />
-                                                                    {currentlyReading.length === 0 && recentlyRead.length === 0 && highlyRated.length === 0 && planToRead.length === 0 && (
-                                                                        <div style={{textAlign:'center', padding:'3rem 1rem', color:'#8b6f47'}}>No categorized books to show.</div>
-                                                                    )}
+                                                                    <BookRow title="All Books" bks={profileBooks} />
                                                                 </>
                                                             )}
                                                         </div>
@@ -13013,7 +13012,7 @@
                                                                 profileShelves.map(shelf => {
                                                                     const shelfBooks = profileBooks.filter(b => b.shelf_id === shelf.id).slice(0, 5);
                                                                     return (
-                                                                        <div key={shelf.id} className="profile-shelf-card">
+                                                                        <div key={shelf.id} className="profile-shelf-card" style={{cursor:'pointer'}} onClick={() => setProfileViewingShelf(shelf)}>
                                                                             <div className="profile-shelf-name">{shelf.name}</div>
                                                                             <div className="profile-shelf-meta">{profileBooks.filter(b => b.shelf_id === shelf.id).length} books</div>
                                                                             <div className="profile-shelf-covers">
@@ -13023,6 +13022,7 @@
                                                                                     <div key={b.id} className="profile-shelf-cover-placeholder" />
                                                                                 ))}
                                                                             </div>
+                                                                            <div style={{fontSize:'0.75rem', color:'#8b6f47', marginTop:'0.5rem'}}>Tap to view →</div>
                                                                         </div>
                                                                     );
                                                                 })
@@ -13037,6 +13037,72 @@
                             </div>
                         </div>
                     )}
+
+                    {/* ==================== PROFILE SHELF DETAIL OVERLAY ==================== */}
+                    {profileViewingShelf && (() => {
+                        const shelf = profileViewingShelf;
+                        const boardCount = shelf.board_count || 3;
+                        return (
+                            <div className="profile-overlay" style={{zIndex: 450}}>
+                                <div className="profile-overlay-header">
+                                    <button className="profile-back-btn" onClick={() => setProfileViewingShelf(null)}>←</button>
+                                    <span className="profile-overlay-title">{shelf.name}</span>
+                                </div>
+                                <div className="profile-scroll-body" style={{padding: '1rem 0 3rem'}}>
+                                    <div
+                                        className="shelf"
+                                        style={{
+                                            background: shelf.background_color || '#8b7355',
+                                            '--shelf-bg': shelf.background_color || '#8b7355',
+                                            margin: '0 1rem',
+                                            borderRadius: '8px'
+                                        }}
+                                    >
+                                        <div className="shelf-header">
+                                            <h3 className="shelf-title">{shelf.name}</h3>
+                                        </div>
+                                        {Array.from({ length: boardCount }).map((_, boardIndex) => {
+                                            const boardBooks = profileBooks.filter(b =>
+                                                b.shelf_id === shelf.id && (b.board_index ?? 0) === boardIndex
+                                            );
+                                            return (
+                                                <div
+                                                    key={boardIndex}
+                                                    className={`shelf-board wood-${shelf.wood_type || 'oak'}`}
+                                                    style={{position: 'relative'}}
+                                                >
+                                                    {boardBooks.map(book => {
+                                                        const pos = book.position ?? 0;
+                                                        const pct = (pos / SHELF_WIDTH) * 100;
+                                                        return (
+                                                            <div
+                                                                key={book.id}
+                                                                className="book"
+                                                                style={{
+                                                                    background: book.cover
+                                                                        ? `url(${book.cover}) center/cover`
+                                                                        : (book.color || '#8b7355'),
+                                                                    position: 'absolute',
+                                                                    left: `${pct}%`,
+                                                                    bottom: '0.5rem',
+                                                                    cursor: 'default'
+                                                                }}
+                                                                title={`${book.title} by ${book.author}`}
+                                                            >
+                                                                <div className="book-spine" style={{pointerEvents:'none'}}>
+                                                                    {book.title}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* ==================== FRIEND QUICK-ACTION POPUP ==================== */}
                     {selectedFriend && (

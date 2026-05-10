@@ -6409,6 +6409,44 @@
                 return results;
             };
 
+            const fetchFromOpenLibrary = async (query, fullSearch = false) => {
+                try {
+                    const limit = fullSearch ? 100 : 20;
+                    const fields = 'key,title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median,ratings_average';
+                    const q = encodeURIComponent(
+                        restoreContractions(query.trim())
+                            .replace(/:/g, ' ').replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+                    );
+                    const res = await fetch(
+                        `https://openlibrary.org/search.json?q=${q}&limit=${limit}&fields=${fields}`,
+                        { signal: AbortSignal.timeout(8000) }
+                    );
+                    if (!res.ok) return [];
+                    const data = await res.json();
+                    return (data.docs || [])
+                        .filter(doc => {
+                            const t = (doc.title || '').toLowerCase();
+                            return !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
+                        })
+                        .map(doc => {
+                            const isbn13 = (doc.isbn || []).find(i => i.length === 13);
+                            const isbn10 = (doc.isbn || []).find(i => i.length === 10);
+                            return {
+                                title: doc.title || 'Unknown Title',
+                                author: doc.author_name?.[0] || 'Unknown Author',
+                                isbn: isbn13 || isbn10 || 'Not Available',
+                                cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+                                publishYear: doc.first_publish_year ? String(doc.first_publish_year) : null,
+                                publisher: doc.publisher?.[0] || null,
+                                pageCount: doc.number_of_pages_median || null,
+                                description: 'No description available.',
+                                rating: doc.ratings_average || 0,
+                                source: 'openlibrary'
+                            };
+                        });
+                } catch { return []; }
+            };
+
             // Search functions
             const handleSearchChange = (value) => {
                 setSearchQuery(value);
@@ -6499,8 +6537,50 @@
                 if (book.isbn && book.isbn !== 'Not Available') score += 3;
                 if (book.pageCount > 0) score += 2;
                 if (book.rating > 0) score += book.rating; // 1–5 point boost
+                if (book.sourceCount > 1) score += book.sourceCount * 3; // confirmed across multiple databases
 
                 return score;
+            };
+
+            // Deduplicates and merges results from multiple sources.
+            // ISBN is the primary dedup key; fuzzy title+author is the fallback.
+            // When a book appears in multiple sources, the merged record picks the
+            // best field from each (cover from GB, rating from whichever is higher, etc.).
+            const mergeBookResults = (sourceArrays) => {
+                const byIsbn = new Map();
+                const noIsbn = [];
+
+                for (const books of sourceArrays) {
+                    for (const book of books) {
+                        const isbn = book.isbn !== 'Not Available' ? book.isbn : null;
+                        if (isbn) {
+                            if (!byIsbn.has(isbn)) {
+                                byIsbn.set(isbn, { ...book, sourceCount: 1 });
+                            } else {
+                                const ex = byIsbn.get(isbn);
+                                byIsbn.set(isbn, {
+                                    ...ex,
+                                    cover: ex.cover || book.cover,
+                                    rating: Math.max(ex.rating || 0, book.rating || 0),
+                                    description: ex.description !== 'No description available.' ? ex.description : book.description,
+                                    pageCount: ex.pageCount || book.pageCount,
+                                    sourceCount: ex.sourceCount + 1
+                                });
+                            }
+                        } else {
+                            noIsbn.push(book);
+                        }
+                    }
+                }
+
+                const noIsbnDeduped = [];
+                const seen = new Set();
+                for (const book of noIsbn) {
+                    const key = `${normalizeText(book.title)}|${normalizeText(book.author)}`.substring(0, 80);
+                    if (!seen.has(key)) { seen.add(key); noIsbnDeduped.push(book); }
+                }
+
+                return [...byIsbn.values(), ...noIsbnDeduped];
             };
 
             // Restore common missing apostrophes before sending to Google Books.
@@ -6536,10 +6616,8 @@
                 setSearchLoading(true);
                 if (!fullSearch) setShowSearchDropdown(true);
 
-                // v5 cache key — clears stale v4 entries that cached empty results from the
-                // brief window when the printType==='BOOK' filter was too strict (before the
-                // fix in dbf7e34 relaxed it to !=='MAGAZINE').
-                const cacheKey = `search_v5_${query.trim().toLowerCase()}_${fullSearch}`;
+                // v6 — multi-source parallel search (Google Books + Open Library)
+                const cacheKey = `search_v6_${query.trim().toLowerCase()}_${fullSearch}`;
 
                 try {
                     // ── 1. Session cache (1-hour TTL) ─────────────────────────────────
@@ -6566,15 +6644,28 @@
                         }
                     }
 
-                    // ── 3. Google Books — raw query, Google's native ranking ───────────
-                    const results = await fetchFromGoogleBooks(query, fullSearch);
+                    // ── 3. Query all sources in parallel ──────────────────────────────
+                    const [gbResult, olResult] = await Promise.allSettled([
+                        fetchFromGoogleBooks(query, fullSearch),
+                        fetchFromOpenLibrary(query, fullSearch)
+                    ]);
+                    const gbBooks = (gbResult.status === 'fulfilled' ? gbResult.value : [])
+                        .map(b => ({ ...b, source: 'google' }));
+                    const olBooks = (olResult.status === 'fulfilled' ? olResult.value : [])
+                        .map(b => ({ ...b, source: 'openlibrary' }));
 
-                    // ── 4. Cache results in Supabase for future ISBN/barcode lookups ───
+                    // ── 4. Merge + deduplicate ────────────────────────────────────────
+                    const merged = mergeBookResults([gbBooks, olBooks]);
+
+                    // ── 5. Score + rank ───────────────────────────────────────────────
+                    const results = merged
+                        .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
+                        .sort((a, b) => b._score - a._score);
+
+                    // ── 6. Cache to Supabase for future ISBN/barcode lookups ──────────
                     results.forEach(b => saveIsbnToCache(b));
 
-                    // ── 5. Store in session cache and display ─────────────────────────
-                    // Only cache non-empty results — don't let a transient API failure
-                    // poison the cache and return 0 results for the next hour.
+                    // ── 7. Store in session cache ─────────────────────────────────────
                     if (results.length > 0) {
                         try {
                             sessionStorage.setItem(cacheKey, JSON.stringify({ results, ts: Date.now() }));

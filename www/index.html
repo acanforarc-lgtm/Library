@@ -6,8 +6,10 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.5.1
+    YOUR LIBRARY - VERSION 2.5.3
     ========================================
+    v2.5.3: Multi-source parallel book search (Google Books + Open Library, merge/dedup/score); public bookshelf RLS fix (SECURITY DEFINER helpers on books+shelves); profile shelf detail overlay (full wood-board UI, read-only); friend's book data popup (status, stars, notes read-only); All Books row in profile Books tab
+    v2.5.2: iOS scanning UI overhaul — warm style, session log dropdown, shelf keyboard fix; iOS CI shared Xcode scheme fix
     v2.5.1: Social profiles — public/private/hidden visibility, follow system, granular privacy toggles, public profile overlay (Books+Shelves+Room stub), account verification requests, verified badge
     v2.4.37: Revert Babel pre-compile — back to browser Babel (babel.min.js CDN); simpler and proven reliable
     v2.4.36: Fix blank app — wrap compiled JSX in DOMContentLoaded (matches browser-Babel timing); move @babel/core to dependencies so Codemagic always installs it
@@ -4468,6 +4470,8 @@
             const [profileFollowingCount, setProfileFollowingCount] = useState(0);
             const [profileBooksRead, setProfileBooksRead] = useState(0);
             const [profileLoading, setProfileLoading] = useState(false);
+            const [profileViewingShelf, setProfileViewingShelf] = useState(null);
+            const [profileSelectedBook, setProfileSelectedBook] = useState(null);
             const [myFollowerCount, setMyFollowerCount] = useState(0);
             const [myFollowingCount, setMyFollowingCount] = useState(0);
             const [showFollowListModal, setShowFollowListModal] = useState(false);
@@ -6409,6 +6413,44 @@
                 return results;
             };
 
+            const fetchFromOpenLibrary = async (query, fullSearch = false) => {
+                try {
+                    const limit = fullSearch ? 100 : 20;
+                    const fields = 'key,title,author_name,isbn,cover_i,first_publish_year,publisher,number_of_pages_median,ratings_average';
+                    const q = encodeURIComponent(
+                        restoreContractions(query.trim())
+                            .replace(/:/g, ' ').replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+                    );
+                    const res = await fetch(
+                        `https://openlibrary.org/search.json?q=${q}&limit=${limit}&fields=${fields}`,
+                        { signal: AbortSignal.timeout(8000) }
+                    );
+                    if (!res.ok) return [];
+                    const data = await res.json();
+                    return (data.docs || [])
+                        .filter(doc => {
+                            const t = (doc.title || '').toLowerCase();
+                            return !t.includes('journal') && !t.includes('magazine') && !t.includes('newsletter');
+                        })
+                        .map(doc => {
+                            const isbn13 = (doc.isbn || []).find(i => i.length === 13);
+                            const isbn10 = (doc.isbn || []).find(i => i.length === 10);
+                            return {
+                                title: doc.title || 'Unknown Title',
+                                author: doc.author_name?.[0] || 'Unknown Author',
+                                isbn: isbn13 || isbn10 || 'Not Available',
+                                cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+                                publishYear: doc.first_publish_year ? String(doc.first_publish_year) : null,
+                                publisher: doc.publisher?.[0] || null,
+                                pageCount: doc.number_of_pages_median || null,
+                                description: 'No description available.',
+                                rating: doc.ratings_average || 0,
+                                source: 'openlibrary'
+                            };
+                        });
+                } catch { return []; }
+            };
+
             // Search functions
             const handleSearchChange = (value) => {
                 setSearchQuery(value);
@@ -6499,8 +6541,50 @@
                 if (book.isbn && book.isbn !== 'Not Available') score += 3;
                 if (book.pageCount > 0) score += 2;
                 if (book.rating > 0) score += book.rating; // 1–5 point boost
+                if (book.sourceCount > 1) score += book.sourceCount * 3; // confirmed across multiple databases
 
                 return score;
+            };
+
+            // Deduplicates and merges results from multiple sources.
+            // ISBN is the primary dedup key; fuzzy title+author is the fallback.
+            // When a book appears in multiple sources, the merged record picks the
+            // best field from each (cover from GB, rating from whichever is higher, etc.).
+            const mergeBookResults = (sourceArrays) => {
+                const byIsbn = new Map();
+                const noIsbn = [];
+
+                for (const books of sourceArrays) {
+                    for (const book of books) {
+                        const isbn = book.isbn !== 'Not Available' ? book.isbn : null;
+                        if (isbn) {
+                            if (!byIsbn.has(isbn)) {
+                                byIsbn.set(isbn, { ...book, sourceCount: 1 });
+                            } else {
+                                const ex = byIsbn.get(isbn);
+                                byIsbn.set(isbn, {
+                                    ...ex,
+                                    cover: ex.cover || book.cover,
+                                    rating: Math.max(ex.rating || 0, book.rating || 0),
+                                    description: ex.description !== 'No description available.' ? ex.description : book.description,
+                                    pageCount: ex.pageCount || book.pageCount,
+                                    sourceCount: ex.sourceCount + 1
+                                });
+                            }
+                        } else {
+                            noIsbn.push(book);
+                        }
+                    }
+                }
+
+                const noIsbnDeduped = [];
+                const seen = new Set();
+                for (const book of noIsbn) {
+                    const key = `${normalizeText(book.title)}|${normalizeText(book.author)}`.substring(0, 80);
+                    if (!seen.has(key)) { seen.add(key); noIsbnDeduped.push(book); }
+                }
+
+                return [...byIsbn.values(), ...noIsbnDeduped];
             };
 
             // Restore common missing apostrophes before sending to Google Books.
@@ -6536,10 +6620,8 @@
                 setSearchLoading(true);
                 if (!fullSearch) setShowSearchDropdown(true);
 
-                // v5 cache key — clears stale v4 entries that cached empty results from the
-                // brief window when the printType==='BOOK' filter was too strict (before the
-                // fix in dbf7e34 relaxed it to !=='MAGAZINE').
-                const cacheKey = `search_v5_${query.trim().toLowerCase()}_${fullSearch}`;
+                // v6 — multi-source parallel search (Google Books + Open Library)
+                const cacheKey = `search_v6_${query.trim().toLowerCase()}_${fullSearch}`;
 
                 try {
                     // ── 1. Session cache (1-hour TTL) ─────────────────────────────────
@@ -6566,15 +6648,28 @@
                         }
                     }
 
-                    // ── 3. Google Books — raw query, Google's native ranking ───────────
-                    const results = await fetchFromGoogleBooks(query, fullSearch);
+                    // ── 3. Query all sources in parallel ──────────────────────────────
+                    const [gbResult, olResult] = await Promise.allSettled([
+                        fetchFromGoogleBooks(query, fullSearch),
+                        fetchFromOpenLibrary(query, fullSearch)
+                    ]);
+                    const gbBooks = (gbResult.status === 'fulfilled' ? gbResult.value : [])
+                        .map(b => ({ ...b, source: 'google' }));
+                    const olBooks = (olResult.status === 'fulfilled' ? olResult.value : [])
+                        .map(b => ({ ...b, source: 'openlibrary' }));
 
-                    // ── 4. Cache results in Supabase for future ISBN/barcode lookups ───
+                    // ── 4. Merge + deduplicate ────────────────────────────────────────
+                    const merged = mergeBookResults([gbBooks, olBooks]);
+
+                    // ── 5. Score + rank ───────────────────────────────────────────────
+                    const results = merged
+                        .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
+                        .sort((a, b) => b._score - a._score);
+
+                    // ── 6. Cache to Supabase for future ISBN/barcode lookups ──────────
                     results.forEach(b => saveIsbnToCache(b));
 
-                    // ── 5. Store in session cache and display ─────────────────────────
-                    // Only cache non-empty results — don't let a transient API failure
-                    // poison the cache and return 0 results for the next hour.
+                    // ── 7. Store in session cache ─────────────────────────────────────
                     if (results.length > 0) {
                         try {
                             sessionStorage.setItem(cacheKey, JSON.stringify({ results, ts: Date.now() }));
@@ -12801,7 +12896,7 @@
                                                 <div className="profile-row-header">{title}</div>
                                                 <div className="profile-book-scroll">
                                                     {bks.map(book => (
-                                                        <div key={book.id} className="profile-book-card">
+                                                        <div key={book.id} className="profile-book-card" style={{cursor:'pointer'}} onClick={() => setProfileSelectedBook(book)}>
                                                             {book.cover ? (
                                                                 <img src={book.cover} alt={book.title} className="profile-book-cover" />
                                                             ) : (
@@ -12905,9 +13000,7 @@
                                                                     <BookRow title="Recently Read" bks={recentlyRead} />
                                                                     <BookRow title="Highly Rated" bks={highlyRated} />
                                                                     <BookRow title="Plan to Read" bks={planToRead} />
-                                                                    {currentlyReading.length === 0 && recentlyRead.length === 0 && highlyRated.length === 0 && planToRead.length === 0 && (
-                                                                        <div style={{textAlign:'center', padding:'3rem 1rem', color:'#8b6f47'}}>No categorized books to show.</div>
-                                                                    )}
+                                                                    <BookRow title="All Books" bks={profileBooks} />
                                                                 </>
                                                             )}
                                                         </div>
@@ -12922,7 +13015,7 @@
                                                                 profileShelves.map(shelf => {
                                                                     const shelfBooks = profileBooks.filter(b => b.shelf_id === shelf.id).slice(0, 5);
                                                                     return (
-                                                                        <div key={shelf.id} className="profile-shelf-card">
+                                                                        <div key={shelf.id} className="profile-shelf-card" style={{cursor:'pointer'}} onClick={() => setProfileViewingShelf(shelf)}>
                                                                             <div className="profile-shelf-name">{shelf.name}</div>
                                                                             <div className="profile-shelf-meta">{profileBooks.filter(b => b.shelf_id === shelf.id).length} books</div>
                                                                             <div className="profile-shelf-covers">
@@ -12932,6 +13025,7 @@
                                                                                     <div key={b.id} className="profile-shelf-cover-placeholder" />
                                                                                 ))}
                                                                             </div>
+                                                                            <div style={{fontSize:'0.75rem', color:'#8b6f47', marginTop:'0.5rem'}}>Tap to view →</div>
                                                                         </div>
                                                                     );
                                                                 })
@@ -12946,6 +13040,158 @@
                             </div>
                         </div>
                     )}
+
+                    {/* ==================== PROFILE SHELF DETAIL OVERLAY ==================== */}
+                    {profileViewingShelf && (() => {
+                        const shelf = profileViewingShelf;
+                        const boardCount = shelf.board_count || 3;
+                        return (
+                            <div className="profile-overlay" style={{zIndex: 450}}>
+                                <div className="profile-overlay-header">
+                                    <button className="profile-back-btn" onClick={() => setProfileViewingShelf(null)}>←</button>
+                                    <span className="profile-overlay-title">{shelf.name}</span>
+                                </div>
+                                <div className="profile-scroll-body" style={{padding: '1rem 0 3rem'}}>
+                                    <div
+                                        className="shelf"
+                                        style={{
+                                            background: shelf.background_color || '#8b7355',
+                                            '--shelf-bg': shelf.background_color || '#8b7355',
+                                            margin: '0 1rem',
+                                            borderRadius: '8px'
+                                        }}
+                                    >
+                                        <div className="shelf-header">
+                                            <h3 className="shelf-title">{shelf.name}</h3>
+                                        </div>
+                                        {Array.from({ length: boardCount }).map((_, boardIndex) => {
+                                            const boardBooks = profileBooks.filter(b =>
+                                                b.shelf_id === shelf.id && (b.board_index ?? 0) === boardIndex
+                                            );
+                                            return (
+                                                <div
+                                                    key={boardIndex}
+                                                    className={`shelf-board wood-${shelf.wood_type || 'oak'}`}
+                                                    style={{position: 'relative'}}
+                                                >
+                                                    {boardBooks.map(book => {
+                                                        const pos = book.position ?? 0;
+                                                        const pct = (pos / SHELF_WIDTH) * 100;
+                                                        return (
+                                                            <div
+                                                                key={book.id}
+                                                                className="book"
+                                                                style={{
+                                                                    background: book.cover
+                                                                        ? `url(${book.cover}) center/cover`
+                                                                        : (book.color || '#8b7355'),
+                                                                    position: 'absolute',
+                                                                    left: `${pct}%`,
+                                                                    bottom: '0.5rem',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                                onClick={() => setProfileSelectedBook(book)}
+                                                                title={`${book.title} by ${book.author}`}
+                                                            >
+                                                                <div className="book-spine" style={{pointerEvents:'none'}}>
+                                                                    {book.title}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* ==================== PROFILE BOOK DETAIL POPUP ==================== */}
+                    {profileSelectedBook && (() => {
+                        const pb = profileSelectedBook;
+                        const ud = pb.userData || {};
+                        const ownerName = viewingProfile?.display_name || viewingProfile?.username || 'Their';
+                        const statusLabel = ud.status === 'reading'    ? '📖 Currently Reading' :
+                                            ud.status === 'finished'   ? '✅ Finished' :
+                                            (ud.status === 'want' || ud.status === 'want-to-read') ? '🔖 Want to Read' :
+                                            null;
+                        const hasData = statusLabel || ud.rating > 0 || ud.notes;
+                        return (
+                            <div className="book-detail-overlay" onClick={() => setProfileSelectedBook(null)}>
+                                <div className="book-info-popup" onClick={e => e.stopPropagation()}>
+                                    <button className="book-detail-close" onClick={() => setProfileSelectedBook(null)}>×</button>
+                                    <div className="book-info-content">
+                                        <div className="book-info-header">
+                                            {pb.cover ? (
+                                                <img src={pb.cover} alt={pb.title} className="book-info-cover" />
+                                            ) : (
+                                                <div className="book-info-cover-placeholder">{pb.title}</div>
+                                            )}
+                                            <div className="book-info-details">
+                                                <h2 className="book-info-title">{pb.title}</h2>
+                                                <div className="book-info-author">by {pb.author}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="book-info-meta">
+                                            {pb.isbn && pb.isbn !== 'Not Available' && <div>📚 {pb.isbn}</div>}
+                                            {pb.publishYear && <div>📅 {pb.publishYear}</div>}
+                                            {pb.pageCount && <div>📖 {pb.pageCount} pages</div>}
+                                            {pb.description && pb.description !== 'No description available.' && (
+                                                <div
+                                                    style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
+                                                    onClick={() => { setBookSummaryText(pb.description); setShowBookSummary(true); }}
+                                                >📝 Summary</div>
+                                            )}
+                                        </div>
+
+                                        <div className="user-book-data">
+                                            <div className="user-book-data-title">📊 {ownerName}'s Reading Data</div>
+
+                                            {statusLabel && (
+                                                <div className="user-data-row">
+                                                    <div className="user-data-label">Status</div>
+                                                    <div style={{fontWeight:600, color:'#3d2817'}}>{statusLabel}</div>
+                                                </div>
+                                            )}
+
+                                            {ud.rating > 0 && (
+                                                <div className="user-data-row">
+                                                    <div className="user-data-label">Rating</div>
+                                                    <div className="star-rating">
+                                                        {[1,2,3,4,5].map(s => (
+                                                            <span key={s} className={`star ${s <= ud.rating ? 'filled' : ''}`} style={{cursor:'default'}}>★</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {ud.notes ? (
+                                                <div className="user-data-row" style={{flexDirection:'column', alignItems:'flex-start', gap:'0.3rem'}}>
+                                                    <div className="user-data-label">Notes / Review</div>
+                                                    <div style={{background:'#fdf3e7', border:'1px solid #e8d5b7', borderRadius:'6px', padding:'0.6rem 0.75rem', fontSize:'0.9rem', color:'#3d2817', lineHeight:1.55, width:'100%', whiteSpace:'pre-wrap'}}>
+                                                        {ud.notes}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
+                                            {!hasData && (
+                                                <div style={{color:'#8b6f47', fontSize:'0.9rem', padding:'0.5rem 0'}}>No reading data recorded yet.</div>
+                                            )}
+                                        </div>
+
+                                        <div className="book-info-actions">
+                                            <div className="book-info-buttons">
+                                                <button className="btn-info" onClick={() => setProfileSelectedBook(null)} style={{background:'#8b6f47'}}>Close</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* ==================== FRIEND QUICK-ACTION POPUP ==================== */}
                     {selectedFriend && (

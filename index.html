@@ -4469,6 +4469,7 @@
             const [profileBooksRead, setProfileBooksRead] = useState(0);
             const [profileLoading, setProfileLoading] = useState(false);
             const [profileViewingShelf, setProfileViewingShelf] = useState(null);
+            const [profileSelectedBook, setProfileSelectedBook] = useState(null);
             const [myFollowerCount, setMyFollowerCount] = useState(0);
             const [myFollowingCount, setMyFollowingCount] = useState(0);
             const [showFollowListModal, setShowFollowListModal] = useState(false);
@@ -12893,7 +12894,7 @@
                                                 <div className="profile-row-header">{title}</div>
                                                 <div className="profile-book-scroll">
                                                     {bks.map(book => (
-                                                        <div key={book.id} className="profile-book-card">
+                                                        <div key={book.id} className="profile-book-card" style={{cursor:'pointer'}} onClick={() => setProfileSelectedBook(book)}>
                                                             {book.cover ? (
                                                                 <img src={book.cover} alt={book.title} className="profile-book-cover" />
                                                             ) : (
@@ -13085,8 +13086,9 @@
                                                                     position: 'absolute',
                                                                     left: `${pct}%`,
                                                                     bottom: '0.5rem',
-                                                                    cursor: 'default'
+                                                                    cursor: 'pointer'
                                                                 }}
+                                                                onClick={() => setProfileSelectedBook(book)}
                                                                 title={`${book.title} by ${book.author}`}
                                                             >
                                                                 <div className="book-spine" style={{pointerEvents:'none'}}>
@@ -13098,6 +13100,91 @@
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* ==================== PROFILE BOOK DETAIL POPUP ==================== */}
+                    {profileSelectedBook && (() => {
+                        const pb = profileSelectedBook;
+                        const ud = pb.userData || {};
+                        const ownerName = viewingProfile?.display_name || viewingProfile?.username || 'Their';
+                        const statusLabel = ud.status === 'reading'    ? '📖 Currently Reading' :
+                                            ud.status === 'finished'   ? '✅ Finished' :
+                                            (ud.status === 'want' || ud.status === 'want-to-read') ? '🔖 Want to Read' :
+                                            null;
+                        const hasData = statusLabel || ud.rating > 0 || ud.notes;
+                        return (
+                            <div className="book-detail-overlay" onClick={() => setProfileSelectedBook(null)}>
+                                <div className="book-info-popup" onClick={e => e.stopPropagation()}>
+                                    <button className="book-detail-close" onClick={() => setProfileSelectedBook(null)}>×</button>
+                                    <div className="book-info-content">
+                                        <div className="book-info-header">
+                                            {pb.cover ? (
+                                                <img src={pb.cover} alt={pb.title} className="book-info-cover" />
+                                            ) : (
+                                                <div className="book-info-cover-placeholder">{pb.title}</div>
+                                            )}
+                                            <div className="book-info-details">
+                                                <h2 className="book-info-title">{pb.title}</h2>
+                                                <div className="book-info-author">by {pb.author}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="book-info-meta">
+                                            {pb.isbn && pb.isbn !== 'Not Available' && <div>📚 {pb.isbn}</div>}
+                                            {pb.publishYear && <div>📅 {pb.publishYear}</div>}
+                                            {pb.pageCount && <div>📖 {pb.pageCount} pages</div>}
+                                            {pb.description && pb.description !== 'No description available.' && (
+                                                <div
+                                                    style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
+                                                    onClick={() => { setBookSummaryText(pb.description); setShowBookSummary(true); }}
+                                                >📝 Summary</div>
+                                            )}
+                                        </div>
+
+                                        <div className="user-book-data">
+                                            <div className="user-book-data-title">📊 {ownerName}'s Reading Data</div>
+
+                                            {statusLabel && (
+                                                <div className="user-data-row">
+                                                    <div className="user-data-label">Status</div>
+                                                    <div style={{fontWeight:600, color:'#3d2817'}}>{statusLabel}</div>
+                                                </div>
+                                            )}
+
+                                            {ud.rating > 0 && (
+                                                <div className="user-data-row">
+                                                    <div className="user-data-label">Rating</div>
+                                                    <div className="star-rating">
+                                                        {[1,2,3,4,5].map(s => (
+                                                            <span key={s} className={`star ${s <= ud.rating ? 'filled' : ''}`} style={{cursor:'default'}}>★</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {ud.notes ? (
+                                                <div className="user-data-row" style={{flexDirection:'column', alignItems:'flex-start', gap:'0.3rem'}}>
+                                                    <div className="user-data-label">Notes / Review</div>
+                                                    <div style={{background:'#fdf3e7', border:'1px solid #e8d5b7', borderRadius:'6px', padding:'0.6rem 0.75rem', fontSize:'0.9rem', color:'#3d2817', lineHeight:1.55, width:'100%', whiteSpace:'pre-wrap'}}>
+                                                        {ud.notes}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
+                                            {!hasData && (
+                                                <div style={{color:'#8b6f47', fontSize:'0.9rem', padding:'0.5rem 0'}}>No reading data recorded yet.</div>
+                                            )}
+                                        </div>
+
+                                        <div className="book-info-actions">
+                                            <div className="book-info-buttons">
+                                                <button className="btn-info" onClick={() => setProfileSelectedBook(null)} style={{background:'#8b6f47'}}>Close</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

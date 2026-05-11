@@ -6,8 +6,10 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.5.3
+    YOUR LIBRARY - VERSION 2.5.5
     ========================================
+    v2.5.5: 22 bug fixes — popular/new-release distinction; bell & hamburger dropdowns open below icon with click-away; settings email visible; username uniqueness real-time; settings scroll cutoff; iOS profile shelf horizontal fix; book-close ghost-tap; search summary popout; clear-X tab restore; remove-book banner removed; adjustable books-per-shelf; terminology (bookcase/bookshelf); hamburger click-through; wider popups; add-books modal 2-per-row + scroll lock; edit-appearance leave prompt; version notification system
+    v2.5.4: Search query pre-processor (intitle: prefix, subtitle strip, noise-word trim) + silent 3-word fallback retry when both APIs return empty
     v2.5.3: Multi-source parallel book search (Google Books + Open Library, merge/dedup/score); public bookshelf RLS fix (SECURITY DEFINER helpers on books+shelves); profile shelf detail overlay (full wood-board UI, read-only); friend's book data popup (status, stars, notes read-only); All Books row in profile Books tab
     v2.5.2: iOS scanning UI overhaul — warm style, session log dropdown, shelf keyboard fix; iOS CI shared Xcode scheme fix
     v2.5.1: Social profiles — public/private/hidden visibility, follow system, granular privacy toggles, public profile overlay (Books+Shelves+Room stub), account verification requests, verified badge
@@ -416,25 +418,8 @@
             background-position: center;
         }
         
-        /* BOOK WIDTH - Chuck's Formula: (board_width - 32px padding) / 20 books */
-        @media (min-width: 1800px) and (max-width: 1999px) {
-            .book { width: 37.6px; } /* 784px board: (784-32)/20 = 37.6px */
-        }
-        @media (min-width: 2000px) and (max-width: 2399px) {
-            .book { width: 41.9px; } /* 870px board: (870-32)/20 = 41.9px */
-        }
-        @media (min-width: 2400px) {
-            .book { width: 48.4px; } /* 1000px board: (1000-32)/20 = 48.4px */
-        }
-        @media (min-width: 1600px) and (max-width: 1799px) {
-            .book { width: 34.9px; } /* 730px board: (730-32)/20 = 34.9px */
-        }
-        @media (min-width: 1366px) and (max-width: 1599px) {
-            .book { width: 29.4px; } /* 620px board: (620-32)/20 = 29.4px */
-        }
-        @media (max-width: 1365px) {
-            .book { width: calc((100% - 64px) / 20); } /* Dynamic for smaller */
-        }
+        /* BOOK WIDTH — scales with --shelf-max-books CSS variable (set per shelf-board) */
+        .book { width: calc((100% - 64px) / var(--shelf-max-books, 20)); }
 
         .book::before {
             content: '';
@@ -1505,13 +1490,13 @@
             align-items: center;
             justify-content: center;
             z-index: 2000;
-            padding: 2rem;
+            padding: 1rem;
         }
 
         .book-detail-popup {
             background: white;
             border-radius: 20px;
-            max-width: 600px;
+            max-width: 720px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
@@ -1966,8 +1951,8 @@
         .book-info-popup {
             background: white;
             border-radius: 20px;
-            max-width: 500px;
-            width: 90%;
+            max-width: 620px;
+            width: 95%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: popIn 0.3s ease-out;
             position: relative;
@@ -2144,13 +2129,34 @@
 
         .selector-books-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
-            max-height: 400px;
             overflow-y: auto;
+            flex: 1;
+            min-height: 0;
             padding: 1rem;
             background: #faf8f3;
             border-radius: 8px;
+        }
+        /* Lock outer popup, only the grid scrolls */
+        .shelf-book-selector {
+            display: flex !important;
+            flex-direction: column !important;
+            max-height: 88vh !important;
+            overflow: hidden !important;
+        }
+        .shelf-book-selector .book-detail-content {
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+            flex: 1 !important;
+            overflow: hidden !important;
+        }
+        .shelf-book-selector .book-detail-title {
+            font-size: 1.1rem !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .selector-book-card {
@@ -2241,17 +2247,21 @@
         .selector-actions {
             display: flex;
             gap: 1rem;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
+            flex-shrink: 0;
+            justify-content: center;
         }
 
         .selector-actions button {
             flex: 1;
-            padding: 1rem;
+            max-width: 160px;
+            padding: 0.85rem 1rem;
             border: none;
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            text-align: center;
         }
 
         .btn-selector-add {
@@ -2362,7 +2372,7 @@
         .settings-content {
             flex: 1;
             overflow-y: auto;
-            padding: 2rem 3rem;
+            padding: 2rem 3rem 5rem;
             background: white;
         }
 
@@ -2881,13 +2891,11 @@
                 display: none;
             }
 
-            /* Notification dropdown: anchor to top-right on mobile */
+            /* Notification dropdown: on mobile anchor below the bell icon */
             .notif-dropdown {
-                top: calc(env(safe-area-inset-top) + 62px);
-                right: 8px;
-                left: auto;
-                width: 260px;
-                max-width: calc(100vw - 16px);
+                right: -8px;
+                width: 280px;
+                max-width: calc(100vw - 24px);
             }
 
             /* Account dropdown: anchor to top-left on mobile (avatar is top-left) */
@@ -3259,10 +3267,10 @@
         }
 
         .notif-dropdown {
-            position: fixed;
-            top: 70px;
-            right: 1.5rem;
-            width: 280px;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            width: 300px;
             background: white;
             border: 2px solid #e0d5c5;
             border-radius: 14px;
@@ -4276,8 +4284,86 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
+        const APP_VERSION = '2.5.5';
+        const WHATS_NEW = {
+            version: '2.5.5',
+            type: 'bugfix',
+            items: [
+                'Popular Books and New Releases now show distinct content',
+                'Notification bell and hamburger menus open below their icons; click outside to dismiss',
+                'Settings shows your account email correctly',
+                'Username uniqueness checked in real time as you type',
+                'Settings page no longer cuts off at the bottom',
+                'iOS profile bookshelf view no longer scrolls sideways',
+                'Fixed ghost-tap when closing book detail popup',
+                'Book summaries in search results are now a tap-to-open popout',
+                'Clearing search (×) returns you to the tab you were on',
+                'Removed "Book removed" banner — disappearing is enough',
+                'Each bookcase can now have a custom books-per-shelf count (default 20)',
+                'Renamed: Bookcase = full unit, Bookshelf = individual board',
+                'Hamburger menu clicks no longer register on books behind it',
+                'Popups are now wider (gap reduced by 50%)',
+                '"Add Books to Bookcase" grid shows 2 per row; inner area scrolls, popup stays fixed',
+                'Leaving "Edit Appearance" now prompts Keep Changes or Revert',
+                'App now shows a notification when updated',
+            ]
+        };
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Notification dropdown — rendered inside whichever bell wrapper is visible
+        const NotifDropdownContent = ({ notifications, unreadNotifications, markAllNotificationsRead, clearAllNotifications, markNotificationRead, deleteNotification, setShowNotifications, setActiveTab, setSocialTab, conversations, openConversation, setShowWhatsNew }) => (
+            <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
+                <div className="notif-header">
+                    <span>Notifications</span>
+                    <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+                        {unreadNotifications > 0 && (
+                            <button className="notif-mark-all" onClick={markAllNotificationsRead}>Mark all read</button>
+                        )}
+                        {notifications.length > 0 && (
+                            <button className="notif-mark-all" style={{color:'#c0392b'}} onClick={clearAllNotifications}>Clear all</button>
+                        )}
+                    </div>
+                </div>
+                {notifications.length === 0 ? (
+                    <div className="notif-empty">No notifications yet</div>
+                ) : (
+                    notifications.map(n => (
+                        <div
+                            key={n.id}
+                            className={`notif-item${n.is_read ? '' : ' unread'}`}
+                            style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}
+                        >
+                            <div
+                                style={{flex:1,cursor:'pointer'}}
+                                onClick={() => {
+                                    markNotificationRead(n.id);
+                                    if (n.type === 'whats_new') {
+                                        setShowWhatsNew(true);
+                                    } else if (n.type === 'friend_request' || n.type === 'friend_accepted') {
+                                        setActiveTab('friends');
+                                        setSocialTab(n.type === 'friend_request' ? 'requests' : 'friends');
+                                    } else if (n.type === 'message' && n.action_url) {
+                                        setActiveTab('messages');
+                                        const conv = conversations.find(c => c.id === n.action_url);
+                                        if (conv) openConversation(conv);
+                                    }
+                                    setShowNotifications(false);
+                                }}
+                            >
+                                <div className="notif-title">{n.type === 'message' ? '💬 ' : ''}{n.title}</div>
+                                <div className="notif-content">{n.content}</div>
+                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                                style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:'1rem',lineHeight:1,padding:'0 2px',flexShrink:0}}
+                                title="Dismiss"
+                            >×</button>
+                        </div>
+                    ))
+                )}
+            </div>
+        );
 
         function App() {
             // ==========================================
@@ -4301,6 +4387,7 @@
             
             const [showConfirm, setShowConfirm] = useState(false);
             const [confirmAction, setConfirmAction] = useState(null);
+            const [showWhatsNew, setShowWhatsNew] = useState(false);
             const [showFullDescription, setShowFullDescription] = useState(false);
             
             // Drag and drop state
@@ -4312,6 +4399,8 @@
             // Shelf editing state
             const [editingShelfId, setEditingShelfId] = useState(null);
             const [openShelfMenu, setOpenShelfMenu] = useState(null);
+            const [showEditLeavePrompt, setShowEditLeavePrompt] = useState(false);
+            const [pendingTab, setPendingTab] = useState(null);
             const [openColorDropdown, setOpenColorDropdown] = useState(null); // {shelfId, type:'bg'|'wood'}
             const [selectedBoardForAdd, setSelectedBoardForAdd] = useState('');
             const [assignWizardStep, setAssignWizardStep] = useState(1); // 1 = pick shelf, 2 = pick board
@@ -4338,6 +4427,7 @@
             const [searchQuery, setSearchQuery] = useState('');
             const [searchResults, setSearchResults] = useState([]);
             const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+            const [preSearchTab, setPreSearchTab] = useState(null);
             const [searchLoading, setSearchLoading] = useState(false);
             const [selectedBook, setSelectedBook] = useState(null);
             const [selectedShelfForAdd, setSelectedShelfForAdd] = useState('');
@@ -4497,6 +4587,7 @@
             // const [verificationSubmitted, setVerificationSubmitted] = useState(false);
 
             const scannerInitialized = React.useRef(false);
+            const bookInfoClosingRef = React.useRef(false);
             const [starHover, setStarHover] = useState(0);
             const [userProfile, setUserProfile] = useState({
                 name: currentUser?.name || '',
@@ -6468,6 +6559,10 @@
 
             // Search functions
             const handleSearchChange = (value) => {
+                // Record the tab user was on when they FIRST start typing
+                if (value.trim().length > 0 && !searchQuery.trim() && preSearchTab === null) {
+                    setPreSearchTab(activeTab);
+                }
                 setSearchQuery(value);
 
                 // Clear previous timer
@@ -7225,7 +7320,7 @@
 
             // Fetch all recommendation sections — all powered by Google Books
             const fetchAllRecommendations = async (userBooks, userShelves) => {
-                const cacheKey = 'recSections_v4';
+                const cacheKey = 'recSections_v5';
                 const cached = sessionStorage.getItem(cacheKey);
                 if (cached) { try { setRecSections(JSON.parse(cached)); return; } catch(_) {} }
                 if (sessionStorage.getItem('recs_fetching')) return;
@@ -7282,18 +7377,18 @@
                         })
                 );
 
-                // 4. Popular right now (curated query, ordered by relevance)
+                // 4. Popular right now — bestseller-tagged fiction/nonfiction mix
                 promises.push(
-                    gbQuery('subject:fiction', 30)
+                    gbQuery('subject:fiction bestseller', 30)
                         .then(data => {
                             const books = toBooks(data);
                             if (books.length >= 3) sections.push({ id: 'trending', title: 'Popular Right Now', label: '🔥 Widely read', books });
                         })
                 );
 
-                // 5. New releases
+                // 5. New releases — newest books across all genres (not limited to fiction)
                 promises.push(
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction&orderBy=newest&maxResults=30&printType=books${GBOOKS_KEY}`,
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=new+release+2025&orderBy=newest&maxResults=30&printType=books${GBOOKS_KEY}`,
                         { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null).catch(() => null)
                         .then(data => {
@@ -7324,12 +7419,73 @@
                 }
             };
 
+            // Version-based what's new notification
+            useEffect(() => {
+                try {
+                    const seen = localStorage.getItem('library_seen_version');
+                    if (seen !== APP_VERSION) {
+                        const parseSemver = (v) => (v || '0.0.0').split('.').map(Number);
+                        const [, sm, sp] = parseSemver(seen);
+                        const [, cm, cp] = parseSemver(APP_VERSION);
+                        // Feature version (minor or major bump) → splash; patch only → notification
+                        const isFeature = cm > sm;
+                        if (isFeature) {
+                            setShowWhatsNew(true);
+                        } else if (seen) {
+                            // Bug fix: inject a local notification into the bell
+                            const localNotif = {
+                                id: `whats_new_${APP_VERSION}`,
+                                type: 'whats_new',
+                                title: `Updated to v${APP_VERSION}`,
+                                content: `${WHATS_NEW.items.length} bug fixes & improvements. Tap to see what changed.`,
+                                is_read: false,
+                                action_url: null,
+                                _whatsNewVersion: APP_VERSION
+                            };
+                            setNotifications(prev => {
+                                if (prev.some(n => n.id === localNotif.id)) return prev;
+                                return [localNotif, ...prev];
+                            });
+                        }
+                        localStorage.setItem('library_seen_version', APP_VERSION);
+                    }
+                } catch(_) {}
+            }, []);
+
             // Load recommendations when user logs in
             useEffect(() => {
                 if (currentUser && recSections.length === 0) {
                     fetchAllRecommendations(books, shelves);
                 }
             }, [currentUser]);
+
+            // Close hamburger menu when switching tabs
+            useEffect(() => { setOpenShelfMenu(null); }, [activeTab]);
+
+            // Close hamburger menu on click anywhere outside
+            useEffect(() => {
+                if (!openShelfMenu) return;
+                const handler = (e) => {
+                    if (!e.target.closest('.shelf-menu-wrap') && !e.target.closest('.shelf-menu-dropdown')) {
+                        setOpenShelfMenu(null);
+                    }
+                };
+                document.addEventListener('click', handler, true);
+                return () => document.removeEventListener('click', handler, true);
+            }, [openShelfMenu]);
+
+            // Also close showUserMenu and showNotifications on outside click (desktop)
+            useEffect(() => {
+                if (!showUserMenu && !showNotifications) return;
+                const handler = (e) => {
+                    if (!e.target.closest('.user-menu') && !e.target.closest('.header-bell-desktop') && !e.target.closest('.header-bell-slot')) {
+                        setShowUserMenu(false);
+                        setShowNotifications(false);
+                    }
+                };
+                document.addEventListener('click', handler, true);
+                return () => document.removeEventListener('click', handler, true);
+            }, [showUserMenu, showNotifications]);
 
             // Init 3D room when tab becomes active, cleanup when leaving
             useEffect(() => {
@@ -7390,6 +7546,8 @@
 
             // Close book info popup
             const closeBookInfo = () => {
+                bookInfoClosingRef.current = true;
+                setTimeout(() => { bookInfoClosingRef.current = false; }, 350);
                 setShowBookInfo(false);
                 setBookInfoData(null);
                 setSelectedShelfForAdd('');
@@ -7412,7 +7570,6 @@
                             if (error) throw error;
 
                             setBooks(books.filter(b => b.id !== bookId));
-                            showMessage('Book removed from library');
                             closeBookInfo();
 
                         } catch (error) {
@@ -7896,6 +8053,20 @@
                 }
             };
             
+            // Change max books per shelf (books scale to fill; requires max_books column in shelves table)
+            // SQL: ALTER TABLE shelves ADD COLUMN IF NOT EXISTS max_books INTEGER DEFAULT 20;
+            const changeShelfMaxBooks = async (shelfId, delta) => {
+                const shelf = shelves.find(s => s.id === shelfId);
+                const current = shelf?.max_books || 20;
+                const next = Math.min(40, Math.max(5, current + delta));
+                setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, max_books: next } : s));
+                try {
+                    await supabaseClient.from('shelves').update({ max_books: next }).eq('id', shelfId);
+                } catch (error) {
+                    console.error('Error updating max_books:', error);
+                }
+            };
+
             // Drag and drop handlers - FIXED
             const handleDragStart = (e, book, fromShelfId) => {
                 setDraggedBook(book);
@@ -9121,6 +9292,7 @@
                                         🔔
                                         {unreadNotifications > 0 && <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>}
                                     </button>
+                                    {showNotifications && <NotifDropdownContent notifications={notifications} unreadNotifications={unreadNotifications} markAllNotificationsRead={markAllNotificationsRead} clearAllNotifications={clearAllNotifications} markNotificationRead={markNotificationRead} deleteNotification={deleteNotification} setShowNotifications={setShowNotifications} setActiveTab={setActiveTab} setSocialTab={setSocialTab} conversations={conversations} openConversation={openConversation} setShowWhatsNew={setShowWhatsNew} />}
                                 </div>
                             )}
                         </div>
@@ -9146,6 +9318,10 @@
                                         setSearchQuery('');
                                         setShowSearchDropdown(false);
                                         setSearchResults([]);
+                                        if (preSearchTab !== null) {
+                                            setActiveTab(preSearchTab);
+                                            setPreSearchTab(null);
+                                        }
                                     }}
                                     title="Clear search"
                                 >
@@ -9231,7 +9407,7 @@
                             )}
                         </div>
 
-                        {/* Notification Bell — desktop only, mobile version is in header-top-row */}
+                        {/* Notification Bell — desktop only (mobile version + dropdown in header-top-row) */}
                         {currentUser && (
                             <div className="header-bell-desktop" style={{position:'relative'}}>
                                 <button
@@ -9244,57 +9420,7 @@
                                         <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>
                                     )}
                                 </button>
-                            </div>
-                        )}
-                        {/* Notification Dropdown — rendered outside bell so it works on both mobile and desktop */}
-                        {currentUser && showNotifications && (
-                            <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
-                                <div className="notif-header">
-                                    <span>Notifications</span>
-                                    <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                                        {unreadNotifications > 0 && (
-                                            <button className="notif-mark-all" onClick={markAllNotificationsRead}>Mark all read</button>
-                                        )}
-                                        {notifications.length > 0 && (
-                                            <button className="notif-mark-all" style={{color:'#c0392b'}} onClick={clearAllNotifications}>Clear all</button>
-                                        )}
-                                    </div>
-                                </div>
-                                {notifications.length === 0 ? (
-                                    <div className="notif-empty">No notifications yet</div>
-                                ) : (
-                                    notifications.map(n => (
-                                        <div
-                                            key={n.id}
-                                            className={`notif-item${n.is_read ? '' : ' unread'}`}
-                                            style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}
-                                        >
-                                            <div
-                                                style={{flex:1,cursor:'pointer'}}
-                                                onClick={() => {
-                                                    markNotificationRead(n.id);
-                                                    if (n.type === 'friend_request' || n.type === 'friend_accepted') {
-                                                        setActiveTab('friends');
-                                                        setSocialTab(n.type === 'friend_request' ? 'requests' : 'friends');
-                                                    } else if (n.type === 'message' && n.action_url) {
-                                                        setActiveTab('messages');
-                                                        const conv = conversations.find(c => c.id === n.action_url);
-                                                        if (conv) openConversation(conv);
-                                                    }
-                                                    setShowNotifications(false);
-                                                }}
-                                            >
-                                                <div className="notif-title">{n.type === 'message' ? '💬 ' : ''}{n.title}</div>
-                                                <div className="notif-content">{n.content}</div>
-                                            </div>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
-                                                style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:'1rem',lineHeight:1,padding:'0 2px',flexShrink:0}}
-                                                title="Dismiss"
-                                            >×</button>
-                                        </div>
-                                    ))
-                                )}
+                                {showNotifications && <NotifDropdownContent notifications={notifications} unreadNotifications={unreadNotifications} markAllNotificationsRead={markAllNotificationsRead} clearAllNotifications={clearAllNotifications} markNotificationRead={markNotificationRead} deleteNotification={deleteNotification} setShowNotifications={setShowNotifications} setActiveTab={setActiveTab} setSocialTab={setSocialTab} conversations={conversations} openConversation={openConversation} setShowWhatsNew={setShowWhatsNew} />}
                             </div>
                         )}
 
@@ -9641,54 +9767,11 @@
                                         </div>
                                     </div>
 
-                                    {selectedBook.description && (
-                                        <div className="book-detail-description">
-                                            {(() => {
-                                                const lines = selectedBook.description.split('\n');
-                                                const truncatedText = lines.slice(0, 5).join('\n');
-                                                const isTruncated = lines.length > 5 || selectedBook.description.length > 400;
-                                                
-                                                if (!showFullDescription && isTruncated) {
-                                                    return (
-                                                        <>
-                                                            {truncatedText.substring(0, 400)}
-                                                            {selectedBook.description.length > 400 && '...'}
-                                                            <div 
-                                                                onClick={() => setShowFullDescription(true)}
-                                                                style={{
-                                                                    marginTop: '0.5rem',
-                                                                    color: '#8b6f47',
-                                                                    opacity: 0.7,
-                                                                    cursor: 'pointer',
-                                                                    fontStyle: 'italic'
-                                                                }}
-                                                            >
-                                                                read more...
-                                                            </div>
-                                                        </>
-                                                    );
-                                                }
-                                                return (
-                                                    <>
-                                                        {selectedBook.description}
-                                                        {showFullDescription && (
-                                                            <div 
-                                                                onClick={() => setShowFullDescription(false)}
-                                                                style={{
-                                                                    marginTop: '0.5rem',
-                                                                    color: '#8b6f47',
-                                                                    opacity: 0.7,
-                                                                    cursor: 'pointer',
-                                                                    fontStyle: 'italic'
-                                                                }}
-                                                            >
-                                                                show less
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
+                                    {selectedBook.description && selectedBook.description !== 'No description available.' && (
+                                        <div
+                                            style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline', marginTop: '1rem', fontSize: '0.95rem'}}
+                                            onClick={() => { setBookSummaryText(selectedBook.description); setShowBookSummary(true); }}
+                                        >📖 Summary</div>
                                     )}
 
                                     {currentUser && selectedBook?.isbn && selectedBook.isbn !== 'Not Available' && false && (
@@ -10108,21 +10191,30 @@
                     <div className="main-content">
                         {/* Tab Navigation */}
                         <div className="tabs" style={activeTab === 'messages' ? {marginBottom: '0.5rem'} : {}}>
-                            <div 
+                            <div
                                 className={`tab ${activeTab === 'books' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('books')}
+                                onClick={() => {
+                                    if (editingShelfId !== null) { setPendingTab('books'); setShowEditLeavePrompt(true); return; }
+                                    setActiveTab('books');
+                                }}
                             >
                                 📖 Your Books
                             </div>
-                            <div 
+                            <div
                                 className={`tab ${activeTab === 'shelves' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('shelves')}
+                                onClick={() => {
+                                    if (editingShelfId !== null) { setPendingTab('shelves'); setShowEditLeavePrompt(true); return; }
+                                    setActiveTab('shelves');
+                                }}
                             >
-                                📚 Your Shelves
+                                📚 Your Bookcases
                             </div>
                             <div
                                 className={`tab ${activeTab === 'room' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('room')}
+                                onClick={() => {
+                                    if (editingShelfId !== null) { setPendingTab('room'); setShowEditLeavePrompt(true); return; }
+                                    setActiveTab('room');
+                                }}
                             >
                                 🏠 My Room
                             </div>
@@ -10144,7 +10236,7 @@
                                             <div
                                                 key={book.id}
                                                 className="category-book"
-                                                onClick={() => openBookInfo(book)}
+                                                onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}
                                             >
                                                 {book.cover ? (
                                                     <img
@@ -10183,7 +10275,7 @@
                                             <div
                                                 key={book.id}
                                                 className="category-book"
-                                                onClick={() => openBookInfo(book)}
+                                                onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}
                                             >
                                                 {book.cover ? (
                                                     <img
@@ -10453,11 +10545,21 @@
 
                                                     {/* Board count */}
                                                     <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                                                        <span className="shelf-customize-label">Boards:</span>
+                                                        <span className="shelf-customize-label">Bookshelves:</span>
                                                         <div className="board-controls">
                                                             <button className="board-btn" onClick={() => removeBoardFromShelf(shelf.id)} disabled={(shelf.board_count || 3) <= 1}>−</button>
                                                             <span className="board-count">{shelf.board_count || 3}</span>
                                                             <button className="board-btn" onClick={() => addBoardToShelf(shelf.id)} disabled={(shelf.board_count || 3) >= 8}>+</button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Books per shelf */}
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                                        <span className="shelf-customize-label">Books/shelf:</span>
+                                                        <div className="board-controls">
+                                                            <button className="board-btn" onClick={() => changeShelfMaxBooks(shelf.id, -1)} disabled={(shelf.max_books || 20) <= 5}>−</button>
+                                                            <span className="board-count">{shelf.max_books || 20}</span>
+                                                            <button className="board-btn" onClick={() => changeShelfMaxBooks(shelf.id, 1)} disabled={(shelf.max_books || 20) >= 40}>+</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -10475,7 +10577,7 @@
                                                 <div
                                                     key={boardIndex}
                                                     className={`shelf-board wood-${shelf.wood_type || 'oak'}`}
-                                                    style={{position: 'relative'}}
+                                                    style={{position: 'relative', '--shelf-max-books': shelf.max_books || 20}}
                                                     data-shelf-id={shelf.id}
                                                     data-board-index={boardIndex}
                                                     onDragOver={(e) => handleDragOver(e, shelf.id, boardIndex)}
@@ -10551,7 +10653,7 @@
                                         })}
                                     </div>
                                     {openShelfMenu === shelf.id && (
-                                        <div className="shelf-menu-dropdown" style={{position: 'absolute', top: '56px', right: '16px', zIndex: 300}}>
+                                        <div className="shelf-menu-dropdown" style={{position: 'absolute', top: '56px', right: '16px', zIndex: 300}} onClick={(e) => e.stopPropagation()}>
                                             <button className="shelf-menu-item" onClick={() => { setEditingShelfId(editingShelfId === shelf.id ? null : shelf.id); setOpenShelfMenu(null); }}>
                                                 🎨 Edit Appearance
                                             </button>
@@ -10562,7 +10664,7 @@
                                                 {shelf.is_public === false ? '🔓 Make Public' : '🔒 Make Private'}
                                             </button>
                                             <button className="shelf-menu-item danger" onClick={() => { deleteShelf(shelf.id); setOpenShelfMenu(null); }}>
-                                                🗑 Delete Shelf
+                                                🗑 Delete Bookcase
                                             </button>
                                         </div>
                                     )}
@@ -11950,6 +12052,34 @@
                         </div>
                     )}
 
+                    {/* Edit Appearance Leave Prompt */}
+                    {showEditLeavePrompt && (
+                        <div className="book-detail-overlay" style={{zIndex: 3000}} onClick={() => setShowEditLeavePrompt(false)}>
+                            <div style={{background:'#fdf6ee', borderRadius:16, padding:'2rem', maxWidth:380, width:'92%', textAlign:'center', boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+                                <div style={{fontSize:'1.5rem', marginBottom:'0.75rem'}}>🎨</div>
+                                <h3 style={{fontFamily:'Libre Baskerville, serif', color:'#3d2817', marginBottom:'0.5rem'}}>Unsaved Appearance Changes</h3>
+                                <p style={{color:'#8b6f47', fontSize:'0.9rem', marginBottom:'1.5rem'}}>Your appearance edits are saved automatically, but do you want to keep or revert them?</p>
+                                <div style={{display:'flex', gap:'1rem', justifyContent:'center'}}>
+                                    <button
+                                        style={{flex:1, maxWidth:150, padding:'0.75rem 1rem', borderRadius:10, border:'none', background:'#2d4a3e', color:'white', fontWeight:600, cursor:'pointer', fontFamily:'Work Sans, sans-serif'}}
+                                        onClick={() => { setShowEditLeavePrompt(false); setEditingShelfId(null); if (pendingTab) { setActiveTab(pendingTab); setPendingTab(null); } }}
+                                    >Keep Changes</button>
+                                    <button
+                                        style={{flex:1, maxWidth:150, padding:'0.75rem 1rem', borderRadius:10, border:'2px solid #c0392b', background:'white', color:'#c0392b', fontWeight:600, cursor:'pointer', fontFamily:'Work Sans, sans-serif'}}
+                                        onClick={async () => {
+                                            // Re-fetch shelf from DB to revert
+                                            const { data } = await supabaseClient.from('shelves').select('*').eq('id', editingShelfId).maybeSingle();
+                                            if (data) setShelves(prev => prev.map(s => s.id === data.id ? { ...s, background_color: data.background_color, wood_type: data.wood_type, max_books: data.max_books } : s));
+                                            setShowEditLeavePrompt(false);
+                                            setEditingShelfId(null);
+                                            if (pendingTab) { setActiveTab(pendingTab); setPendingTab(null); }
+                                        }}
+                                    >Revert</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Book Selector Modal - Add books from library to shelf */}
                     {showBookSelector && (
                         <div className="book-detail-overlay" onClick={closeBookSelector}>
@@ -11957,9 +12087,9 @@
                                 <button className="book-detail-close" onClick={closeBookSelector}>×</button>
                                 
                                 <div className="book-detail-content">
-                                    <h2 className="book-detail-title">Add Books to Shelf</h2>
+                                    <h2 className="book-detail-title">Add Books to Bookcase</h2>
                                     <p style={{ marginBottom: '1.5rem', color: '#8b6f47' }}>
-                                        Select one or more books from your library to add to "{shelves.find(s => s.id === targetShelfForSelector)?.name}"
+                                        Select one or more books to add to "{shelves.find(s => s.id === targetShelfForSelector)?.name}"
                                     </p>
 
                                     {books.length === 0 ? (
@@ -12024,7 +12154,7 @@
                                                     onClick={addSelectedBooksToShelf}
                                                     disabled={selectedBooksToAdd.length === 0}
                                                 >
-                                                    ➕ Add {selectedBooksToAdd.length > 0 ? `(${selectedBooksToAdd.length})` : ''} to Shelf
+                                                    Add{selectedBooksToAdd.length > 0 ? ` (${selectedBooksToAdd.length})` : ''}
                                                 </button>
                                                 <button
                                                     className="btn-selector-cancel"
@@ -12351,7 +12481,7 @@
                                                     <label>Email</label>
                                                     <input
                                                         type="email"
-                                                        value={userProfile.email}
+                                                        value={currentUser?.email || userProfile.email || ''}
                                                         disabled
                                                         style={{background: '#f5f5f5', cursor: 'not-allowed'}}
                                                     />
@@ -13080,14 +13210,16 @@
                                     <button className="profile-back-btn" onClick={() => setProfileViewingShelf(null)}>←</button>
                                     <span className="profile-overlay-title">{shelf.name}</span>
                                 </div>
-                                <div className="profile-scroll-body" style={{padding: '1rem 0 3rem'}}>
+                                <div className="profile-scroll-body" style={{padding: '1rem 0 3rem', overflowX: 'hidden'}}>
                                     <div
                                         className="shelf"
                                         style={{
                                             background: shelf.background_color || '#8b7355',
                                             '--shelf-bg': shelf.background_color || '#8b7355',
-                                            margin: '0 1rem',
-                                            borderRadius: '8px'
+                                            margin: '0 auto',
+                                            borderRadius: '8px',
+                                            overflowX: 'hidden',
+                                            maxWidth: '100%'
                                         }}
                                     >
                                         <div className="shelf-header">
@@ -13261,6 +13393,29 @@
                     )}
 
                     {/* FIX #4: Custom Confirm Modal */}
+                    {/* What's New splash (feature version bump) */}
+                    {showWhatsNew && (
+                        <div className="book-detail-overlay" style={{zIndex: 5000}} onClick={() => setShowWhatsNew(false)}>
+                            <div style={{background:'#fdf6ee', borderRadius:20, padding:'2rem', maxWidth:480, width:'92%', maxHeight:'80vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.35)'}} onClick={e => e.stopPropagation()}>
+                                <div style={{textAlign:'center', marginBottom:'1.25rem'}}>
+                                    <div style={{fontSize:'2.5rem', marginBottom:'0.5rem'}}>📚</div>
+                                    <h2 style={{fontFamily:'Libre Baskerville, serif', color:'#3d2817', fontSize:'1.5rem', margin:0}}>What's New in v{WHATS_NEW.version}</h2>
+                                </div>
+                                <ul style={{listStyle:'none', padding:0, margin:'0 0 1.5rem', display:'flex', flexDirection:'column', gap:'0.6rem'}}>
+                                    {WHATS_NEW.items.map((item, i) => (
+                                        <li key={i} style={{display:'flex', alignItems:'flex-start', gap:'0.6rem', fontSize:'0.9rem', color:'#3d2817', lineHeight:1.5}}>
+                                            <span style={{color:'#2d4a3e', fontWeight:700, flexShrink:0}}>✓</span>{item}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    style={{display:'block', width:'100%', padding:'0.85rem', borderRadius:10, border:'none', background:'linear-gradient(135deg,#2d4a3e,#3d5a4d)', color:'white', fontWeight:700, fontSize:'1rem', cursor:'pointer', fontFamily:'Work Sans, sans-serif'}}
+                                    onClick={() => setShowWhatsNew(false)}
+                                >Got it! 🎉</button>
+                            </div>
+                        </div>
+                    )}
+
                     {showConfirm && confirmAction && (
                         <div className="book-detail-overlay" onClick={() => setShowConfirm(false)}>
                             <div className="book-info-popup" onClick={(e) => e.stopPropagation()} style={{maxWidth: '400px'}}>

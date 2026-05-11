@@ -4383,6 +4383,8 @@
             const [showConfirm, setShowConfirm] = useState(false);
             const [confirmAction, setConfirmAction] = useState(null);
             const [showWhatsNew, setShowWhatsNew] = useState(false);
+            const [showAllBooks, setShowAllBooks] = useState(false);
+            const [allBooksSortBy, setAllBooksSortBy] = useState('recent');
             const [showFullDescription, setShowFullDescription] = useState(false);
             
             // Drag and drop state
@@ -10254,11 +10256,21 @@
 
                             {/* All Your Books */}
                             <div className="category-section">
-                                <h3 className="category-header">
-                                    Your Books
-                                    <span style={{ fontSize: '1rem', color: '#8b6f47', marginLeft: '0.5rem' }}>
-                                        ({books.length} total)
+                                <h3 className="category-header" style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                                    <span>
+                                        Your Books
+                                        <span style={{ fontSize: '1rem', color: '#8b6f47', marginLeft: '0.5rem' }}>
+                                            ({books.length} total)
+                                        </span>
                                     </span>
+                                    {books.length > 0 && (
+                                        <button
+                                            onClick={() => setShowAllBooks(true)}
+                                            style={{fontSize:'0.85rem', color:'#6d4c2a', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:600, padding:'0.1rem 0', textDecoration:'underline', textDecorationColor:'#c4a882', flexShrink:0}}
+                                        >
+                                            See All →
+                                        </button>
+                                    )}
                                 </h3>
                                 <div className="category-scroll">
                                     {books.length === 0 ? (
@@ -13391,6 +13403,65 @@
                     )}
 
                     {/* FIX #4: Custom Confirm Modal */}
+                    {/* All Books Overlay */}
+                    {showAllBooks && (
+                        <div className="book-detail-overlay" style={{zIndex: 4500}} onClick={() => setShowAllBooks(false)}>
+                            <div style={{background:'#fdf6ee', borderRadius:20, padding:'0', maxWidth:700, width:'95%', maxHeight:'88vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.35)', overflow:'hidden'}} onClick={e => e.stopPropagation()}>
+                                {/* Header */}
+                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1.25rem 1.5rem 1rem', borderBottom:'1px solid #e8d5b7', flexShrink:0}}>
+                                    <div>
+                                        <div style={{fontFamily:"'Crimson Pro', serif", fontSize:'1.4rem', fontWeight:700, color:'#3d2b1f'}}>Your Books</div>
+                                        <div style={{fontSize:'0.85rem', color:'#8b6f47', marginTop:'0.1rem'}}>{books.length} book{books.length !== 1 ? 's' : ''} in your library</div>
+                                    </div>
+                                    <div style={{display:'flex', alignItems:'center', gap:'0.75rem'}}>
+                                        <select
+                                            value={allBooksSortBy}
+                                            onChange={e => setAllBooksSortBy(e.target.value)}
+                                            style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit', cursor:'pointer'}}
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <option value="recent">Recently Added</option>
+                                            <option value="title">Title A–Z</option>
+                                            <option value="author">Author A–Z</option>
+                                            <option value="rating">By Rating</option>
+                                            <option value="status">By Status</option>
+                                        </select>
+                                        <button onClick={() => setShowAllBooks(false)} style={{background:'none', border:'none', fontSize:'1.4rem', cursor:'pointer', color:'#8b6f47', lineHeight:1, padding:'0.1rem 0.25rem'}}>✕</button>
+                                    </div>
+                                </div>
+                                {/* Grid */}
+                                <div style={{overflowY:'auto', padding:'1rem 1.25rem 1.5rem', flex:1}}>
+                                    <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(90px, 1fr))', gap:'1rem 0.75rem'}}>
+                                        {[...books].sort((a, b) => {
+                                            if (allBooksSortBy === 'recent') return new Date(b.created_at) - new Date(a.created_at);
+                                            if (allBooksSortBy === 'title') return (a.title||'').localeCompare(b.title||'');
+                                            if (allBooksSortBy === 'author') return (a.author||'').localeCompare(b.author||'');
+                                            if (allBooksSortBy === 'rating') return (b.rating||0) - (a.rating||0);
+                                            if (allBooksSortBy === 'status') return (a.status||'').localeCompare(b.status||'');
+                                            return 0;
+                                        }).map(book => (
+                                            <div
+                                                key={book.id}
+                                                onClick={() => { setShowAllBooks(false); setTimeout(() => { if (!bookInfoClosingRef.current) openBookInfo(book); }, 80); }}
+                                                style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'0.3rem'}}
+                                            >
+                                                {book.cover ? (
+                                                    <img src={book.cover} alt={book.title} style={{width:'100%', aspectRatio:'2/3', objectFit:'cover', borderRadius:6, boxShadow:'0 2px 8px rgba(0,0,0,0.18)'}} />
+                                                ) : (
+                                                    <div style={{width:'100%', aspectRatio:'2/3', background:'#c4a882', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', padding:'0.4rem', textAlign:'center', fontSize:'0.7rem', color:'#5a3e28', fontWeight:600}}>
+                                                        {book.title}
+                                                    </div>
+                                                )}
+                                                <div style={{fontSize:'0.7rem', color:'#3d2b1f', fontWeight:600, textAlign:'center', lineHeight:1.2, width:'100%', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical'}}>{book.title}</div>
+                                                <div style={{fontSize:'0.65rem', color:'#8b6f47', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{book.author}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* What's New splash (feature version bump) */}
                     {showWhatsNew && (
                         <div className="book-detail-overlay" style={{zIndex: 5000}} onClick={() => setShowWhatsNew(false)}>

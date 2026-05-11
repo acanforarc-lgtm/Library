@@ -11958,6 +11958,11 @@
                                                 setSearchQuery('');
                                                 setShowSearchDropdown(false);
                                                 setSearchResults([]);
+                                                setShowFullResults(false);
+                                                if (preSearchTab !== null) {
+                                                    setActiveTab(preSearchTab);
+                                                    setPreSearchTab(null);
+                                                }
                                             }}
                                         >
                                             ×

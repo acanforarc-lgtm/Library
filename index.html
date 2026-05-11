@@ -6342,15 +6342,30 @@
 
             const buildGbQuery = (q) => {
                 if (isIsbnQuery(q)) return `isbn:${q.replace(/[-\s]/g, '')}`;
-                // Colons are field-operator separators in Google Books query syntax
-                // (e.g. intitle:, inauthor:). Sending "never stop: life, leadership"
-                // raw causes the API to parse "stop" as an unknown field and return 0
-                // results. Strip colons and commas so the query becomes plain text.
+                // Preserve known GB field operators (intitle:, inauthor:) passed by
+                // buildSearchQueries — only strip colons from raw user subtitle text.
+                const fieldMatch = q.match(/^(intitle:|inauthor:)([\s\S]*)$/i);
+                if (fieldMatch) {
+                    const rest = fieldMatch[2].replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+                    return `${fieldMatch[1]}${rest}`;
+                }
+                // Colons are field-operator separators in Google Books query syntax.
+                // Sending "never stop: life, leadership" raw causes the API to parse
+                // "stop" as an unknown field and return 0 results.
                 return q.trim()
                     .replace(/:/g, ' ')
                     .replace(/,/g, ' ')
                     .replace(/\s+/g, ' ')
                     .trim();
+            };
+
+            const buildSearchQueries = (raw) => {
+                const stripped = raw.split(':')[0].trim();
+                const cleaned = stripped.replace(/\b(the|a|an|and|or|of|in|on|at|to|for)\b$/i, '').trim();
+                const googleQuery = cleaned.length > 3 ? `intitle:${cleaned}` : cleaned;
+                const words = cleaned.split(' ');
+                const shortFallback = words.slice(0, 3).join(' ');
+                return { openLibrary: cleaned, googleBooks: googleQuery, fallback: shortFallback };
             };
 
 
@@ -6649,9 +6664,10 @@
                     }
 
                     // ── 3. Query all sources in parallel ──────────────────────────────
+                    const queries = buildSearchQueries(query);
                     const [gbResult, olResult] = await Promise.allSettled([
-                        fetchFromGoogleBooks(query, fullSearch),
-                        fetchFromOpenLibrary(query, fullSearch)
+                        fetchFromGoogleBooks(queries.googleBooks, fullSearch),
+                        fetchFromOpenLibrary(queries.openLibrary, fullSearch)
                     ]);
                     const gbBooks = (gbResult.status === 'fulfilled' ? gbResult.value : [])
                         .map(b => ({ ...b, source: 'google' }));
@@ -6659,7 +6675,20 @@
                         .map(b => ({ ...b, source: 'openlibrary' }));
 
                     // ── 4. Merge + deduplicate ────────────────────────────────────────
-                    const merged = mergeBookResults([gbBooks, olBooks]);
+                    let merged = mergeBookResults([gbBooks, olBooks]);
+
+                    // ── 4b. Silent fallback retry if empty ────────────────────────────
+                    if (merged.length === 0 && queries.fallback !== queries.openLibrary) {
+                        const [gbR2, olR2] = await Promise.allSettled([
+                            fetchFromGoogleBooks(queries.fallback, fullSearch),
+                            fetchFromOpenLibrary(queries.fallback, fullSearch)
+                        ]);
+                        const gbBooks2 = (gbR2.status === 'fulfilled' ? gbR2.value : [])
+                            .map(b => ({ ...b, source: 'google' }));
+                        const olBooks2 = (olR2.status === 'fulfilled' ? olR2.value : [])
+                            .map(b => ({ ...b, source: 'openlibrary' }));
+                        merged = mergeBookResults([gbBooks2, olBooks2]);
+                    }
 
                     // ── 5. Score + rank ───────────────────────────────────────────────
                     const results = merged

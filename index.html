@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.5.5
+    YOUR LIBRARY - VERSION 2.5.6
     ========================================
+    v2.5.6: See All full-page grid view for Your Books (sort by recent/title/author/rating/status); Edit mode for mass-removing multiple books at once
     v2.5.5: 22 bug fixes — popular/new-release distinction; bell & hamburger dropdowns open below icon with click-away; settings email visible; username uniqueness real-time; settings scroll cutoff; iOS profile shelf horizontal fix; book-close ghost-tap; search summary popout; clear-X tab restore; remove-book banner removed; adjustable books-per-shelf; terminology (bookcase/bookshelf); hamburger click-through; wider popups; add-books modal 2-per-row + scroll lock; edit-appearance leave prompt; version notification system
     v2.5.4: Search query pre-processor (intitle: prefix, subtitle strip, noise-word trim) + silent 3-word fallback retry when both APIs return empty
     v2.5.3: Multi-source parallel book search (Google Books + Open Library, merge/dedup/score); public bookshelf RLS fix (SECURITY DEFINER helpers on books+shelves); profile shelf detail overlay (full wood-board UI, read-only); friend's book data popup (status, stars, notes read-only); All Books row in profile Books tab
@@ -4279,28 +4280,14 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '2.5.5';
+        const APP_VERSION = '2.5.6';
         const WHATS_NEW = {
-            version: '2.5.5',
-            type: 'bugfix',
+            version: '2.5.6',
+            type: 'feature',
             items: [
-                'Popular Books and New Releases now show distinct content',
-                'Notification bell and hamburger menus open below their icons; click outside to dismiss',
-                'Settings shows your account email correctly',
-                'Username uniqueness checked in real time as you type',
-                'Settings page no longer cuts off at the bottom',
-                'iOS profile bookshelf view no longer scrolls sideways',
-                'Fixed ghost-tap when closing book detail popup',
-                'Book summaries in search results are now a tap-to-open popout',
-                'Clearing search (×) returns you to the tab you were on',
-                'Removed "Book removed" banner — disappearing is enough',
-                'Each bookcase can now have a custom books-per-shelf count (default 20)',
-                'Renamed: Bookcase = full unit, Bookshelf = individual board',
-                'Hamburger menu clicks no longer register on books behind it',
-                'Popups are now wider (gap reduced by 50%)',
-                '"Add Books to Bookcase" grid shows 2 per row; inner area scrolls, popup stays fixed',
-                'Leaving "Edit Appearance" now prompts Keep Changes or Revert',
-                'App now shows a notification when updated',
+                '"See All" view on Your Books — browse your entire library in a full-page grid',
+                'Sort your full library by Recently Added, Title, Author, Rating, or Status',
+                'Edit mode: tap Edit to select multiple books and remove them all at once',
             ]
         };
 

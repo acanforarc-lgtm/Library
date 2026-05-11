@@ -1670,7 +1670,7 @@
 
         .full-results-header {
             background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
-            padding: calc(env(safe-area-inset-top) + 1rem) 1.5rem 0;
+            padding: calc(env(safe-area-inset-top) + 0.4rem) 1rem 0;
             color: #3d2817;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             border-bottom: 1px solid #e0d5c5;
@@ -1679,12 +1679,7 @@
             z-index: 10;
         }
 
-        .full-results-title {
-            font-family: 'Libre Baskerville', serif;
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-            color: #3d2817;
-        }
+        .full-results-title { display: none; }
 
         .full-results-subtitle {
             opacity: 0.7;
@@ -11942,10 +11937,8 @@
                     {showFullResults && (
                         <div className="full-results-overlay">
                             <div className="full-results-header">
-                                <h2 className="full-results-title">Search Results</h2>
-
                                 {/* Search bar */}
-                                <div className="header-search" style={{marginBottom: '0.5rem', maxWidth: '600px'}}>
+                                <div className="header-search" style={{marginBottom: '0.25rem', maxWidth: '560px'}}>
                                     <input
                                         type="text"
                                         placeholder="Search by title or ISBN..."
@@ -11980,7 +11973,7 @@
                                 </div>
 
                                 {/* Tab navigation */}
-                                <div className="tabs" style={{marginBottom: '0.5rem'}}>
+                                <div className="tabs" style={{marginBottom: '0.2rem', fontSize: '0.85rem'}}>
                                     <div
                                         className="tab"
                                         onClick={() => { setShowFullResults(false); setActiveTab('books'); }}

@@ -4385,6 +4385,8 @@
             const [showWhatsNew, setShowWhatsNew] = useState(false);
             const [showAllBooks, setShowAllBooks] = useState(false);
             const [allBooksSortBy, setAllBooksSortBy] = useState('recent');
+            const [allBooksEditMode, setAllBooksEditMode] = useState(false);
+            const [selectedBookIds, setSelectedBookIds] = useState(new Set());
             const [showFullDescription, setShowFullDescription] = useState(false);
             
             // Drag and drop state
@@ -10201,7 +10203,7 @@
                                 className={`tab ${activeTab === 'shelves' ? 'active' : ''}`}
                                 onClick={() => {
                                     if (editingShelfId !== null) { setPendingTab('shelves'); setShowEditLeavePrompt(true); return; }
-                                    setShowAllBooks(false);
+                                    setShowAllBooks(false); setAllBooksEditMode(false); setSelectedBookIds(new Set());
                                     setActiveTab('shelves');
                                 }}
                             >
@@ -10211,7 +10213,7 @@
                                 className={`tab ${activeTab === 'room' ? 'active' : ''}`}
                                 onClick={() => {
                                     if (editingShelfId !== null) { setPendingTab('room'); setShowEditLeavePrompt(true); return; }
-                                    setShowAllBooks(false);
+                                    setShowAllBooks(false); setAllBooksEditMode(false); setSelectedBookIds(new Set());
                                     setActiveTab('room');
                                 }}
                             >
@@ -10227,27 +10229,78 @@
                         {showAllBooks ? (
                             <div>
                                 {/* Toolbar */}
-                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.75rem 1rem 0.5rem'}}>
-                                    <button
-                                        onClick={() => setShowAllBooks(false)}
-                                        style={{display:'flex', alignItems:'center', gap:'0.35rem', background:'none', border:'none', cursor:'pointer', color:'#6d4c2a', fontFamily:'inherit', fontSize:'0.9rem', fontWeight:600, padding:0}}
-                                    >
-                                        ← Back
-                                    </button>
-                                    <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                                        <span style={{fontSize:'0.8rem', color:'#8b6f47'}}>{books.length} book{books.length !== 1 ? 's' : ''}</span>
-                                        <select
-                                            value={allBooksSortBy}
-                                            onChange={e => setAllBooksSortBy(e.target.value)}
-                                            style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit', cursor:'pointer'}}
-                                        >
-                                            <option value="recent">Recently Added</option>
-                                            <option value="title">Title A–Z</option>
-                                            <option value="author">Author A–Z</option>
-                                            <option value="rating">By Rating</option>
-                                            <option value="status">By Status</option>
-                                        </select>
-                                    </div>
+                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.75rem 1rem 0.5rem', gap:'0.5rem'}}>
+                                    {allBooksEditMode ? (
+                                        <>
+                                            <button
+                                                onClick={() => { setAllBooksEditMode(false); setSelectedBookIds(new Set()); }}
+                                                style={{background:'none', border:'none', cursor:'pointer', color:'#6d4c2a', fontFamily:'inherit', fontSize:'0.9rem', fontWeight:600, padding:0}}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                                <span style={{fontSize:'0.8rem', color:'#8b6f47'}}>{selectedBookIds.size} selected</span>
+                                                <button
+                                                    disabled={selectedBookIds.size === 0}
+                                                    onClick={() => {
+                                                        const count = selectedBookIds.size;
+                                                        const ids = [...selectedBookIds];
+                                                        setConfirmAction({
+                                                            title: 'Remove Books',
+                                                            message: `Remove ${count} book${count !== 1 ? 's' : ''} from your library? This cannot be undone.`,
+                                                            onConfirm: async () => {
+                                                                try {
+                                                                    const { error } = await supabaseClient
+                                                                        .from('books')
+                                                                        .delete()
+                                                                        .in('id', ids);
+                                                                    if (error) throw error;
+                                                                    setBooks(prev => prev.filter(b => !ids.includes(b.id)));
+                                                                    setSelectedBookIds(new Set());
+                                                                    setAllBooksEditMode(false);
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                    showMessage('❌ Failed to remove books');
+                                                                }
+                                                            }
+                                                        });
+                                                        setShowConfirm(true);
+                                                    }}
+                                                    style={{fontSize:'0.85rem', fontWeight:600, fontFamily:'inherit', cursor: selectedBookIds.size === 0 ? 'default' : 'pointer', color: selectedBookIds.size === 0 ? '#c4a882' : '#fff', background: selectedBookIds.size === 0 ? '#e8d5b7' : '#c0392b', border:'none', borderRadius:8, padding:'0.35rem 0.85rem', transition:'background 0.15s'}}
+                                                >
+                                                    Remove ({selectedBookIds.size})
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => { setShowAllBooks(false); setAllBooksEditMode(false); setSelectedBookIds(new Set()); }}
+                                                style={{background:'none', border:'none', cursor:'pointer', color:'#6d4c2a', fontFamily:'inherit', fontSize:'0.9rem', fontWeight:600, padding:0}}
+                                            >
+                                                ← Back
+                                            </button>
+                                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                                <button
+                                                    onClick={() => setAllBooksEditMode(true)}
+                                                    style={{fontSize:'0.85rem', fontWeight:600, fontFamily:'inherit', cursor:'pointer', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.7rem'}}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <select
+                                                    value={allBooksSortBy}
+                                                    onChange={e => setAllBooksSortBy(e.target.value)}
+                                                    style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit', cursor:'pointer'}}
+                                                >
+                                                    <option value="recent">Recently Added</option>
+                                                    <option value="title">Title A–Z</option>
+                                                    <option value="author">Author A–Z</option>
+                                                    <option value="rating">By Rating</option>
+                                                    <option value="status">By Status</option>
+                                                </select>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                                 {/* Grid */}
                                 <div style={{padding:'0.5rem 1rem 5rem', display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(90px, 1fr))', gap:'1.1rem 0.75rem'}}>
@@ -10258,23 +10311,43 @@
                                         if (allBooksSortBy === 'rating') return (b.rating||0) - (a.rating||0);
                                         if (allBooksSortBy === 'status') return (a.status||'').localeCompare(b.status||'');
                                         return 0;
-                                    }).map(book => (
-                                        <div
-                                            key={book.id}
-                                            onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}
-                                            style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'0.3rem'}}
-                                        >
-                                            {book.cover ? (
-                                                <img src={book.cover} alt={book.title} style={{width:'100%', aspectRatio:'2/3', objectFit:'cover', borderRadius:6, boxShadow:'0 2px 8px rgba(0,0,0,0.18)'}} />
-                                            ) : (
-                                                <div style={{width:'100%', aspectRatio:'2/3', background:'#c4a882', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', padding:'0.4rem', textAlign:'center', fontSize:'0.7rem', color:'#5a3e28', fontWeight:600, lineHeight:1.2}}>
-                                                    {book.title}
+                                    }).map(book => {
+                                        const isSelected = selectedBookIds.has(book.id);
+                                        return (
+                                            <div
+                                                key={book.id}
+                                                onClick={() => {
+                                                    if (allBooksEditMode) {
+                                                        setSelectedBookIds(prev => {
+                                                            const next = new Set(prev);
+                                                            next.has(book.id) ? next.delete(book.id) : next.add(book.id);
+                                                            return next;
+                                                        });
+                                                    } else {
+                                                        if (!bookInfoClosingRef.current) openBookInfo(book);
+                                                    }
+                                                }}
+                                                style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'0.3rem', position:'relative'}}
+                                            >
+                                                <div style={{width:'100%', position:'relative'}}>
+                                                    {book.cover ? (
+                                                        <img src={book.cover} alt={book.title} style={{width:'100%', aspectRatio:'2/3', objectFit:'cover', borderRadius:6, boxShadow:'0 2px 8px rgba(0,0,0,0.18)', display:'block', opacity: allBooksEditMode && !isSelected ? 0.45 : 1, transition:'opacity 0.15s'}} />
+                                                    ) : (
+                                                        <div style={{width:'100%', aspectRatio:'2/3', background:'#c4a882', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', padding:'0.4rem', textAlign:'center', fontSize:'0.7rem', color:'#5a3e28', fontWeight:600, lineHeight:1.2, opacity: allBooksEditMode && !isSelected ? 0.45 : 1, transition:'opacity 0.15s'}}>
+                                                            {book.title}
+                                                        </div>
+                                                    )}
+                                                    {allBooksEditMode && (
+                                                        <div style={{position:'absolute', top:4, right:4, width:20, height:20, borderRadius:'50%', border:`2px solid ${isSelected ? '#c0392b' : '#fff'}`, background: isSelected ? '#c0392b' : 'rgba(0,0,0,0.25)', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s'}}>
+                                                            {isSelected && <span style={{color:'#fff', fontSize:'0.7rem', fontWeight:700, lineHeight:1}}>✓</span>}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            <div style={{fontSize:'0.7rem', color:'#3d2b1f', fontWeight:600, textAlign:'center', lineHeight:1.2, width:'100%', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical'}}>{book.title}</div>
-                                            <div style={{fontSize:'0.65rem', color:'#8b6f47', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{book.author}</div>
-                                        </div>
-                                    ))}
+                                                <div style={{fontSize:'0.7rem', color:'#3d2b1f', fontWeight:600, textAlign:'center', lineHeight:1.2, width:'100%', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical'}}>{book.title}</div>
+                                                <div style={{fontSize:'0.65rem', color:'#8b6f47', textAlign:'center', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{book.author}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ) : (<React.Fragment>

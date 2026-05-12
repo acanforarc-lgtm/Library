@@ -4278,22 +4278,15 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '2.5.7';
+        const APP_VERSION = '2.5.9';
         const WHATS_NEW = {
-            version: '2.5.7',
+            version: '2.5.9',
             type: 'bugfix',
             items: [
-                'Follow button now correctly shows "Following" on a friend\'s profile',
-                'Chat header no longer shows ? when conversation hasn\'t loaded a profile',
-                'Bookcase board picker now shows the correct number of bookshelves (not always 3)',
-                'User search now finds people by display name, not just username',
-                'Book spine text scales with shelf density; long titles truncated cleanly',
-                'Phone lock/unlock no longer displaces the app layout',
-                'Friend profiles refresh automatically when re-opened',
-                'Add book Finish button is disabled while saving — no more double-add',
-                'Books now scale correctly with the "Books per shelf" setting (dynamic width)',
-                'Drag books between others — neighbours shift left/right to make room',
-                'Mass Edit: set status, rating, or move to a shelf for selected books',
+                'Books now correctly shrink in width when increasing books-per-shelf',
+                'Drag ghost accurately shows where a book will land between others',
+                'Viewing a friend\'s profile no longer scrolls horizontally',
+                'Removed repeated confirmation toasts for routine add/move/remove actions',
             ]
         };
 

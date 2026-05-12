@@ -8,6 +8,7 @@
     ========================================
     YOUR LIBRARY - VERSION 2.5.6
     ========================================
+    v2.5.7: 11 bug fixes — follow status, chat header ?, board count dropdown, user search (display_name), spine text scaling, phone lock/unlock viewport, profile refresh, add-book double-tap, dynamic shelf book width, push-insert drag, mass edit (status/rating/shelf)
     v2.5.6: See All full-page grid view for Your Books (sort by recent/title/author/rating/status); Edit mode for mass-removing multiple books at once
     v2.5.5: 22 bug fixes — popular/new-release distinction; bell & hamburger dropdowns open below icon with click-away; settings email visible; username uniqueness real-time; settings scroll cutoff; iOS profile shelf horizontal fix; book-close ghost-tap; search summary popout; clear-X tab restore; remove-book banner removed; adjustable books-per-shelf; terminology (bookcase/bookshelf); hamburger click-through; wider popups; add-books modal 2-per-row + scroll lock; edit-appearance leave prompt; version notification system
     v2.5.4: Search query pre-processor (intitle: prefix, subtitle strip, noise-word trim) + silent 3-word fallback retry when both APIs return empty
@@ -443,13 +444,16 @@
             text-orientation: mixed;
             color: white;
             font-family: 'Libre Baskerville', serif;
-            font-size: 0.75rem;
+            /* Scale font with shelf density: smaller when more books per shelf */
+            font-size: clamp(0.4rem, calc(0.75rem * (20 / var(--shelf-max-books, 20))), 0.75rem);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
             text-align: center;
             position: relative;
             z-index: 2;
-            max-height: 200px;
+            max-height: 220px;
             overflow: hidden;
+            word-break: break-word;
+            line-height: 1.2;
         }
 
         /* Shelves Section */
@@ -4280,14 +4284,22 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '2.5.6';
+        const APP_VERSION = '2.5.7';
         const WHATS_NEW = {
-            version: '2.5.6',
-            type: 'feature',
+            version: '2.5.7',
+            type: 'bugfix',
             items: [
-                '"See All" view on Your Books — browse your entire library in a full-page grid',
-                'Sort your full library by Recently Added, Title, Author, Rating, or Status',
-                'Edit mode: tap Edit to select multiple books and remove them all at once',
+                'Follow button now correctly shows "Following" on a friend\'s profile',
+                'Chat header no longer shows ? when conversation hasn\'t loaded a profile',
+                'Bookcase board picker now shows the correct number of bookshelves (not always 3)',
+                'User search now finds people by display name, not just username',
+                'Book spine text scales with shelf density; long titles truncated cleanly',
+                'Phone lock/unlock no longer displaces the app layout',
+                'Friend profiles refresh automatically when re-opened',
+                'Add book Finish button is disabled while saving — no more double-add',
+                'Books now scale correctly with the "Books per shelf" setting (dynamic width)',
+                'Drag books between others — neighbours shift left/right to make room',
+                'Mass Edit: set status, rating, or move to a shelf for selected books',
             ]
         };
 
@@ -4352,8 +4364,16 @@
             // POSITIONING SYSTEM CONSTANTS
             // ==========================================
             const SHELF_WIDTH = 200; // Total positions (0-199)
-            const BOOK_WIDTH = 10; // Each book takes 10 positions
-            const MAX_BOOKS_PER_BOARD = 20; // 200 ÷ 10 = 20 books max
+            const BOOK_WIDTH = 10; // Default: each book takes 10 positions at max_books=20
+            const MAX_BOOKS_PER_BOARD = 20; // Default max books per board
+
+            // Dynamic book-width per shelf: scales so books fill the board correctly.
+            // When max_books=20 → 10 positions, max_books=10 → 20 positions, etc.
+            const getShelfBookWidth = (shelfId) => {
+                const shelf = shelves.find(s => s.id === shelfId);
+                const maxBooks = shelf?.max_books || 20;
+                return Math.round(SHELF_WIDTH / maxBooks);
+            };
             
             // ==========================================
             // STATE DECLARATIONS
@@ -4374,6 +4394,10 @@
             const [allBooksSortBy, setAllBooksSortBy] = useState('recent');
             const [allBooksEditMode, setAllBooksEditMode] = useState(false);
             const [selectedBookIds, setSelectedBookIds] = useState(new Set());
+            const [massEditAction, setMassEditAction] = useState('remove'); // 'remove'|'status'|'rating'|'shelf'
+            const [massEditStatus, setMassEditStatus] = useState('');
+            const [massEditRating, setMassEditRating] = useState('');
+            const [massEditShelfId, setMassEditShelfId] = useState('');
             const [showFullDescription, setShowFullDescription] = useState(false);
             
             // Drag and drop state
@@ -4554,6 +4578,7 @@
             const [followListType, setFollowListType] = useState('followers'); // 'followers'|'following'
             const [followList, setFollowList] = useState([]);
             const [followListLoading, setFollowListLoading] = useState(false);
+            const [addingBook, setAddingBook] = useState(false); // Prevents double-tap on Finish
             const [showReportModal, setShowReportModal] = useState(false);
             const [reportingUser, setReportingUser] = useState(null);
             const [reportReason, setReportReason] = useState('');
@@ -4945,6 +4970,70 @@
                 };
             }, []);
 
+            // Re-fetch profile whenever the overlay is opened (viewingProfile.id changes)
+            // This ensures profile data is always fresh, not stale from a prior visit.
+            useEffect(() => {
+                if (viewingProfile?.id && currentUser?.id && viewingProfile.id !== currentUser.id) {
+                    // Only refresh if the overlay is already showing complete data (not during initial load)
+                    // Re-fetch silently to update data without spinner
+                    const refreshProfile = async () => {
+                        try {
+                            const [
+                                { data: prof },
+                                { data: fships },
+                                { count: follCount },
+                                { count: follgCount }
+                            ] = await Promise.all([
+                                supabaseClient.from('user_profiles')
+                                    .select('id, username, display_name, bio, avatar_url, is_public, visibility, is_verified')
+                                    .eq('id', viewingProfile.id).maybeSingle(),
+                                supabaseClient.from('friendships')
+                                    .select('id, status, requested_by, user_id, friend_id')
+                                    .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${viewingProfile.id}),and(user_id.eq.${viewingProfile.id},friend_id.eq.${currentUser.id})`),
+                                supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                                    .eq('friend_id', viewingProfile.id).eq('status', 'accepted'),
+                                supabaseClient.from('friendships').select('id', { count: 'exact', head: true })
+                                    .eq('user_id', viewingProfile.id).eq('status', 'accepted')
+                            ]);
+                            if (prof) setViewingProfile(prof);
+                            setProfileFollowerCount(follCount || 0);
+                            setProfileFollowingCount(follgCount || 0);
+                            const fship = (fships || []).find(f => f.status === 'accepted')
+                                || (fships || []).find(f => f.status === 'pending') || null;
+                            if (!fship) { setProfileFollowStatus('none'); return; }
+                            if (fship.status === 'accepted') setProfileFollowStatus('friends');
+                            else if (fship.status === 'pending')
+                                setProfileFollowStatus(fship.requested_by === currentUser.id ? 'requested' : 'incoming');
+                        } catch (_) {}
+                    };
+                    refreshProfile();
+                }
+            }, [viewingProfile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+            // Phone lock/unlock fix — when screen is locked then unlocked the fixed
+            // container can be displaced and the layout may be incorrectly scaled.
+            // On visibilitychange (document becomes visible again), force a scroll
+            // reset and trigger a CSS recalc by briefly toggling a class.
+            useEffect(() => {
+                const handleVisibilityChange = () => {
+                    if (document.visibilityState === 'visible') {
+                        window.scrollTo(0, 0);
+                        document.documentElement.scrollTop = 0;
+                        document.body.scrollTop = 0;
+                        // Force layout recalc
+                        const root = document.getElementById('root');
+                        if (root) {
+                            root.style.display = 'none';
+                            // eslint-disable-next-line no-unused-expressions
+                            root.offsetHeight; // trigger reflow
+                            root.style.display = '';
+                        }
+                    }
+                };
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+            }, []);
+
 
             // ==========================================
             // SOCIAL FEATURES - ENCRYPTION
@@ -5069,26 +5158,26 @@
                 if (!query || query.length < 2) { setFriendSearchResults([]); return; }
                 setFriendSearchLoading(true);
                 try {
+                    // Search both username and display_name; hidden accounts excluded server-side
                     const { data } = await supabaseClient
                         .from('user_profiles')
-                        .select('id, username, display_name, avatar_url, is_public, visibility, is_verified')
-                        .ilike('username', `%${query}%`)
-                        .neq('visibility', 'hidden')  // hidden accounts don't appear in search
+                        .select('id, username, display_name, avatar_url, visibility, is_verified')
+                        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+                        .neq('visibility', 'hidden')
                         .neq('id', currentUser.id)
                         .limit(20);
-                    // Filter out accounts that are explicitly hidden (fallback for old schema)
-                    setFriendSearchResults((data || []).filter(u => u.is_public !== false || u.visibility === 'private'));
+                    // Exclude any remaining hidden accounts (old schema fallback)
+                    setFriendSearchResults((data || []).filter(u => u.visibility !== 'hidden'));
                 } catch (err) {
                     // Fallback if visibility column doesn't exist yet
                     try {
                         const { data } = await supabaseClient
                             .from('user_profiles')
                             .select('id, username, display_name, avatar_url, is_public, is_verified')
-                            .ilike('username', `%${query}%`)
-                            .eq('is_public', true)
+                            .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
                             .neq('id', currentUser.id)
                             .limit(20);
-                        setFriendSearchResults(data || []);
+                        setFriendSearchResults((data || []).filter(u => u.is_public !== false));
                     } catch (e) { console.error('searchUsers error:', e); }
                 } finally {
                     setFriendSearchLoading(false);
@@ -5333,11 +5422,15 @@
                     if (prof) setViewingProfile(prof);
 
                     // Check follow / friendship status
-                    const { data: fship } = await supabaseClient
+                    // Use array (not maybeSingle) — bidirectional follows create 2 rows,
+                    // and maybeSingle() errors + returns null when multiple rows exist.
+                    const { data: fships } = await supabaseClient
                         .from('friendships')
-                        .select('id, status, requested_by')
-                        .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${user.id}),and(user_id.eq.${user.id},friend_id.eq.${currentUser.id})`)
-                        .maybeSingle();
+                        .select('id, status, requested_by, user_id, friend_id')
+                        .or(`and(user_id.eq.${currentUser.id},friend_id.eq.${user.id}),and(user_id.eq.${user.id},friend_id.eq.${currentUser.id})`);
+                    const fship = (fships || []).find(f => f.status === 'accepted')
+                        || (fships || []).find(f => f.status === 'pending')
+                        || null;
                     if (fship) {
                         if (fship.status === 'accepted') setProfileFollowStatus('friends');
                         else if (fship.status === 'pending') {
@@ -6822,7 +6915,8 @@
 
             // Called when user taps Finish in the add-to-shelf modal
             const confirmAddBookFromSearch = async () => {
-                if (!pendingSearchBook) return;
+                if (!pendingSearchBook || addingBook) return;
+                setAddingBook(true);
 
                 // Duplicate warning — check by ISBN first, fall back to title
                 const isbn = pendingSearchBook.isbn;
@@ -6891,6 +6985,8 @@
                 } catch (error) {
                     console.error('Error adding book:', error);
                     showMessage('❌ Failed to add book — please check your connection and try again');
+                } finally {
+                    setAddingBook(false);
                 }
             };
 
@@ -7696,12 +7792,13 @@
                         }
 
                         // Determine position
+                        const _bw = getShelfBookWidth(parseInt(targetShelfId));
                         if (rapidScanPosition === 'in-order') {
-                            // Place books consecutively: 0, 10, 20, 30...
-                            targetPosition = rapidScanCounter * BOOK_WIDTH;
+                            // Place books consecutively using shelf-specific book width
+                            targetPosition = rapidScanCounter * _bw;
 
                             // Check if we've filled this board
-                            if (targetPosition > SHELF_WIDTH - BOOK_WIDTH) {
+                            if (targetPosition > SHELF_WIDTH - _bw) {
                                 showMessage('⚠️ Board full! Select new location.');
                                 setScannerInput('');
                                 return;
@@ -7721,8 +7818,8 @@
                             setRapidScanCounter(rapidScanCounter + 1); // Increment for next book
                         } else {
                             // Random position
-                            const randomPos = Math.floor(Math.random() * (SHELF_WIDTH - BOOK_WIDTH + 1));
-                            const snappedPos = Math.round(randomPos / 5) * 5; // Snap to 5s
+                            const randomPos = Math.floor(Math.random() * (SHELF_WIDTH - _bw + 1));
+                            const snappedPos = Math.round(randomPos / Math.max(1, Math.round(_bw / 2))) * Math.max(1, Math.round(_bw / 2));
 
                             if (isPositionAvailable(targetShelfId, targetBoardIndex, snappedPos)) {
                                 targetPosition = snappedPos;
@@ -7819,42 +7916,40 @@
             
             // Check if a position is available on a board
             const isPositionAvailable = (shelfId, boardIndex, position, excludeBookId = null) => {
+                const bw = getShelfBookWidth(shelfId);
                 const booksOnBoard = getBooksForBoard(shelfId, boardIndex)
                     .filter(book => book.id !== excludeBookId); // Exclude the book being moved
-                
+
                 const newBookStart = position;
-                const newBookEnd = position + BOOK_WIDTH - 1; // Book occupies position to position+9
-                
-                // Check if ANY of the 10 positions overlap with existing books
+                const newBookEnd = position + bw - 1;
+
                 for (let book of booksOnBoard) {
                     const bookStart = book.position !== null ? book.position : 0;
-                    const bookEnd = bookStart + BOOK_WIDTH - 1;
-                    
-                    // Check for ANY overlap
-                    // Two ranges overlap if: NOT (end1 < start2 OR start1 > end2)
-                    // Simplified: (start1 <= end2 AND end1 >= start2)
+                    const bookEnd = bookStart + bw - 1;
                     if (newBookStart <= bookEnd && newBookEnd >= bookStart) {
                         return false; // Collision!
                     }
                 }
-                
+
                 return true; // No collision
             };
             
             // Find next available position on a board
             const findNextAvailablePosition = (shelfId, boardIndex, excludeIds = []) => {
+                const bw = getShelfBookWidth(shelfId);
                 const booksOnBoard = getBooksForBoard(shelfId, boardIndex)
                     .filter(b => !excludeIds.includes(b.id));
 
                 if (booksOnBoard.length === 0) return 0;
 
-                // Try placing after the last book (step in BOOK_WIDTH increments to stay aligned)
-                const lastBook = booksOnBoard[booksOnBoard.length - 1];
-                const afterLast = (lastBook.position || 0) + BOOK_WIDTH;
-                if (afterLast + BOOK_WIDTH <= SHELF_WIDTH) return afterLast;
+                // Try placing after the last book
+                const sorted = [...booksOnBoard].sort((a, b) => (a.position || 0) - (b.position || 0));
+                const lastBook = sorted[sorted.length - 1];
+                const afterLast = (lastBook.position || 0) + bw;
+                if (afterLast + bw <= SHELF_WIDTH) return afterLast;
 
-                // Scan for gaps, stepping by BOOK_WIDTH so positions stay aligned
-                for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos += BOOK_WIDTH) {
+                // Scan for gaps
+                for (let pos = 0; pos <= SHELF_WIDTH - bw; pos += bw) {
                     if (isPositionAvailable(shelfId, boardIndex, pos, excludeIds[0] ?? null)) {
                         return pos;
                     }
@@ -7864,59 +7959,126 @@
             };
             
             // Calculate drop position from mouse X coordinate WITH SNAPPING
-            const calculateDropPosition = (e, boardElement) => {
+            const calculateDropPosition = (e, boardElement, shelfId) => {
+                const bw = shelfId ? getShelfBookWidth(shelfId) : BOOK_WIDTH;
                 const rect = boardElement.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
-                
+
                 // Account for padding (1rem = ~16px on each side)
-                const paddingLeft = 16; // 1rem left padding
+                const paddingLeft = 16;
                 const adjustedMouseX = mouseX - paddingLeft;
-                
+
                 // Convert mouse pixel to position units
-                // DYNAMIC: Calculate based on actual board width
-                // Board content width varies by breakpoint (830px, 650px, etc)
-                const boardContentWidth = rect.width - 32; // Board width minus padding (16px each side)
-                const pixelsPerPosition = boardContentWidth / SHELF_WIDTH; // e.g., 830/200 = 4.15px per position
+                const boardContentWidth = rect.width - 32;
+                const pixelsPerPosition = boardContentWidth / SHELF_WIDTH;
                 const exactPosition = adjustedMouseX / pixelsPerPosition;
-                
-                // SNAP to nearest 5-position interval
-                const snapInterval = 5;
+
+                // Snap to nearest half-book-width interval for smooth alignment
+                const snapInterval = Math.max(1, Math.round(bw / 2));
                 const snappedPosition = Math.round(exactPosition / snapInterval) * snapInterval;
-                
-                // Clamp to valid range (0 to 190)
-                return Math.max(0, Math.min(SHELF_WIDTH - BOOK_WIDTH, snappedPosition));
+
+                return Math.max(0, Math.min(SHELF_WIDTH - bw, snappedPosition));
             };
             
             // Find nearest available snap position
             const findNearestAvailablePosition = (shelfId, boardIndex, targetPosition, excludeBookId = null) => {
+                const bw = getShelfBookWidth(shelfId);
                 // Try the target position first
                 if (isPositionAvailable(shelfId, boardIndex, targetPosition, excludeBookId)) {
                     return targetPosition;
                 }
-                
-                // Search outward from target position in 5-position increments
-                const snapInterval = 5;
+
+                // Search outward from target position in half-book-width increments
+                const snapInterval = Math.max(1, Math.round(bw / 2));
                 for (let offset = snapInterval; offset <= SHELF_WIDTH; offset += snapInterval) {
-                    // Try right
                     const rightPos = targetPosition + offset;
-                    if (rightPos <= SHELF_WIDTH - BOOK_WIDTH && isPositionAvailable(shelfId, boardIndex, rightPos, excludeBookId)) {
+                    if (rightPos <= SHELF_WIDTH - bw && isPositionAvailable(shelfId, boardIndex, rightPos, excludeBookId)) {
                         return rightPos;
                     }
-                    
-                    // Try left
+
                     const leftPos = targetPosition - offset;
                     if (leftPos >= 0 && isPositionAvailable(shelfId, boardIndex, leftPos, excludeBookId)) {
                         return leftPos;
                     }
                 }
-                
+
                 return null; // No position found
+            };
+
+            // ==========================================
+            // PUSH-INSERT: slide books left/right to make room
+            // ==========================================
+
+            // Try to insert a book at `targetPos` by shifting existing books.
+            // Strategy: prefer pushing books to the RIGHT of targetPos rightward;
+            // if there isn't enough room on the right, push books to the LEFT leftward.
+            // Returns { newPositions: [{id, position}], insertPos } or null if impossible.
+            const computePushInsert = (shelfId, boardIndex, targetPos, excludeBookId) => {
+                const bw = getShelfBookWidth(shelfId);
+                const existing = getBooksForBoard(shelfId, boardIndex)
+                    .filter(b => b.id !== excludeBookId)
+                    .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+                if (existing.length === 0) return { newPositions: [], insertPos: targetPos };
+
+                // Snap targetPos to bw grid
+                const snapped = Math.round(targetPos / bw) * bw;
+                const insertPos = Math.max(0, Math.min(SHELF_WIDTH - bw, snapped));
+
+                // Separate books into left-of-insert and right-of-insert (by center)
+                const leftBooks  = existing.filter(b => (b.position || 0) < insertPos);
+                const rightBooks = existing.filter(b => (b.position || 0) >= insertPos);
+
+                // --- Try pushing RIGHT ---
+                // Starting from insertPos + bw, assign each right-side book one slot to the right
+                const tryPushRight = () => {
+                    let cursor = insertPos + bw; // first slot after the new book
+                    const moves = [];
+                    for (const b of rightBooks) {
+                        // Snap cursor to bw grid
+                        const newPos = Math.round(cursor / bw) * bw;
+                        if (newPos + bw > SHELF_WIDTH) return null; // overflows right edge
+                        moves.push({ id: b.id, position: newPos });
+                        cursor = newPos + bw;
+                    }
+                    return moves;
+                };
+
+                // --- Try pushing LEFT ---
+                // Starting from insertPos - bw, assign each left-side book (reversed) one slot to the left
+                const tryPushLeft = () => {
+                    let cursor = insertPos - bw; // first slot before the new book (going left)
+                    const moves = [];
+                    for (const b of [...leftBooks].reverse()) {
+                        const newPos = Math.round(cursor / bw) * bw;
+                        if (newPos < 0) return null; // overflows left edge
+                        moves.push({ id: b.id, position: newPos });
+                        cursor = newPos - bw;
+                    }
+                    return moves;
+                };
+
+                const rightMoves = tryPushRight();
+                if (rightMoves !== null) {
+                    // Keep left books in place, shift right books
+                    const unchanged = leftBooks.map(b => ({ id: b.id, position: b.position || 0 }));
+                    return { newPositions: [...unchanged, ...rightMoves], insertPos };
+                }
+
+                const leftMoves = tryPushLeft();
+                if (leftMoves !== null) {
+                    // Keep right books in place, shift left books
+                    const unchanged = rightBooks.map(b => ({ id: b.id, position: b.position || 0 }));
+                    return { newPositions: [...leftMoves, ...unchanged], insertPos };
+                }
+
+                return null; // No room even with pushing
             };
 
             // ==========================================
             // SHELF MANAGEMENT FUNCTIONS
             // ==========================================
-            
+
             const addShelf = async () => {
                 if (!newShelfName.trim()) {
                     showMessage('Please enter a shelf name');
@@ -8067,7 +8229,7 @@
 
                 // Calculate where book would snap if dropped here
                 if (draggedBook && e.currentTarget.classList.contains('shelf-board')) {
-                    const targetPosition = calculateDropPosition(e, e.currentTarget);
+                    const targetPosition = calculateDropPosition(e, e.currentTarget, shelfId);
                     const snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, draggedBook.id);
                     const boardKey = `${shelfId}-${boardIndex}`;
 
@@ -8095,54 +8257,73 @@
             const handleDrop = async (e, toShelfId, toBoardIndex) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (!draggedBook) return;
-                
-                // Calculate drop position (snapped)
+
+                // Calculate drop position (snapped to shelf's book-width grid)
                 const boardElement = e.currentTarget;
-                const targetPosition = calculateDropPosition(e, boardElement);
-                
-                // Find nearest available position (will snap to target if available)
-                const finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, draggedBook.id);
-                
+                const targetPosition = calculateDropPosition(e, boardElement, toShelfId);
+
+                // Try free slot first; if occupied try push-insert
+                let finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, draggedBook.id);
+                let pushResult = null;
+
                 if (finalPosition === null) {
+                    // Board is completely full
                     showMessage('❌ This shelf board is full!');
                     setDraggedBook(null);
                     setDropTargetShelf(null);
                     return;
                 }
-                
+
+                // If the nearest free slot is the exact target, no push needed.
+                // If the target itself is occupied, try push-insert for a more natural feel.
+                if (!isPositionAvailable(toShelfId, toBoardIndex, targetPosition, draggedBook.id)) {
+                    pushResult = computePushInsert(toShelfId, toBoardIndex, targetPosition, draggedBook.id);
+                    if (pushResult) finalPosition = pushResult.insertPos;
+                }
+
                 try {
-                    // Update book position in Supabase
-                    const { error } = await supabaseClient
-                        .from('books')
-                        .update({
-                            shelf_id: toShelfId,
-                            board_index: toBoardIndex,
-                            position: finalPosition
-                        })
-                        .eq('id', draggedBook.id);
-                    
-                    if (error) throw error;
-                    
-                    // Update local state
-                    setBooks(books.map(b =>
-                        b.id === draggedBook.id 
-                            ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition } 
-                            : b
-                    ));
-                    
-                    const shelfName = shelves.find(s => s.id === toShelfId)?.name;
-                    const snapped = finalPosition !== targetPosition;
-                    const message = snapped 
-                        ? `📚 Snapped "${draggedBook.title}" to nearest spot (Pos ${finalPosition})`
-                        : `📚 Moved "${draggedBook.title}" to ${shelfName} (Pos ${finalPosition})`;
-                    showMessage(message);
+                    if (pushResult && pushResult.newPositions.length > 0) {
+                        // Persist all shifted books
+                        await Promise.all(pushResult.newPositions.map(({ id, position }) =>
+                            supabaseClient.from('books').update({ position }).eq('id', id)
+                        ));
+                        // Persist dragged book with new shelf/board/position
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition })
+                            .eq('id', draggedBook.id);
+                        if (error) throw error;
+                        // Update local state for all moved books + dragged book
+                        const posMap = {};
+                        pushResult.newPositions.forEach(({ id, position }) => { posMap[id] = position; });
+                        setBooks(prev => prev.map(b => {
+                            if (b.id === draggedBook.id) return { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition };
+                            if (posMap[b.id] !== undefined) return { ...b, position: posMap[b.id] };
+                            return b;
+                        }));
+                        showMessage(`📚 Inserted "${draggedBook.title}" — books shifted to make room`);
+                    } else {
+                        // Simple move — no pushing needed
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition })
+                            .eq('id', draggedBook.id);
+                        if (error) throw error;
+                        setBooks(books.map(b =>
+                            b.id === draggedBook.id
+                                ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition }
+                                : b
+                        ));
+                        const shelfName = shelves.find(s => s.id === toShelfId)?.name;
+                        showMessage(`📚 Moved "${draggedBook.title}" to ${shelfName}`);
+                    }
                 } catch (error) {
                     console.error('Error updating book position:', error);
                     showMessage('❌ Failed to move book');
                 }
-                
+
                 setDraggedBook(null);
                 setDropTargetShelf(null);
             };
@@ -8183,7 +8364,7 @@
                 if (isNaN(shelfId) || isNaN(boardIndex)) return;
 
                 const fakeEvent = { clientX: touch.clientX };
-                const targetPosition = calculateDropPosition(fakeEvent, boardEl);
+                const targetPosition = calculateDropPosition(fakeEvent, boardEl, shelfId);
                 const snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, touchDragRef.current.book.id);
                 setSnapPreviewPosition(snapPosition);
                 setSnapPreviewBoard(`${shelfId}-${boardIndex}`);
@@ -8223,27 +8404,53 @@
                 if (isNaN(toShelfId) || isNaN(toBoardIndex)) return;
 
                 const fakeEvent = { clientX: touch.clientX };
-                const targetPosition = calculateDropPosition(fakeEvent, boardEl);
-                const finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, book.id);
+                const targetPosition = calculateDropPosition(fakeEvent, boardEl, toShelfId);
+                let finalPosition = findNearestAvailablePosition(toShelfId, toBoardIndex, targetPosition, book.id);
+                let touchPushResult = null;
 
                 if (finalPosition === null) {
                     showMessage('❌ This shelf board is full!');
                     return;
                 }
 
+                // If target is occupied, try push-insert
+                if (!isPositionAvailable(toShelfId, toBoardIndex, targetPosition, book.id)) {
+                    touchPushResult = computePushInsert(toShelfId, toBoardIndex, targetPosition, book.id);
+                    if (touchPushResult) finalPosition = touchPushResult.insertPos;
+                }
+
                 try {
-                    const { error } = await supabaseClient
-                        .from('books')
-                        .update({ shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition })
-                        .eq('id', book.id);
-                    if (error) throw error;
-                    setBooks(prev => prev.map(b =>
-                        b.id === book.id
-                            ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition }
-                            : b
-                    ));
-                    const shelfName = shelves.find(s => s.id === toShelfId)?.name;
-                    showMessage(`📚 Moved "${book.title}" to ${shelfName}`);
+                    if (touchPushResult && touchPushResult.newPositions.length > 0) {
+                        await Promise.all(touchPushResult.newPositions.map(({ id, position }) =>
+                            supabaseClient.from('books').update({ position }).eq('id', id)
+                        ));
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition })
+                            .eq('id', book.id);
+                        if (error) throw error;
+                        const posMap = {};
+                        touchPushResult.newPositions.forEach(({ id, position }) => { posMap[id] = position; });
+                        setBooks(prev => prev.map(b => {
+                            if (b.id === book.id) return { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition };
+                            if (posMap[b.id] !== undefined) return { ...b, position: posMap[b.id] };
+                            return b;
+                        }));
+                        showMessage(`📚 Inserted "${book.title}" — books shifted to make room`);
+                    } else {
+                        const { error } = await supabaseClient
+                            .from('books')
+                            .update({ shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition })
+                            .eq('id', book.id);
+                        if (error) throw error;
+                        setBooks(prev => prev.map(b =>
+                            b.id === book.id
+                                ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition }
+                                : b
+                        ));
+                        const shelfName = shelves.find(s => s.id === toShelfId)?.name;
+                        showMessage(`📚 Moved "${book.title}" to ${shelfName}`);
+                    }
                 } catch (err) {
                     console.error('Touch drop error:', err);
                     showMessage('❌ Failed to move book');
@@ -8306,18 +8513,18 @@
                 const targetShelf = targetShelfForSelector;
                 const booksToAdd = [...selectedBooksToAdd];
 
-                // Build a virtual occupied-position set, excluding the books being moved
-                // so their current positions don't block placement of themselves.
+                // Build a virtual occupied-position set using the shelf's dynamic book width
+                const _sbw = getShelfBookWidth(targetShelf);
                 const takenPositions = new Set(
                     getBooksForBoard(targetShelf, targetBoardIndex)
                         .filter(b => !booksToAdd.includes(b.id))
-                        .flatMap(b => Array.from({ length: BOOK_WIDTH }, (_, i) => (b.position || 0) + i))
+                        .flatMap(b => Array.from({ length: _sbw }, (_, i) => (b.position || 0) + i))
                 );
 
                 // Find next free aligned slot, marking it taken as we go
                 const findNextFreeSlot = () => {
-                    for (let pos = 0; pos <= SHELF_WIDTH - BOOK_WIDTH; pos += BOOK_WIDTH) {
-                        const blocked = Array.from({ length: BOOK_WIDTH }, (_, i) => pos + i).some(p => takenPositions.has(p));
+                    for (let pos = 0; pos <= SHELF_WIDTH - _sbw; pos += _sbw) {
+                        const blocked = Array.from({ length: _sbw }, (_, i) => pos + i).some(p => takenPositions.has(p));
                         if (!blocked) return pos;
                     }
                     return null;
@@ -8332,8 +8539,7 @@
                         break;
                     }
                     assignments.push({ id: bookId, shelf_id: targetShelf, board_index: targetBoardIndex, position: pos });
-                    // Mark those slots taken so the next book doesn't collide
-                    for (let i = 0; i < BOOK_WIDTH; i++) takenPositions.add(pos + i);
+                    for (let i = 0; i < _sbw; i++) takenPositions.add(pos + i);
                 }
 
                 if (assignments.length === 0) return;
@@ -9957,9 +10163,9 @@
                                             >
                                                 <option value="">-- Select Shelf --</option>
                                                 <option value="random">🎲 Random</option>
-                                                {Array.from({ length: shelves.find(s => s.id === parseInt(rapidScanShelf))?.boardCount || 3 }).map((_, i) => (
+                                                {Array.from({ length: shelves.find(s => s.id === parseInt(rapidScanShelf))?.board_count || 1 }).map((_, i) => (
                                                     <option key={i} value={i}>
-                                                        Shelf {i + 1}
+                                                        Bookshelf {i + 1}
                                                     </option>
                                                 ))}
                                             </select>
@@ -10216,51 +10422,124 @@
                         {showAllBooks ? (
                             <div>
                                 {/* Toolbar */}
-                                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.75rem 1rem 0.5rem', gap:'0.5rem'}}>
+                                <div style={{padding:'0.75rem 1rem 0.5rem'}}>
                                     {allBooksEditMode ? (
                                         <>
-                                            <button
-                                                onClick={() => { setAllBooksEditMode(false); setSelectedBookIds(new Set()); }}
-                                                style={{background:'none', border:'none', cursor:'pointer', color:'#6d4c2a', fontFamily:'inherit', fontSize:'0.9rem', fontWeight:600, padding:0}}
-                                            >
-                                                Cancel
-                                            </button>
-                                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                                            {/* Top row: Cancel + N selected + Apply */}
+                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.5rem', marginBottom:'0.5rem'}}>
+                                                <button
+                                                    onClick={() => { setAllBooksEditMode(false); setSelectedBookIds(new Set()); setMassEditAction('remove'); setMassEditStatus(''); setMassEditRating(''); setMassEditShelfId(''); }}
+                                                    style={{background:'none', border:'none', cursor:'pointer', color:'#6d4c2a', fontFamily:'inherit', fontSize:'0.9rem', fontWeight:600, padding:0}}
+                                                >
+                                                    Cancel
+                                                </button>
                                                 <span style={{fontSize:'0.8rem', color:'#8b6f47'}}>{selectedBookIds.size} selected</span>
                                                 <button
                                                     disabled={selectedBookIds.size === 0}
-                                                    onClick={() => {
-                                                        const count = selectedBookIds.size;
+                                                    onClick={async () => {
                                                         const ids = [...selectedBookIds];
-                                                        setConfirmAction({
-                                                            title: 'Remove Books',
-                                                            message: `Remove ${count} book${count !== 1 ? 's' : ''} from your library? This cannot be undone.`,
-                                                            onConfirm: async () => {
-                                                                try {
-                                                                    const { error } = await supabaseClient
-                                                                        .from('books')
-                                                                        .delete()
-                                                                        .in('id', ids);
-                                                                    if (error) throw error;
-                                                                    setBooks(prev => prev.filter(b => !ids.includes(b.id)));
-                                                                    setSelectedBookIds(new Set());
-                                                                    setAllBooksEditMode(false);
-                                                                } catch (err) {
-                                                                    console.error(err);
-                                                                    showMessage('❌ Failed to remove books');
+                                                        if (ids.length === 0) return;
+                                                        if (massEditAction === 'remove') {
+                                                            setConfirmAction({
+                                                                title: 'Remove Books',
+                                                                message: `Remove ${ids.length} book${ids.length !== 1 ? 's' : ''} from your library? This cannot be undone.`,
+                                                                onConfirm: async () => {
+                                                                    try {
+                                                                        const { error } = await supabaseClient.from('books').delete().in('id', ids);
+                                                                        if (error) throw error;
+                                                                        setBooks(prev => prev.filter(b => !ids.includes(b.id)));
+                                                                        setSelectedBookIds(new Set());
+                                                                        setAllBooksEditMode(false);
+                                                                    } catch (err) { showMessage('❌ Failed to remove books'); }
                                                                 }
-                                                            }
-                                                        });
-                                                        setShowConfirm(true);
+                                                            });
+                                                            setShowConfirm(true);
+                                                        } else if (massEditAction === 'status' && massEditStatus) {
+                                                            try {
+                                                                await Promise.all(ids.map(id =>
+                                                                    supabaseClient.from('books').update({ userData: { ...(books.find(b=>b.id===id)?.userData||{}), status: massEditStatus } }).eq('id', id)
+                                                                ));
+                                                                setBooks(prev => prev.map(b => ids.includes(b.id) ? { ...b, userData: { ...(b.userData||{}), status: massEditStatus } } : b));
+                                                                showMessage(`✅ Status updated for ${ids.length} book${ids.length!==1?'s':''}`);
+                                                                setSelectedBookIds(new Set());
+                                                            } catch (err) { showMessage('❌ Failed to update status'); }
+                                                        } else if (massEditAction === 'rating' && massEditRating !== '') {
+                                                            const r = parseInt(massEditRating);
+                                                            try {
+                                                                await Promise.all(ids.map(id =>
+                                                                    supabaseClient.from('books').update({ userData: { ...(books.find(b=>b.id===id)?.userData||{}), rating: r } }).eq('id', id)
+                                                                ));
+                                                                setBooks(prev => prev.map(b => ids.includes(b.id) ? { ...b, userData: { ...(b.userData||{}), rating: r } } : b));
+                                                                showMessage(`✅ Rating set to ${'★'.repeat(r)} for ${ids.length} book${ids.length!==1?'s':''}`);
+                                                                setSelectedBookIds(new Set());
+                                                            } catch (err) { showMessage('❌ Failed to update rating'); }
+                                                        } else if (massEditAction === 'shelf' && massEditShelfId) {
+                                                            const shelfId = parseInt(massEditShelfId);
+                                                            try {
+                                                                const updates = ids.map(bookId => {
+                                                                    const pos = findNextAvailablePosition(shelfId, 0, ids.filter(i => i !== bookId));
+                                                                    return { id: bookId, shelf_id: shelfId, board_index: 0, position: pos };
+                                                                });
+                                                                await Promise.all(updates.map(({ id, shelf_id, board_index, position }) =>
+                                                                    supabaseClient.from('books').update({ shelf_id, board_index, position }).eq('id', id)
+                                                                ));
+                                                                setBooks(prev => prev.map(b => {
+                                                                    const upd = updates.find(u => u.id === b.id);
+                                                                    return upd ? { ...b, shelf_id: upd.shelf_id, board_index: upd.board_index, position: upd.position } : b;
+                                                                }));
+                                                                const shelfName = shelves.find(s => s.id === shelfId)?.name;
+                                                                showMessage(`✅ Moved ${ids.length} book${ids.length!==1?'s':''} to "${shelfName}"`);
+                                                                setSelectedBookIds(new Set());
+                                                            } catch (err) { showMessage('❌ Failed to move books'); }
+                                                        } else {
+                                                            showMessage('Select an action and value first');
+                                                        }
                                                     }}
-                                                    style={{fontSize:'0.85rem', fontWeight:600, fontFamily:'inherit', cursor: selectedBookIds.size === 0 ? 'default' : 'pointer', color: selectedBookIds.size === 0 ? '#c4a882' : '#fff', background: selectedBookIds.size === 0 ? '#e8d5b7' : '#c0392b', border:'none', borderRadius:8, padding:'0.35rem 0.85rem', transition:'background 0.15s'}}
+                                                    style={{fontSize:'0.85rem', fontWeight:600, fontFamily:'inherit', cursor: selectedBookIds.size===0?'default':'pointer', color: selectedBookIds.size===0?'#c4a882':'#fff', background: selectedBookIds.size===0?'#e8d5b7': massEditAction==='remove'?'#c0392b':'#6d4c2a', border:'none', borderRadius:8, padding:'0.35rem 0.85rem', transition:'background 0.15s'}}
                                                 >
-                                                    Remove ({selectedBookIds.size})
+                                                    {massEditAction === 'remove' ? `Remove (${selectedBookIds.size})` : `Apply (${selectedBookIds.size})`}
                                                 </button>
+                                            </div>
+                                            {/* Action selector row */}
+                                            <div style={{display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap'}}>
+                                                <select
+                                                    value={massEditAction}
+                                                    onChange={e => { setMassEditAction(e.target.value); setMassEditStatus(''); setMassEditRating(''); setMassEditShelfId(''); }}
+                                                    style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit'}}
+                                                >
+                                                    <option value="remove">Remove</option>
+                                                    <option value="status">Set Status</option>
+                                                    <option value="rating">Set Rating</option>
+                                                    <option value="shelf">Move to Shelf</option>
+                                                </select>
+                                                {massEditAction === 'status' && (
+                                                    <select value={massEditStatus} onChange={e => setMassEditStatus(e.target.value)}
+                                                        style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit'}}>
+                                                        <option value="">— pick status —</option>
+                                                        <option value="want">Want to Read</option>
+                                                        <option value="reading">Reading</option>
+                                                        <option value="finished">Finished</option>
+                                                    </select>
+                                                )}
+                                                {massEditAction === 'rating' && (
+                                                    <select value={massEditRating} onChange={e => setMassEditRating(e.target.value)}
+                                                        style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit'}}>
+                                                        <option value="">— pick rating —</option>
+                                                        {[1,2,3,4,5].map(r => <option key={r} value={r}>{'★'.repeat(r)}</option>)}
+                                                    </select>
+                                                )}
+                                                {massEditAction === 'shelf' && (
+                                                    <select value={massEditShelfId} onChange={e => setMassEditShelfId(e.target.value)}
+                                                        style={{fontSize:'0.8rem', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.5rem', fontFamily:'inherit'}}>
+                                                        <option value="">— pick shelf —</option>
+                                                        {shelves.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                    </select>
+                                                )}
                                             </div>
                                         </>
                                     ) : (
                                         <>
+                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.5rem'}}>
                                             <button
                                                 onClick={() => { setShowAllBooks(false); setAllBooksEditMode(false); setSelectedBookIds(new Set()); }}
                                                 style={{background:'none', border:'none', cursor:'pointer', color:'#6d4c2a', fontFamily:'inherit', fontSize:'0.9rem', fontWeight:600, padding:0}}
@@ -10269,7 +10548,7 @@
                                             </button>
                                             <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
                                                 <button
-                                                    onClick={() => setAllBooksEditMode(true)}
+                                                    onClick={() => { setAllBooksEditMode(true); setMassEditAction('remove'); }}
                                                     style={{fontSize:'0.85rem', fontWeight:600, fontFamily:'inherit', cursor:'pointer', color:'#6d4c2a', background:'#f5ead8', border:'1px solid #c4a882', borderRadius:8, padding:'0.3rem 0.7rem'}}
                                                 >
                                                     Edit
@@ -10285,6 +10564,7 @@
                                                     <option value="rating">By Rating</option>
                                                     <option value="status">By Status</option>
                                                 </select>
+                                            </div>
                                             </div>
                                         </>
                                     )}
@@ -10698,6 +10978,7 @@
                                             const boardBooks = getBooksForBoard(shelf.id, boardIndex);
                                             const boardKey = `${shelf.id}-${boardIndex}`;
                                             const showPreview = snapPreviewBoard === boardKey && snapPreviewPosition !== null;
+                                            const _shelfBw = getShelfBookWidth(shelf.id);
                                             
                                             return (
                                                 <div
@@ -10735,10 +11016,7 @@
                                                     ) : (
                                                         boardBooks.map(book => {
                                                             const position = book.position !== null ? book.position : 0;
-                                                            // Calculate pixel position based on book width
-                                                            // Each book is (boardWidth - 32) / 20, and occupies 10 positions
-                                                            // So each position = bookWidth / 10
-                                                            // For 830px board: bookWidth = 39.9px, each position = 3.99px
+                                                            // Position as % of shelf width — CSS book width is set via --shelf-max-books
                                                             const percentagePosition = (position / SHELF_WIDTH) * 100;
                                                             
                                                             return (
@@ -10768,7 +11046,7 @@
                                                                     title={`${book.title} by ${book.author}\nPosition: ${position}\nDrag to move or click for options`}
                                                                 >
                                                                     <div className="book-spine" style={{pointerEvents: 'none'}}>
-                                                                        {book.title}
+                                                                        {book.title && book.title.length > 30 ? book.title.slice(0, 28) + '…' : book.title}
                                                                     </div>
                                                                 </div>
                                                             );
@@ -11031,9 +11309,14 @@
                                             <div style={{color: '#8b6f47', marginTop: '0.4rem', fontSize: '0.9rem'}}>Or message a friend from the Friends page</div>
                                         </div>
                                     ) : (() => {
-                                        const other = activeConversation.participant1_id === currentUser.id
+                                        const _otherId = activeConversation.participant1_id === currentUser.id
+                                            ? activeConversation.participant2_id
+                                            : activeConversation.participant1_id;
+                                        const other = (activeConversation.participant1_id === currentUser.id
                                             ? activeConversation.p2
-                                            : activeConversation.p1;
+                                            : activeConversation.p1)
+                                            || friends.find(f => f.id === _otherId)
+                                            || { id: _otherId, username: 'User', display_name: null };
                                         return (
                                             <>
                                                 {/* Chat header */}
@@ -12040,22 +12323,22 @@
                                     {/* Board picker (only when shelf selected) */}
                                     {addToShelfId && (
                                         <div style={{marginBottom: '1.5rem'}}>
-                                            <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Board (optional)</label>
+                                            <label style={{display: 'block', marginBottom: '0.4rem', fontWeight: '600', color: '#3d2817'}}>Bookshelf (optional)</label>
                                             <select
                                                 value={addToBoardIndex}
                                                 onChange={e => setAddToBoardIndex(e.target.value)}
                                                 style={{width: '100%', padding: '0.65rem', borderRadius: '6px', border: '2px solid #c9a87c', fontSize: '1rem', background: '#fdf6e9', color: '#3d2817'}}
                                             >
-                                                <option value="">— Next available spot —</option>
-                                                {Array.from({length: shelves.find(s => s.id === parseInt(addToShelfId))?.board_count || 3}).map((_, i) => (
-                                                    <option key={i} value={i}>Board {i + 1}</option>
+                                                <option value="">— Next available bookshelf —</option>
+                                                {Array.from({length: shelves.find(s => s.id === parseInt(addToShelfId))?.board_count || 1}).map((_, i) => (
+                                                    <option key={i} value={i}>Bookshelf {i + 1}</option>
                                                 ))}
                                             </select>
                                         </div>
                                     )}
 
-                                    <button className="book-detail-add-btn" onClick={confirmAddBookFromSearch}>
-                                        ✅ Finish
+                                    <button className="book-detail-add-btn" onClick={confirmAddBookFromSearch} disabled={addingBook} style={{opacity: addingBook ? 0.6 : 1}}>
+                                        {addingBook ? 'Adding…' : '✅ Finish'}
                                     </button>
                                 </div>
                             </div>
@@ -13041,7 +13324,7 @@
                                                         <div style={{fontSize: '0.85rem', color: '#8b6f47'}}>Next available spot</div>
                                                     </div>
                                                 </div>
-                                                {Array.from({length: shelves.find(s => s.id.toString() === selectedShelfForAdd)?.board_count || 3}).map((_, i) => (
+                                                {Array.from({length: shelves.find(s => s.id.toString() === selectedShelfForAdd)?.board_count || 1}).map((_, i) => (
                                                     <div
                                                         key={i}
                                                         className={`shelf-option ${selectedBoardForAdd === i.toString() ? 'selected' : ''}`}
@@ -13049,7 +13332,7 @@
                                                     >
                                                         <div className="shelf-option-radio"></div>
                                                         <div style={{flex: 1}}>
-                                                            <div style={{fontWeight: '600'}}>Board {i + 1}</div>
+                                                            <div style={{fontWeight: '600'}}>Bookshelf {i + 1}</div>
                                                         </div>
                                                     </div>
                                                 ))}

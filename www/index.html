@@ -6970,7 +6970,6 @@
 
                     setBooks(prev => [...prev, data[0]]);
                     const shelfName = targetShelfId ? shelves.find(s => s.id === targetShelfId)?.name : null;
-                    showMessage(`✅ Added "${data[0].title}"${shelfName ? ` to "${shelfName}"` : ' to Your Books'}!`);
                     setShowAddShelfModal(false);
                     setPendingSearchBook(null);
                     setAddToShelfId('');
@@ -7684,7 +7683,6 @@
                     await reloadBooks();
 
                     const shelfName = shelves.find(s => s.id === targetShelfId)?.name;
-                    showMessage(`✅ Assigned to "${shelfName}" (Board 1, Pos ${nextPosition})`);
                     closeBookInfo();
                 } catch (error) {
                     console.error('Error assigning book to shelf:', error);
@@ -8105,7 +8103,6 @@
                     setNewShelfBoardCount(3);
                     setNewShelfBackground('#8b7355');
                     setShowCreateShelfModal(false);
-                    showMessage(`✅ Created shelf: "${data[0].name}"`);
 
                 } catch (error) {
                     console.error('Error adding shelf:', error);
@@ -8314,7 +8311,6 @@
                             if (posMap[b.id] !== undefined) return { ...b, position: posMap[b.id] };
                             return b;
                         }));
-                        showMessage(`📚 Inserted "${draggedBook.title}" — books shifted to make room`);
                     } else {
                         // Simple move — no pushing needed
                         const { error } = await supabaseClient
@@ -8327,8 +8323,6 @@
                                 ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition }
                                 : b
                         ));
-                        const shelfName = shelves.find(s => s.id === toShelfId)?.name;
-                        showMessage(`📚 Moved "${draggedBook.title}" to ${shelfName}`);
                     }
                 } catch (error) {
                     console.error('Error updating book position:', error);
@@ -8466,7 +8460,6 @@
                             if (posMap[b.id] !== undefined) return { ...b, position: posMap[b.id] };
                             return b;
                         }));
-                        showMessage(`📚 Inserted "${book.title}" — books shifted to make room`);
                     } else {
                         const { error } = await supabaseClient
                             .from('books')
@@ -8478,8 +8471,6 @@
                                 ? { ...b, shelf_id: toShelfId, board_index: toBoardIndex, position: finalPosition }
                                 : b
                         ));
-                        const shelfName = shelves.find(s => s.id === toShelfId)?.name;
-                        showMessage(`📚 Moved "${book.title}" to ${shelfName}`);
                     }
                 } catch (err) {
                     console.error('Touch drop error:', err);
@@ -8500,7 +8491,6 @@
                             if (error) throw error;
                             setBooks(books.map(book => book.shelf_id === shelfId ? { ...book, shelf_id: null } : book));
                             setShelves(shelves.filter(s => s.id !== shelfId));
-                            showMessage(`"${shelfName}" deleted`);
                         } catch (error) {
                             console.error('Error deleting shelf:', error);
                             showMessage('❌ Failed to delete shelf');
@@ -8585,7 +8575,6 @@
 
                     await reloadBooks();
                     const shelfName = shelves.find(s => s.id === targetShelf)?.name;
-                    showMessage(`✅ Added ${assignments.length} book(s) to "${shelfName}"`);
                     closeBookSelector();
                 } catch (error) {
                     console.error('Error adding books to shelf:', error);
@@ -8635,7 +8624,6 @@
                                 ? { ...b, shelf_id: null, board_index: null, position: null }
                                 : b
                         ));
-                        showMessage('Book removed from shelf');
                         closeShelfBookPopup();
                     }
                 });
@@ -8672,7 +8660,6 @@
                 ));
 
                 const newShelfName = shelves.find(s => s.id === newShelfId)?.name;
-                showMessage(`✅ Moved to "${newShelfName}"`);
                 setShowMoveModal(false);
                 closeShelfBookPopup();
             };
@@ -10490,7 +10477,6 @@
                                                                     supabaseClient.from('books').update({ userData: { ...(books.find(b=>b.id===id)?.userData||{}), status: massEditStatus } }).eq('id', id)
                                                                 ));
                                                                 setBooks(prev => prev.map(b => ids.includes(b.id) ? { ...b, userData: { ...(b.userData||{}), status: massEditStatus } } : b));
-                                                                showMessage(`✅ Status updated for ${ids.length} book${ids.length!==1?'s':''}`);
                                                                 setSelectedBookIds(new Set());
                                                             } catch (err) { showMessage('❌ Failed to update status'); }
                                                         } else if (massEditAction === 'rating' && massEditRating !== '') {
@@ -10500,7 +10486,6 @@
                                                                     supabaseClient.from('books').update({ userData: { ...(books.find(b=>b.id===id)?.userData||{}), rating: r } }).eq('id', id)
                                                                 ));
                                                                 setBooks(prev => prev.map(b => ids.includes(b.id) ? { ...b, userData: { ...(b.userData||{}), rating: r } } : b));
-                                                                showMessage(`✅ Rating set to ${'★'.repeat(r)} for ${ids.length} book${ids.length!==1?'s':''}`);
                                                                 setSelectedBookIds(new Set());
                                                             } catch (err) { showMessage('❌ Failed to update rating'); }
                                                         } else if (massEditAction === 'shelf' && massEditShelfId) {
@@ -10517,8 +10502,6 @@
                                                                     const upd = updates.find(u => u.id === b.id);
                                                                     return upd ? { ...b, shelf_id: upd.shelf_id, board_index: upd.board_index, position: upd.position } : b;
                                                                 }));
-                                                                const shelfName = shelves.find(s => s.id === shelfId)?.name;
-                                                                showMessage(`✅ Moved ${ids.length} book${ids.length!==1?'s':''} to "${shelfName}"`);
                                                                 setSelectedBookIds(new Set());
                                                             } catch (err) { showMessage('❌ Failed to move books'); }
                                                         } else {

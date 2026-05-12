@@ -4405,6 +4405,7 @@
             const [dropTargetShelf, setDropTargetShelf] = useState(null);
             const [snapPreviewPosition, setSnapPreviewPosition] = useState(null); // Shows where book will snap
             const [snapPreviewBoard, setSnapPreviewBoard] = useState(null);
+            const [snapPreviewIsPush, setSnapPreviewIsPush] = useState(false); // True when push-insert will be used
             
             // Shelf editing state
             const [editingShelfId, setEditingShelfId] = useState(null);
@@ -8227,17 +8228,34 @@
                 e.stopPropagation();
                 e.dataTransfer.dropEffect = 'move';
 
-                // Calculate where book would snap if dropped here
                 if (draggedBook && e.currentTarget.classList.contains('shelf-board')) {
                     const targetPosition = calculateDropPosition(e, e.currentTarget, shelfId);
-                    const snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, draggedBook.id);
                     const boardKey = `${shelfId}-${boardIndex}`;
+
+                    let previewPos;
+                    let isPush = false;
+
+                    if (isPositionAvailable(shelfId, boardIndex, targetPosition, draggedBook.id)) {
+                        // Target slot is free — snap straight to it
+                        previewPos = targetPosition;
+                    } else {
+                        // Target is occupied — try push-insert first (shows exact landing spot)
+                        const pushResult = computePushInsert(shelfId, boardIndex, targetPosition, draggedBook.id);
+                        if (pushResult) {
+                            previewPos = pushResult.insertPos;
+                            isPush = true;
+                        } else {
+                            // No room for push either — fall back to nearest free slot
+                            previewPos = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, draggedBook.id);
+                        }
+                    }
 
                     // Throttle React state updates to animation frames to keep shadow in sync
                     if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
                     rafIdRef.current = requestAnimationFrame(() => {
-                        setSnapPreviewPosition(snapPosition);
+                        setSnapPreviewPosition(previewPos);
                         setSnapPreviewBoard(boardKey);
+                        setSnapPreviewIsPush(isPush);
                     });
                 }
             };
@@ -8334,6 +8352,7 @@
                 setDropTargetShelf(null);
                 setSnapPreviewPosition(null);
                 setSnapPreviewBoard(null);
+                setSnapPreviewIsPush(false);
             };
 
             // Touch drag handlers for mobile
@@ -8365,9 +8384,26 @@
 
                 const fakeEvent = { clientX: touch.clientX };
                 const targetPosition = calculateDropPosition(fakeEvent, boardEl, shelfId);
-                const snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, touchDragRef.current.book.id);
+                const bookId = touchDragRef.current.book.id;
+
+                let snapPosition;
+                let touchIsPush = false;
+
+                if (isPositionAvailable(shelfId, boardIndex, targetPosition, bookId)) {
+                    snapPosition = targetPosition;
+                } else {
+                    const pushResult = computePushInsert(shelfId, boardIndex, targetPosition, bookId);
+                    if (pushResult) {
+                        snapPosition = pushResult.insertPos;
+                        touchIsPush = true;
+                    } else {
+                        snapPosition = findNearestAvailablePosition(shelfId, boardIndex, targetPosition, bookId);
+                    }
+                }
+
                 setSnapPreviewPosition(snapPosition);
                 setSnapPreviewBoard(`${shelfId}-${boardIndex}`);
+                setSnapPreviewIsPush(touchIsPush);
                 setDropTargetShelf(shelfId);
             };
 
@@ -8383,6 +8419,7 @@
                     setDraggedBook(null);
                     setSnapPreviewPosition(null);
                     setSnapPreviewBoard(null);
+                    setSnapPreviewIsPush(false);
                     setDropTargetShelf(null);
                     return;
                 }
@@ -10978,6 +11015,7 @@
                                             const boardBooks = getBooksForBoard(shelf.id, boardIndex);
                                             const boardKey = `${shelf.id}-${boardIndex}`;
                                             const showPreview = snapPreviewBoard === boardKey && snapPreviewPosition !== null;
+                                            const previewIsPush = showPreview && snapPreviewIsPush;
                                             const _shelfBw = getShelfBookWidth(shelf.id);
                                             
                                             return (
@@ -10995,20 +11033,46 @@
                                                     {/* Snap Preview Ghost */}
                                                     {showPreview && (
                                                         <div
-                                                            className="book" // Use same class as books for dynamic width!
+                                                            className="book"
                                                             style={{
                                                                 position: 'absolute',
                                                                 left: `${(snapPreviewPosition / SHELF_WIDTH) * 100}%`,
                                                                 bottom: '0.5rem',
                                                                 height: '250px',
-                                                                border: '2px dashed #d4af37',
+                                                                // Push-insert mode: orange solid border so user sees "books will shift"
+                                                                border: previewIsPush ? '2px solid #e67e22' : '2px dashed #d4af37',
                                                                 borderRadius: '4px',
-                                                                background: 'rgba(212, 175, 55, 0.2)',
+                                                                background: previewIsPush ? 'rgba(230, 126, 34, 0.25)' : 'rgba(212, 175, 55, 0.2)',
+                                                                boxShadow: previewIsPush ? '0 0 0 3px rgba(230,126,34,0.3)' : 'none',
                                                                 pointerEvents: 'none',
                                                                 zIndex: 999,
-                                                                padding: 0 // Override book padding
+                                                                padding: 0,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                overflow: 'visible',
                                                             }}
-                                                        />
+                                                        >
+                                                            {previewIsPush && (
+                                                                <span style={{
+                                                                    position: 'absolute',
+                                                                    top: '-22px',
+                                                                    left: '50%',
+                                                                    transform: 'translateX(-50%)',
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 700,
+                                                                    color: '#e67e22',
+                                                                    whiteSpace: 'nowrap',
+                                                                    background: 'rgba(255,255,255,0.9)',
+                                                                    borderRadius: '4px',
+                                                                    padding: '1px 5px',
+                                                                    pointerEvents: 'none',
+                                                                    zIndex: 1000,
+                                                                }}>
+                                                                    ← shifts →
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                     
                                                     {boardBooks.length === 0 ? (

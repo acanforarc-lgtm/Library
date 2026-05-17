@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.5.6
+    YOUR LIBRARY - VERSION 2.6.1
     ========================================
+    v2.6.1: Recommend book to friends (friend picker + notifications); Netflix-style Your Books categories (Currently Reading, Want to Read, Finished, Highly Rated, By Author); friend profile ⓘ info button (report/block/message) + ✓ following checkmark; friend book popup enriched from book_cache (isbn/date/pages/summary); custom book cover via URL (+ Add Cover when missing); shelf book image scaling fix (explicit inline width vs CSS var); book meta (isbn/date/pages/summary) moved under title/author in popups; new releases filtered to books only (no magazines/papers)
     v2.5.7: 11 bug fixes — follow status, chat header ?, board count dropdown, user search (display_name), spine text scaling, phone lock/unlock viewport, profile refresh, add-book double-tap, dynamic shelf book width, push-insert drag, mass edit (status/rating/shelf)
     v2.5.6: See All full-page grid view for Your Books (sort by recent/title/author/rating/status); Edit mode for mass-removing multiple books at once
     v2.5.5: 22 bug fixes — popular/new-release distinction; bell & hamburger dropdowns open below icon with click-away; settings email visible; username uniqueness real-time; settings scroll cutoff; iOS profile shelf horizontal fix; book-close ghost-tap; search summary popout; clear-X tab restore; remove-book banner removed; adjustable books-per-shelf; terminology (bookcase/bookshelf); hamburger click-through; wider popups; add-books modal 2-per-row + scroll lock; edit-appearance leave prompt; version notification system
@@ -4293,7 +4294,7 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Notification dropdown — rendered inside whichever bell wrapper is visible
-        const NotifDropdownContent = ({ notifications, unreadNotifications, markAllNotificationsRead, clearAllNotifications, markNotificationRead, deleteNotification, setShowNotifications, setActiveTab, setSocialTab, conversations, openConversation, setShowWhatsNew }) => (
+        const NotifDropdownContent = ({ notifications, unreadNotifications, markAllNotificationsRead, clearAllNotifications, markNotificationRead, deleteNotification, setShowNotifications, setActiveTab, setSocialTab, conversations, openConversation, setShowWhatsNew, setRecommendViewBook }) => (
             <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
                 <div className="notif-header">
                     <span>Notifications</span>
@@ -4328,6 +4329,11 @@
                                         setActiveTab('messages');
                                         const conv = conversations.find(c => c.id === n.action_url);
                                         if (conv) openConversation(conv);
+                                    } else if (n.type === 'book_recommendation' && n.metadata) {
+                                        try {
+                                            const meta = JSON.parse(n.metadata);
+                                            if (meta && setRecommendViewBook) setRecommendViewBook(meta);
+                                        } catch(_) {}
                                     }
                                     setShowNotifications(false);
                                 }}
@@ -4571,6 +4577,16 @@
             const [reportingUser, setReportingUser] = useState(null);
             const [reportReason, setReportReason] = useState('');
             const [reportSubmitting, setReportSubmitting] = useState(false);
+            const [showProfileInfoMenu, setShowProfileInfoMenu] = useState(false);
+            const [showRecommendModal, setShowRecommendModal] = useState(false);
+            const [recommendBook, setRecommendBook] = useState(null);
+            const [recommendSelectedUsers, setRecommendSelectedUsers] = useState([]);
+            const [recommendSending, setRecommendSending] = useState(false);
+            const [recommendViewBook, setRecommendViewBook] = useState(null);
+            const [showCoverModal, setShowCoverModal] = useState(false);
+            const [coverModalBookId, setCoverModalBookId] = useState(null);
+            const [coverUrlInput, setCoverUrlInput] = useState('');
+            const [coverUrlError, setCoverUrlError] = useState('');
             const [myVisibility, setMyVisibility] = useState('public'); // 'public'|'private'|'hidden'
             const [myPrivacySettings, setMyPrivacySettings] = useState({
                 show_currently_reading: true, show_recently_read: true,
@@ -5454,6 +5470,73 @@
                     console.error('openUserProfile error:', err);
                 } finally {
                     setProfileLoading(false);
+                }
+            };
+
+            // Save a user-supplied cover URL to the books table and book_cache
+            const saveCustomCover = async () => {
+                const url = coverUrlInput.trim();
+                if (!url) { setCoverUrlError('Please enter a URL.'); return; }
+                // Basic validation: must look like a URL and end in image extension or be a data URL
+                const isImageUrl = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|avif|svg)(\?.*)?$/i.test(url) ||
+                    /^https?:\/\/.+/i.test(url); // allow any http/https URL
+                if (!isImageUrl) { setCoverUrlError('Please enter a valid image URL (http/https).'); return; }
+                // Content screening: verify URL loads as an image by checking content-type via HEAD if possible
+                // For simplicity, we trust the user but validate format
+                try {
+                    if (coverModalBookId) {
+                        const { error } = await supabaseClient.from('books').update({ cover: url }).eq('id', coverModalBookId);
+                        if (error) throw error;
+                        setBooks(prev => prev.map(b => b.id === coverModalBookId ? { ...b, cover: url } : b));
+                        if (bookInfoData?.id === coverModalBookId) setBookInfoData(prev => ({ ...prev, cover: url }));
+                        if (shelfBookData?.id === coverModalBookId) setShelfBookData(prev => ({ ...prev, cover: url }));
+                        // Update book_cache if isbn known
+                        const targetBook = books.find(b => b.id === coverModalBookId);
+                        if (targetBook?.isbn && targetBook.isbn !== 'Not Available') {
+                            await supabaseClient.from('book_cache').upsert({ isbn: targetBook.isbn, cover_url: url }, { onConflict: 'isbn' });
+                        }
+                    }
+                    setShowCoverModal(false);
+                    setCoverUrlInput('');
+                    setCoverUrlError('');
+                    showMessage('✅ Cover updated!');
+                } catch (err) {
+                    setCoverUrlError('Failed to save cover. Try again.');
+                }
+            };
+
+            // Send a book recommendation to one or more friends
+            const sendRecommendation = async () => {
+                if (!recommendBook || recommendSelectedUsers.length === 0) return;
+                setRecommendSending(true);
+                try {
+                    const senderName = currentUser?.user_metadata?.name || currentUser?.email || 'Someone';
+                    const inserts = recommendSelectedUsers.map(uid => ({
+                        user_id: uid,
+                        type: 'book_recommendation',
+                        title: `📚 Book Recommendation`,
+                        content: `${senderName} recommends "${recommendBook.title}" by ${recommendBook.author || 'Unknown'}`,
+                        action_url: recommendBook.isbn || recommendBook.title,
+                        metadata: JSON.stringify({ isbn: recommendBook.isbn, title: recommendBook.title, author: recommendBook.author, cover: recommendBook.cover }),
+                    }));
+                    await supabaseClient.from('notifications').insert(inserts);
+                    setShowRecommendModal(false);
+                    setRecommendSelectedUsers([]);
+                    showMessage(`✅ Recommended to ${recommendSelectedUsers.length} friend${recommendSelectedUsers.length > 1 ? 's' : ''}!`);
+                } catch (err) {
+                    console.error('sendRecommendation error:', err);
+                    showMessage('Failed to send recommendation. Try again.');
+                } finally {
+                    setRecommendSending(false);
+                }
+            };
+
+            // Open a profile book — shows immediately then enriches from book_cache by isbn
+            const openProfileBook = async (book) => {
+                setProfileSelectedBook(book);
+                if (book.isbn && book.isbn !== 'Not Available') {
+                    const cached = await lookupIsbnInCache(book.isbn);
+                    if (cached) setProfileSelectedBook({ ...book, publishYear: cached.publishYear, pageCount: cached.pageCount, description: cached.description, cover: cached.cover || book.cover });
                 }
             };
 
@@ -7455,13 +7538,19 @@
                         })
                 );
 
-                // 5. New releases — newest books across all genres (not limited to fiction)
+                // 5. New releases — newest books across all genres (books only, no magazines/journals)
                 promises.push(
-                    fetch(`https://www.googleapis.com/books/v1/volumes?q=new+release+2025&orderBy=newest&maxResults=30&printType=books${GBOOKS_KEY}`,
+                    fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:fiction+OR+subject:nonfiction&orderBy=newest&maxResults=40&printType=books${GBOOKS_KEY}`,
                         { referrerPolicy: 'strict-origin-when-cross-origin' })
                         .then(r => r.ok ? r.json() : null).catch(() => null)
                         .then(data => {
-                            const books = toBooks(data);
+                            const items = (data?.items || []).filter(item => {
+                                const vi = item.volumeInfo;
+                                return vi.printType !== 'MAGAZINE' &&
+                                    (vi.pageCount == null || vi.pageCount >= 60) &&
+                                    vi.imageLinks?.thumbnail;
+                            });
+                            const books = items.map(parseGbItem).slice(0, 30);
                             if (books.length >= 3) sections.push({ id: 'new', title: 'New Releases', label: '📅 Just published', books });
                         })
                 );
@@ -9495,7 +9584,7 @@
                                         🔔
                                         {unreadNotifications > 0 && <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>}
                                     </button>
-                                    {showNotifications && <NotifDropdownContent notifications={notifications} unreadNotifications={unreadNotifications} markAllNotificationsRead={markAllNotificationsRead} clearAllNotifications={clearAllNotifications} markNotificationRead={markNotificationRead} deleteNotification={deleteNotification} setShowNotifications={setShowNotifications} setActiveTab={setActiveTab} setSocialTab={setSocialTab} conversations={conversations} openConversation={openConversation} setShowWhatsNew={setShowWhatsNew} />}
+                                    {showNotifications && <NotifDropdownContent notifications={notifications} unreadNotifications={unreadNotifications} markAllNotificationsRead={markAllNotificationsRead} clearAllNotifications={clearAllNotifications} markNotificationRead={markNotificationRead} deleteNotification={deleteNotification} setShowNotifications={setShowNotifications} setActiveTab={setActiveTab} setSocialTab={setSocialTab} conversations={conversations} openConversation={openConversation} setShowWhatsNew={setShowWhatsNew} setRecommendViewBook={setRecommendViewBook} />}
                                 </div>
                             )}
                         </div>
@@ -9623,7 +9712,7 @@
                                         <span className="notif-badge">{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>
                                     )}
                                 </button>
-                                {showNotifications && <NotifDropdownContent notifications={notifications} unreadNotifications={unreadNotifications} markAllNotificationsRead={markAllNotificationsRead} clearAllNotifications={clearAllNotifications} markNotificationRead={markNotificationRead} deleteNotification={deleteNotification} setShowNotifications={setShowNotifications} setActiveTab={setActiveTab} setSocialTab={setSocialTab} conversations={conversations} openConversation={openConversation} setShowWhatsNew={setShowWhatsNew} />}
+                                {showNotifications && <NotifDropdownContent notifications={notifications} unreadNotifications={unreadNotifications} markAllNotificationsRead={markAllNotificationsRead} clearAllNotifications={clearAllNotifications} markNotificationRead={markNotificationRead} deleteNotification={deleteNotification} setShowNotifications={setShowNotifications} setActiveTab={setActiveTab} setSocialTab={setSocialTab} conversations={conversations} openConversation={openConversation} setShowWhatsNew={setShowWhatsNew} setRecommendViewBook={setRecommendViewBook} />}
                             </div>
                         )}
 
@@ -9690,26 +9779,30 @@
                                                 className="book-info-cover"
                                             />
                                         ) : (
-                                            <div className="book-info-cover-placeholder">
-                                                {shelfBookData.title}
+                                            <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'0.4rem', flexShrink:0}}>
+                                                <div className="book-info-cover-placeholder">{shelfBookData.title}</div>
+                                                <button style={{fontSize:'0.72rem', padding:'0.25rem 0.5rem', background:'#8b6f47', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}
+                                                    onClick={() => { setCoverModalBookId(shelfBookData.id); setCoverUrlInput(''); setCoverUrlError(''); setShowCoverModal(true); }}>
+                                                    + Add Cover
+                                                </button>
                                             </div>
                                         )}
-                                        
+
                                         <div className="book-info-details">
                                             <h2 className="book-info-title">{shelfBookData.title}</h2>
                                             <div className="book-info-author">by {shelfBookData.author}</div>
+                                            <div className="book-info-meta" style={{justifyContent:'flex-start', marginTop:'0.6rem'}}>
+                                                {shelfBookData.isbn && <div>📚 {shelfBookData.isbn}</div>}
+                                                {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
+                                                {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
+                                                {shelfBookData.description && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
+                                                        onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
+                                                    >📝 Summary</div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="book-info-meta">
-                                        {shelfBookData.isbn && <div>📚 {shelfBookData.isbn}</div>}
-                                        {shelfBookData.publishYear && <div>📅 {shelfBookData.publishYear}</div>}
-                                        {shelfBookData.pageCount && <div>📖 {shelfBookData.pageCount} pages</div>}
-                                        {shelfBookData.description && (
-                                            <div
-                                                style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
-                                                onClick={() => { setBookSummaryText(shelfBookData.description); setShowBookSummary(true); }}
-                                            >📝 Summary</div>
-                                        )}
                                     </div>
 
                                     {/* User Book Data */}
@@ -9783,6 +9876,13 @@
                                             </button>
                                             <button
                                                 className="btn-info"
+                                                style={{background:'#5a8a6a'}}
+                                                onClick={() => { setRecommendBook(shelfBookData); setRecommendSelectedUsers([]); setShowShelfBookPopup(false); setShowRecommendModal(true); }}
+                                            >
+                                                Recommend
+                                            </button>
+                                            <button
+                                                className="btn-info"
                                                 onClick={() => setShowShelfBookPopup(false)}
                                                 style={{background: '#8b6f47'}}
                                             >
@@ -9833,26 +9933,30 @@
                                                 className="book-info-cover"
                                             />
                                         ) : (
-                                            <div className="book-info-cover-placeholder">
-                                                {bookInfoData.title}
+                                            <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'0.4rem', flexShrink:0}}>
+                                                <div className="book-info-cover-placeholder">{bookInfoData.title}</div>
+                                                <button style={{fontSize:'0.72rem', padding:'0.25rem 0.5rem', background:'#8b6f47', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}
+                                                    onClick={() => { setCoverModalBookId(bookInfoData.id); setCoverUrlInput(''); setCoverUrlError(''); setShowCoverModal(true); }}>
+                                                    + Add Cover
+                                                </button>
                                             </div>
                                         )}
-                                        
+
                                         <div className="book-info-details">
                                             <h2 className="book-info-title">{bookInfoData.title}</h2>
                                             <div className="book-info-author">by {bookInfoData.author}</div>
+                                            <div className="book-info-meta" style={{justifyContent:'flex-start', marginTop:'0.6rem'}}>
+                                                {bookInfoData.isbn && <div>📚 {bookInfoData.isbn}</div>}
+                                                {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
+                                                {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
+                                                {bookInfoData.description && (
+                                                    <div
+                                                        style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
+                                                        onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
+                                                    >📝 Summary</div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="book-info-meta">
-                                        {bookInfoData.isbn && <div>📚 {bookInfoData.isbn}</div>}
-                                        {bookInfoData.publishYear && <div>📅 {bookInfoData.publishYear}</div>}
-                                        {bookInfoData.pageCount && <div>📖 {bookInfoData.pageCount} pages</div>}
-                                        {bookInfoData.description && (
-                                            <div
-                                                style={{color:'#8b6f47', cursor:'pointer', textDecoration:'underline'}}
-                                                onClick={() => { setBookSummaryText(bookInfoData.description); setShowBookSummary(true); }}
-                                            >📝 Summary</div>
-                                        )}
                                     </div>
 
                                     {/* User Book Data */}
@@ -9917,6 +10021,13 @@
                                                 onClick={() => { setSelectedShelfForAdd(''); setSelectedBoardForAdd(''); setAssignWizardStep(1); setShowAssignModal(true); }}
                                             >
                                                 Assign
+                                            </button>
+                                            <button
+                                                className="btn-info"
+                                                style={{background:'#5a8a6a'}}
+                                                onClick={() => { setRecommendBook(bookInfoData); setRecommendSelectedUsers([]); setShowRecommendModal(true); }}
+                                            >
+                                                Recommend
                                             </button>
                                             <button
                                                 className="btn-info btn-info-remove"
@@ -10625,6 +10736,91 @@
                                 </div>
                             </div>
                         ) : (<React.Fragment>
+                            {/* Currently Reading */}
+                            {books.filter(b => b.userData?.status === 'reading').length > 0 && (
+                                <div className="category-section">
+                                    <h3 className="category-header">📖 Currently Reading</h3>
+                                    <div className="category-scroll">
+                                        {books.filter(b => b.userData?.status === 'reading').map(book => (
+                                            <div key={book.id} className="category-book" onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}>
+                                                {book.cover ? <img src={book.cover} alt={book.title} className="category-book-cover" /> : <div className="category-book-cover-placeholder">{book.title}</div>}
+                                                <div className="category-book-title">{book.title}</div>
+                                                <div className="category-book-author">{book.author}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Want to Read */}
+                            {books.filter(b => b.userData?.status === 'want-to-read' || b.userData?.status === 'want').length > 0 && (
+                                <div className="category-section">
+                                    <h3 className="category-header">🔖 Want to Read</h3>
+                                    <div className="category-scroll">
+                                        {books.filter(b => b.userData?.status === 'want-to-read' || b.userData?.status === 'want').map(book => (
+                                            <div key={book.id} className="category-book" onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}>
+                                                {book.cover ? <img src={book.cover} alt={book.title} className="category-book-cover" /> : <div className="category-book-cover-placeholder">{book.title}</div>}
+                                                <div className="category-book-title">{book.title}</div>
+                                                <div className="category-book-author">{book.author}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Finished */}
+                            {books.filter(b => b.userData?.status === 'finished').length > 0 && (
+                                <div className="category-section">
+                                    <h3 className="category-header">✅ Finished</h3>
+                                    <div className="category-scroll">
+                                        {[...books.filter(b => b.userData?.status === 'finished')].sort((a,b) => new Date(b.updated_at||0)-new Date(a.updated_at||0)).map(book => (
+                                            <div key={book.id} className="category-book" onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}>
+                                                {book.cover ? <img src={book.cover} alt={book.title} className="category-book-cover" /> : <div className="category-book-cover-placeholder">{book.title}</div>}
+                                                <div className="category-book-title">{book.title}</div>
+                                                <div className="category-book-author">{book.author}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Highly Rated */}
+                            {books.filter(b => (b.userData?.rating || 0) >= 4).length > 0 && (
+                                <div className="category-section">
+                                    <h3 className="category-header">⭐ Highly Rated</h3>
+                                    <div className="category-scroll">
+                                        {[...books.filter(b => (b.userData?.rating || 0) >= 4)].sort((a,b) => (b.userData?.rating||0)-(a.userData?.rating||0)).map(book => (
+                                            <div key={book.id} className="category-book" onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}>
+                                                {book.cover ? <img src={book.cover} alt={book.title} className="category-book-cover" /> : <div className="category-book-cover-placeholder">{book.title}</div>}
+                                                <div className="category-book-title">{book.title}</div>
+                                                <div className="category-book-author">{book.author}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* By Author — group books by first unique author */}
+                            {(() => {
+                                const authorGroups = {};
+                                books.forEach(b => { const a = b.author || 'Unknown'; if (!authorGroups[a]) authorGroups[a] = []; authorGroups[a].push(b); });
+                                const authors = Object.keys(authorGroups).filter(a => authorGroups[a].length >= 2).sort();
+                                return authors.slice(0, 5).map(author => (
+                                    <div key={author} className="category-section">
+                                        <h3 className="category-header">✍️ {author}</h3>
+                                        <div className="category-scroll">
+                                            {authorGroups[author].map(book => (
+                                                <div key={book.id} className="category-book" onClick={() => { if (!bookInfoClosingRef.current) openBookInfo(book); }}>
+                                                    {book.cover ? <img src={book.cover} alt={book.title} className="category-book-cover" /> : <div className="category-book-cover-placeholder">{book.title}</div>}
+                                                    <div className="category-book-title">{book.title}</div>
+                                                    <div className="category-book-author">{book.author}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ));
+                            })()}
+
                             {/* Recently Added */}
                             <div className="category-section">
                                 <h3 className="category-header">Recently Added</h3>
@@ -10987,6 +11183,7 @@
                                             const showPreview = snapPreviewBoard === boardKey && snapPreviewPosition !== null;
                                             const previewIsPush = showPreview && snapPreviewIsPush;
                                             const _shelfBw = getShelfBookWidth(shelf.id);
+                                            const _maxBooks = shelf.max_books || 20;
                                             
                                             return (
                                                 <div
@@ -11009,7 +11206,7 @@
                                                                 left: `${(snapPreviewPosition / SHELF_WIDTH) * 100}%`,
                                                                 bottom: '0.5rem',
                                                                 height: '250px',
-                                                                // Push-insert mode: orange solid border so user sees "books will shift"
+                                                                width: `calc((100% - 32px) / ${_maxBooks})`,
                                                                 border: previewIsPush ? '2px solid #e67e22' : '2px dashed #d4af37',
                                                                 borderRadius: '4px',
                                                                 background: previewIsPush ? 'rgba(230, 126, 34, 0.25)' : 'rgba(212, 175, 55, 0.2)',
@@ -11065,12 +11262,15 @@
                                                                     onTouchEnd={(e) => handleTouchEnd(e, e.currentTarget)}
                                                                     style={{
                                                                         background: book.cover ? `url(${book.cover}) center/cover` : book.color,
+                                                                        backgroundSize: 'cover',
+                                                                        backgroundPosition: 'center',
                                                                         cursor: 'grab',
                                                                         opacity: draggedBook?.id === book.id ? '0.5' : '1',
                                                                         position: 'absolute',
                                                                         left: `${percentagePosition}%`,
                                                                         bottom: '0.5rem',
-                                                                        touchAction: 'none'
+                                                                        touchAction: 'none',
+                                                                        width: `calc((100% - 32px) / ${_maxBooks})`
                                                                     }}
                                                                     onClick={(e) => {
                                                                         if (!e.defaultPrevented && !touchDragRef.current?.moved) {
@@ -13168,6 +13368,108 @@
                         </div>
                     )}
 
+                    {/* Add Custom Cover Modal */}
+                    {showCoverModal && (
+                        <div className="book-detail-overlay" onClick={() => setShowCoverModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'400px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowCoverModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h3 style={{fontFamily:'Libre Baskerville,serif', fontSize:'1.1rem', color:'#3d2817', marginBottom:'0.5rem'}}>📸 Add Book Cover</h3>
+                                    <p style={{fontSize:'0.85rem', color:'#8b6f47', marginBottom:'1rem', lineHeight:1.5}}>Paste the URL of a book cover image (JPG, PNG, WebP, etc.).</p>
+                                    <input
+                                        type="url"
+                                        placeholder="https://example.com/cover.jpg"
+                                        value={coverUrlInput}
+                                        onChange={e => { setCoverUrlInput(e.target.value); setCoverUrlError(''); }}
+                                        style={{width:'100%', padding:'0.6rem 0.75rem', border:'1px solid #c4a882', borderRadius:8, fontSize:'0.9rem', fontFamily:'inherit', marginBottom:'0.4rem', boxSizing:'border-box'}}
+                                    />
+                                    {coverUrlError && <div style={{color:'#c0392b', fontSize:'0.82rem', marginBottom:'0.5rem'}}>{coverUrlError}</div>}
+                                    {coverUrlInput && /^https?:\/\//i.test(coverUrlInput) && (
+                                        <img src={coverUrlInput} alt="preview"
+                                            style={{width:'80px', height:'120px', objectFit:'cover', borderRadius:6, marginBottom:'0.75rem', border:'1px solid #e8d5bb', display:'block'}}
+                                            onError={() => setCoverUrlError('Could not load image from that URL. Try another.')}
+                                        />
+                                    )}
+                                    <button className="settings-btn" style={{width:'100%'}} onClick={saveCustomCover}>Save Cover</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Recommend Book Modal */}
+                    {showRecommendModal && recommendBook && (
+                        <div className="book-detail-overlay" onClick={() => setShowRecommendModal(false)}>
+                            <div className="book-detail-popup" style={{maxWidth:'420px', width:'92%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setShowRecommendModal(false)}>×</button>
+                                <div className="book-detail-content">
+                                    <h3 style={{fontFamily:'Libre Baskerville,serif', fontSize:'1.15rem', color:'#3d2817', marginBottom:'0.4rem'}}>📚 Recommend a Book</h3>
+                                    <div style={{fontSize:'0.9rem', color:'#8b6f47', marginBottom:'1rem'}}>"{recommendBook.title}" by {recommendBook.author}</div>
+                                    <div style={{fontSize:'0.85rem', fontWeight:600, color:'#6d4c2a', marginBottom:'0.5rem'}}>Choose friends to recommend to:</div>
+                                    {friends.length === 0 ? (
+                                        <div style={{color:'#8b6f47', fontSize:'0.9rem', padding:'1rem 0', textAlign:'center'}}>You have no friends yet. Follow someone to get started!</div>
+                                    ) : (
+                                        <div style={{maxHeight:'240px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'0.4rem', marginBottom:'1rem'}}>
+                                            {friends.map(f => {
+                                                const fid = f.friend_id === currentUser?.id ? f.user_id : f.friend_id;
+                                                const fname = f.friend?.display_name || f.friend?.username || f.user?.display_name || f.user?.username || 'Friend';
+                                                const selected = recommendSelectedUsers.includes(fid);
+                                                return (
+                                                    <div key={fid}
+                                                        onClick={() => setRecommendSelectedUsers(prev => selected ? prev.filter(id => id !== fid) : [...prev, fid])}
+                                                        style={{display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.5rem 0.75rem', borderRadius:8, border:`1.5px solid ${selected ? '#5a8a6a' : '#e8d5bb'}`, background: selected ? '#eef7f1' : '#fdf8f2', cursor:'pointer'}}
+                                                    >
+                                                        <div style={{width:'32px', height:'32px', borderRadius:'50%', background: selected ? '#5a8a6a' : '#c9a87c', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:'0.9rem', flexShrink:0}}>
+                                                            {selected ? '✓' : fname.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <span style={{flex:1, fontSize:'0.9rem', color:'#3d2817', fontWeight: selected ? 600 : 400}}>{fname}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    <button
+                                        className="settings-btn"
+                                        style={{width:'100%', opacity: recommendSelectedUsers.length === 0 || recommendSending ? 0.5 : 1}}
+                                        disabled={recommendSelectedUsers.length === 0 || recommendSending}
+                                        onClick={sendRecommendation}
+                                    >
+                                        {recommendSending ? 'Sending…' : `Send Recommendation${recommendSelectedUsers.length > 1 ? ` (${recommendSelectedUsers.length})` : ''}`}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Recommendation view — when user taps a book_recommendation notification */}
+                    {recommendViewBook && (
+                        <div className="book-detail-overlay" onClick={() => setRecommendViewBook(null)}>
+                            <div className="book-info-popup" onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setRecommendViewBook(null)}>×</button>
+                                <div className="book-info-content">
+                                    <div className="book-info-header">
+                                        {recommendViewBook.cover
+                                            ? <img src={recommendViewBook.cover} alt={recommendViewBook.title} className="book-info-cover" />
+                                            : <div className="book-info-cover-placeholder">{recommendViewBook.title}</div>}
+                                        <div className="book-info-details">
+                                            <h2 className="book-info-title">{recommendViewBook.title}</h2>
+                                            <div className="book-info-author">by {recommendViewBook.author}</div>
+                                        </div>
+                                    </div>
+                                    <div style={{fontSize:'0.9rem', color:'#8b6f47', margin:'0.75rem 0', textAlign:'center'}}>A friend recommended this book to you!</div>
+                                    <div className="book-info-actions">
+                                        <div className="book-info-buttons">
+                                            <button className="btn-info" style={{background:'#5a8a6a'}}
+                                                onClick={() => { setPendingSearchBook(recommendViewBook); setShowAddShelfModal(true); setRecommendViewBook(null); }}>
+                                                Add to Library
+                                            </button>
+                                            <button className="btn-info" style={{background:'#8b6f47'}} onClick={() => setRecommendViewBook(null)}>Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Report User Modal */}
                     {showReportModal && reportingUser && (
                         <div className="book-detail-overlay" onClick={() => setShowReportModal(false)}>
@@ -13501,7 +13803,7 @@
                                                 <div className="profile-row-header">{title}</div>
                                                 <div className="profile-book-scroll">
                                                     {bks.map(book => (
-                                                        <div key={book.id} className="profile-book-card" style={{cursor:'pointer'}} onClick={() => setProfileSelectedBook(book)}>
+                                                        <div key={book.id} className="profile-book-card" style={{cursor:'pointer'}} onClick={() => openProfileBook(book)}>
                                                             {book.cover ? (
                                                                 <img src={book.cover} alt={book.title} className="profile-book-cover" />
                                                             ) : (
@@ -13551,25 +13853,44 @@
                                                     </div>
                                                 </div>
                                                 {!isSelf && (
-                                                    <div className="profile-action-row">
+                                                    <div className="profile-action-row" style={{position:'relative'}}>
                                                         <button
                                                             className={`profile-follow-btn ${followBtnClass}`}
                                                             onClick={handleProfileFollow}
+                                                            style={profileFollowStatus === 'friends' ? {display:'flex', alignItems:'center', gap:'0.35rem'} : {}}
                                                         >
-                                                            {visibility === 'public' && profileFollowStatus === 'none' ? '+ Follow' : followBtnLabel}
+                                                            {profileFollowStatus === 'friends'
+                                                                ? <><span style={{fontSize:'1.1rem', fontWeight:700}}>✓</span><span>Following</span></>
+                                                                : profileFollowStatus === 'requested' ? 'Requested'
+                                                                : profileFollowStatus === 'incoming' ? 'Accept Request'
+                                                                : '+ Follow'}
                                                         </button>
-                                                        {(profileFollowStatus === 'friends') && (
-                                                            <button className="profile-msg-btn" onClick={() => { setViewingProfile(null); openMessagesWith(vp.id); }}>
-                                                                Message
-                                                            </button>
+                                                        <button
+                                                            title="More options"
+                                                            onClick={(e) => { e.stopPropagation(); setShowProfileInfoMenu(v => !v); }}
+                                                            style={{background:'rgba(139,111,71,0.12)', border:'1px solid #c4a882', borderRadius:'50%', width:'34px', height:'34px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:'1rem', color:'#6d4c2a', flexShrink:0}}
+                                                        >ⓘ</button>
+                                                        {showProfileInfoMenu && (
+                                                            <div
+                                                                style={{position:'absolute', top:'calc(100% + 6px)', right:0, background:'white', borderRadius:10, boxShadow:'0 4px 20px rgba(0,0,0,0.18)', border:'1px solid #e8d5bb', zIndex:500, minWidth:'160px', overflow:'hidden'}}
+                                                                onClick={e => e.stopPropagation()}
+                                                            >
+                                                                {profileFollowStatus === 'friends' && (
+                                                                    <button style={{width:'100%', textAlign:'left', padding:'0.7rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.9rem', color:'#3d2817', borderBottom:'1px solid #f5ede0'}}
+                                                                        onClick={() => { setShowProfileInfoMenu(false); setViewingProfile(null); openMessagesWith(vp.id); }}>
+                                                                        💬 Message
+                                                                    </button>
+                                                                )}
+                                                                <button style={{width:'100%', textAlign:'left', padding:'0.7rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.9rem', color:'#a00', borderBottom:'1px solid #f5ede0'}}
+                                                                    onClick={() => { setShowProfileInfoMenu(false); const v2 = vp; setViewingProfile(null); setConfirmAction({ title:'Block User', message:`Block ${v2.display_name || v2.username}? They won't be able to find or follow you.`, onConfirm: () => blockUser(v2.id) }); setShowConfirm(true); }}>
+                                                                    🚫 Block
+                                                                </button>
+                                                                <button style={{width:'100%', textAlign:'left', padding:'0.7rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.9rem', color:'#888'}}
+                                                                    onClick={() => { setShowProfileInfoMenu(false); setReportingUser(vp); setReportReason(''); setShowReportModal(true); }}>
+                                                                    ⚠️ Report
+                                                                </button>
+                                                            </div>
                                                         )}
-                                                        <button className="profile-msg-btn" style={{color:'#a00'}} onClick={() => {
-                                                            const v = vp;
-                                                            setViewingProfile(null);
-                                                            setConfirmAction({ title:'Block User', message:`Block ${v.display_name || v.username}? They won't be able to find or follow you.`, onConfirm: () => blockUser(v.id) });
-                                                            setShowConfirm(true);
-                                                        }}>Block</button>
-                                                        <button className="profile-msg-btn" style={{color:'#888'}} onClick={() => { setReportingUser(vp); setReportReason(''); setShowReportModal(true); }}>Report</button>
                                                     </div>
                                                 )}
                                             </div>
@@ -13697,7 +14018,7 @@
                                                                     bottom: '0.5rem',
                                                                     cursor: 'pointer'
                                                                 }}
-                                                                onClick={() => setProfileSelectedBook(book)}
+                                                                onClick={() => openProfileBook(book)}
                                                                 title={`${book.title} by ${book.author}`}
                                                             >
                                                                 <div className="book-spine" style={{pointerEvents:'none'}}>

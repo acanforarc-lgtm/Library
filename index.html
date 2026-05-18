@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.6.1
+    YOUR LIBRARY - VERSION 2.6.2
     ========================================
+    v2.6.2: Books per board preset in create-shelf modal (saved to Supabase on creation); changing books-per-board repacks all existing book positions to the new grid so bindings always align correctly
     v2.6.1: Recommend book to friends (friend picker + notifications); Netflix-style Your Books categories (Currently Reading, Want to Read, Finished, Highly Rated, By Author); friend profile ⓘ info button (report/block/message) + ✓ following checkmark; friend book popup enriched from book_cache (isbn/date/pages/summary); custom book cover via URL (+ Add Cover when missing); shelf book image scaling fix (explicit inline width vs CSS var); book meta (isbn/date/pages/summary) moved under title/author in popups; new releases filtered to books only (no magazines/papers)
     v2.5.7: 11 bug fixes — follow status, chat header ?, board count dropdown, user search (display_name), spine text scaling, phone lock/unlock viewport, profile refresh, add-book double-tap, dynamic shelf book width, push-insert drag, mass edit (status/rating/shelf)
     v2.5.6: See All full-page grid view for Your Books (sort by recent/title/author/rating/status); Edit mode for mass-removing multiple books at once
@@ -4279,15 +4280,13 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '2.5.9';
+        const APP_VERSION = '2.6.2';
         const WHATS_NEW = {
-            version: '2.5.9',
+            version: '2.6.2',
             type: 'bugfix',
             items: [
-                'Books now correctly shrink in width when increasing books-per-shelf',
-                'Drag ghost accurately shows where a book will land between others',
-                'Viewing a friend\'s profile no longer scrolls horizontally',
-                'Removed repeated confirmation toasts for routine add/move/remove actions',
+                'Set books-per-board when creating a shelf — no more post-creation adjustments',
+                'Changing books-per-board now repacks all books to the new grid automatically',
             ]
         };
 
@@ -4465,6 +4464,7 @@
             const [newShelfWoodType, setNewShelfWoodType] = useState('oak');
             const [newShelfBoardCount, setNewShelfBoardCount] = useState(3);
             const [newShelfBackground, setNewShelfBackground] = useState('#8b7355');
+            const [newShelfMaxBooks, setNewShelfMaxBooks] = useState(20);
 
             // Add-to-shelf modal state (from search)
             const [showAddShelfModal, setShowAddShelfModal] = useState(false);
@@ -8174,7 +8174,8 @@
                             name: newShelfName.trim(),
                             wood_type: newShelfWoodType,
                             board_count: newShelfBoardCount,
-                            background_color: newShelfBackground
+                            background_color: newShelfBackground,
+                            max_books: newShelfMaxBooks
                         }])
                         .select();
 
@@ -8185,6 +8186,7 @@
                     setNewShelfWoodType('oak');
                     setNewShelfBoardCount(3);
                     setNewShelfBackground('#8b7355');
+                    setNewShelfMaxBooks(20);
                     setShowCreateShelfModal(false);
 
                 } catch (error) {
@@ -8275,17 +8277,51 @@
                 }
             };
             
-            // Change max books per shelf (books scale to fill; requires max_books column in shelves table)
-            // SQL: ALTER TABLE shelves ADD COLUMN IF NOT EXISTS max_books INTEGER DEFAULT 20;
+            // Change max books per shelf — updates shelf setting and repacks book positions to the new grid
             const changeShelfMaxBooks = async (shelfId, delta) => {
                 const shelf = shelves.find(s => s.id === shelfId);
                 const current = shelf?.max_books || 20;
                 const next = Math.min(40, Math.max(5, current + delta));
+                if (next === current) return;
+
+                const newBw = Math.round(SHELF_WIDTH / next);
+                const shelfBooks = books.filter(b => String(b.shelf_id) === String(shelfId));
+
+                // Group books by board, sort by current position, assign new packed positions
+                const boardGroups = {};
+                shelfBooks.forEach(b => {
+                    const bi = b.board_index ?? 0;
+                    if (!boardGroups[bi]) boardGroups[bi] = [];
+                    boardGroups[bi].push(b);
+                });
+
+                const posUpdates = [];
+                Object.values(boardGroups).forEach(boardBooks => {
+                    boardBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
+                    boardBooks.forEach((book, idx) => {
+                        const newPos = idx * newBw;
+                        if (newPos !== book.position) posUpdates.push({ id: book.id, position: newPos });
+                    });
+                });
+
                 setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, max_books: next } : s));
+                if (posUpdates.length > 0) {
+                    setBooks(prev => prev.map(b => {
+                        const u = posUpdates.find(u => u.id === b.id);
+                        return u ? { ...b, position: u.position } : b;
+                    }));
+                }
+
                 try {
                     await supabaseClient.from('shelves').update({ max_books: next }).eq('id', shelfId);
+                    if (posUpdates.length > 0) {
+                        await Promise.all(posUpdates.map(({ id, position }) =>
+                            supabaseClient.from('books').update({ position }).eq('id', id)
+                        ));
+                    }
                 } catch (error) {
                     console.error('Error updating max_books:', error);
+                    setShelves(prev => prev.map(s => s.id === shelfId ? { ...s, max_books: current } : s));
                 }
             };
 
@@ -12494,12 +12530,22 @@
                                     </div>
 
                                     {/* Board count */}
-                                    <div style={{marginBottom: '2rem'}}>
+                                    <div style={{marginBottom: '1.5rem'}}>
                                         <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Number of Boards</label>
                                         <div className="board-controls">
                                             <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfBoardCount(c => Math.max(1, c - 1))} disabled={newShelfBoardCount <= 1}>−</button>
                                             <span className="board-count" style={{color:'#3d2817',fontWeight:'600'}}>{newShelfBoardCount} {newShelfBoardCount === 1 ? 'board' : 'boards'}</span>
                                             <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfBoardCount(c => Math.min(8, c + 1))} disabled={newShelfBoardCount >= 8}>+</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Books per board */}
+                                    <div style={{marginBottom: '2rem'}}>
+                                        <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#3d2817'}}>Books per Board</label>
+                                        <div className="board-controls">
+                                            <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfMaxBooks(c => Math.max(5, c - 5))} disabled={newShelfMaxBooks <= 5}>−</button>
+                                            <span className="board-count" style={{color:'#3d2817',fontWeight:'600'}}>{newShelfMaxBooks} books</span>
+                                            <button className="board-btn" style={{background:'#e0c9a6',border:'1px solid #c9a87c',color:'#3d2817'}} onClick={() => setNewShelfMaxBooks(c => Math.min(40, c + 5))} disabled={newShelfMaxBooks >= 40}>+</button>
                                         </div>
                                     </div>
 

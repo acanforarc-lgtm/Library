@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 2.6.2
+    YOUR LIBRARY - VERSION 3.0.0
     ========================================
+    v3.0.0: Library Import System — import from Goodreads CSV, Amazon Kindle CSV, or any generic CSV; auto-detects format; parallel ISBN + fuzzy-title matching against Google Books + Open Library; batched processing (10/batch, 250ms delay); duplicate detection fills blanks never overwrites; live progress bar; "Run in Background" option; summary screen with unmatched-row review flow; import history tracked in Supabase imports table
     v2.6.2: Books per board preset in create-shelf modal (saved to Supabase on creation); changing books-per-board repacks all existing book positions to the new grid so bindings always align correctly
     v2.6.1: Recommend book to friends (friend picker + notifications); Netflix-style Your Books categories (Currently Reading, Want to Read, Finished, Highly Rated, By Author); friend profile ⓘ info button (report/block/message) + ✓ following checkmark; friend book popup enriched from book_cache (isbn/date/pages/summary); custom book cover via URL (+ Add Cover when missing); shelf book image scaling fix (explicit inline width vs CSS var); book meta (isbn/date/pages/summary) moved under title/author in popups; new releases filtered to books only (no magazines/papers)
     v2.5.7: 11 bug fixes — follow status, chat header ?, board count dropdown, user search (display_name), spine text scaling, phone lock/unlock viewport, profile refresh, add-book double-tap, dynamic shelf book width, push-insert drag, mass edit (status/rating/shelf)
@@ -4454,6 +4455,16 @@
             const [currentShelfId, setCurrentShelfId] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [settingsTab, setSettingsTab] = useState('account');
+            // ── Import Library state ───────────────────────────────────────────
+            const [settingsImportView, setSettingsImportView] = useState('sources'); // 'sources' | 'progress' | 'summary'
+            const [importSourceModal, setImportSourceModal] = useState(null); // 'goodreads' | 'kindle' | 'generic' | null
+            const [importProgress, setImportProgress] = useState({ processed: 0, total: 0, matched: 0, duplicates: 0, unmatched: 0 });
+            const [importRunning, setImportRunning] = useState(false);
+            const [importSummary, setImportSummary] = useState(null); // { added, duplicates, unmatchedRows }
+            const [importUnmatchedView, setImportUnmatchedView] = useState(false);
+            const [importHistory, setImportHistory] = useState([]);
+            const [importHistoryLoading, setImportHistoryLoading] = useState(false);
+            const importRunningRef = React.useRef(false);
             const [showMoveModal, setShowMoveModal] = useState(false);
             const [showBlockedModal, setShowBlockedModal] = useState(false);
             const [selectedShelfToMove, setSelectedShelfToMove] = useState('');
@@ -4645,7 +4656,14 @@
                         .then(({ count }) => setMyFollowingCount(count || 0));
                 }
             }, [showSettings]);
-            
+
+            useEffect(() => {
+                if (showSettings && settingsTab === 'import' && currentUser?.id) {
+                    loadImportHistory();
+                    if (!importRunningRef.current) setSettingsImportView('sources');
+                }
+            }, [showSettings, settingsTab]);
+
             // Barcode Scanner state
             const [showScanner, setShowScanner] = useState(false);
             const [scannerKey, setScannerKey] = useState(0); // Force remount
@@ -6552,6 +6570,360 @@
                         rating: book.rating || null
                     }, { onConflict: 'isbn' });
                 } catch (e) { console.warn('Cache save failed:', e); }
+            };
+
+            // ─── Library Import Pipeline ──────────────────────────────────────
+
+            // Minimal CSV field parser: handles quoted fields and embedded commas/newlines
+            const parseCSVLine = (line) => {
+                const fields = [];
+                let field = '';
+                let inQ = false;
+                for (let i = 0; i < line.length; i++) {
+                    const ch = line[i];
+                    if (ch === '"') {
+                        if (inQ && line[i + 1] === '"') { field += '"'; i++; }
+                        else inQ = !inQ;
+                    } else if (ch === ',' && !inQ) {
+                        fields.push(field);
+                        field = '';
+                    } else {
+                        field += ch;
+                    }
+                }
+                fields.push(field);
+                return fields.map(f => f.trim().replace(/^["']|["']$/g, ''));
+            };
+
+            // Parse any CSV text → detect format → normalize every row to common shape
+            const parseImportCSV = (csvText) => {
+                const lines = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+                if (lines.length < 2) return { format: null, rows: [] };
+
+                const headers = parseCSVLine(lines[0]);
+                const lower = headers.map(h => h.toLowerCase());
+
+                let format = 'generic';
+                if (lower.some(h => h === 'book id' || h === 'exclusive shelf' || h === 'bookshelves')) format = 'goodreads';
+                else if (lower.some(h => h === 'asin' || h === 'purchase date')) format = 'kindle';
+                else {
+                    const hasTitle = lower.some(h => h === 'title');
+                    const hasAuthor = lower.some(h => h === 'author' || h === 'authors');
+                    if (!hasTitle || !hasAuthor) return { format: null, rows: [] };
+                }
+
+                const idx = (name) => lower.indexOf(name.toLowerCase());
+
+                const rows = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const cells = parseCSVLine(lines[i]);
+                    if (cells.every(c => !c)) continue;
+                    const get = (name) => { const k = idx(name); return k >= 0 ? (cells[k] || '') : ''; };
+
+                    let row;
+                    if (format === 'goodreads') {
+                        const shelf = get('Exclusive Shelf').toLowerCase();
+                        const statusMap = { 'read': 'read', 'currently-reading': 'currently-reading', 'to-read': 'to-read' };
+                        const rawShelves = get('Bookshelves').split(',').map(s => s.trim()).filter(Boolean);
+                        const rawIsbn = (get('ISBN13') || get('ISBN')).replace(/[^0-9X]/gi, '');
+                        const rawRating = parseInt(get('My Rating')) || null;
+                        row = {
+                            title: get('Title'),
+                            author: get('Author'),
+                            isbn: rawIsbn || null,
+                            rating: rawRating >= 1 && rawRating <= 5 ? rawRating : null,
+                            readStatus: statusMap[shelf] || null,
+                            shelves: rawShelves,
+                            review: get('My Review') || null,
+                            dateRead: get('Date Read') || null,
+                            sourceFormat: 'goodreads',
+                        };
+                    } else if (format === 'kindle') {
+                        row = {
+                            title: get('Title'),
+                            author: get('Author') || get('Author(s)'),
+                            isbn: null,
+                            rating: null,
+                            readStatus: null,
+                            shelves: ['Kindle'],
+                            review: null,
+                            dateRead: get('Purchase Date') || null,
+                            sourceFormat: 'kindle',
+                        };
+                    } else {
+                        const titleIdx = lower.findIndex(h => h === 'title');
+                        const authorIdx = lower.findIndex(h => h === 'author' || h === 'authors');
+                        const isbnIdx = lower.findIndex(h => h.includes('isbn'));
+                        const ratingIdx = lower.findIndex(h => h.includes('rating'));
+                        const dateIdx = lower.findIndex(h => h.includes('date'));
+                        const shelfIdx = lower.findIndex(h => h.includes('shelf') || h.includes('shelves'));
+                        if (titleIdx < 0 || authorIdx < 0) continue;
+                        const rawRating = parseInt(cells[ratingIdx] || '') || null;
+                        const rawIsbn = isbnIdx >= 0 ? (cells[isbnIdx] || '').replace(/[^0-9X]/gi, '') : '';
+                        row = {
+                            title: cells[titleIdx] || '',
+                            author: cells[authorIdx] || '',
+                            isbn: rawIsbn || null,
+                            rating: rawRating >= 1 && rawRating <= 5 ? rawRating : null,
+                            readStatus: null,
+                            shelves: shelfIdx >= 0 ? [(cells[shelfIdx] || '').trim()].filter(Boolean) : [],
+                            review: null,
+                            dateRead: dateIdx >= 0 ? (cells[dateIdx] || '').trim() || null : null,
+                            sourceFormat: 'generic',
+                        };
+                    }
+                    if (row.title && row.author) rows.push(row);
+                }
+                return { format, rows };
+            };
+
+            // Fuzzy title similarity: ratio of shared tokens (0.0 – 1.0)
+            const titleSimilarity = (a, b) => {
+                const na = (a || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+                const nb = (b || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+                if (!na || !nb) return 0;
+                if (na === nb) return 1.0;
+                if (na.includes(nb) || nb.includes(na)) return 0.9;
+                const wordsA = new Set(na.split(/\s+/).filter(w => w.length > 1));
+                const wordsB = nb.split(/\s+/).filter(w => w.length > 1);
+                if (wordsB.length === 0) return 0;
+                const hits = wordsB.filter(w => wordsA.has(w)).length;
+                return hits / Math.max(wordsA.size, wordsB.length);
+            };
+
+            // Find canonical book for an import row: ISBN cache → API → fuzzy threshold
+            const findBookForImport = async (row) => {
+                // 1. ISBN → Supabase cache
+                if (row.isbn) {
+                    const cleanIsbn = row.isbn.replace(/[^0-9X]/gi, '');
+                    const cached = await lookupIsbnInCache(cleanIsbn);
+                    if (cached) return cached;
+                    // 2. ISBN → Google Books direct
+                    try {
+                        const gbRes = await fetchFromGoogleBooks(`isbn:${cleanIsbn}`, false);
+                        if (gbRes.length > 0) { saveIsbnToCache(gbRes[0]); return gbRes[0]; }
+                    } catch (_) {}
+                }
+                // 3. Title + author → parallel APIs
+                const query = `${row.title} ${row.author}`;
+                const queries = buildSearchQueries(query);
+                try {
+                    const [gbR, olR] = await Promise.allSettled([
+                        fetchFromGoogleBooks(queries.googleBooks, false),
+                        fetchFromOpenLibrary(queries.openLibrary, false)
+                    ]);
+                    const gbBooks = (gbR.status === 'fulfilled' ? gbR.value : []).map(b => ({ ...b, source: 'google' }));
+                    const olBooks = (olR.status === 'fulfilled' ? olR.value : []).map(b => ({ ...b, source: 'openlibrary' }));
+                    const merged = mergeBookResults([gbBooks, olBooks]);
+                    if (merged.length === 0) return null;
+                    const scored = merged
+                        .map(b => ({ ...b, _score: scoreBookRelevance(b, query) }))
+                        .sort((a, b) => b._score - a._score);
+                    const top = scored[0];
+                    const confirmedByBoth = (top.sourceCount || 1) > 1;
+                    const sim = titleSimilarity(top.title, row.title);
+                    if (confirmedByBoth || sim >= 0.85) { saveIsbnToCache(top); return top; }
+                } catch (_) {}
+                return null;
+            };
+
+            // Load past import records from Supabase
+            const loadImportHistory = async () => {
+                if (!currentUser?.id) return;
+                setImportHistoryLoading(true);
+                try {
+                    const { data } = await supabaseClient
+                        .from('imports')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('started_at', { ascending: false })
+                        .limit(20);
+                    setImportHistory(data || []);
+                } catch (_) {
+                    setImportHistory([]);
+                } finally {
+                    setImportHistoryLoading(false);
+                }
+            };
+
+            // Run the full import process for a set of parsed rows
+            const runImport = async (parsedRows, importId, sourceLabel) => {
+                importRunningRef.current = true;
+                setImportRunning(true);
+                setSettingsImportView('progress');
+                setImportProgress({ processed: 0, total: parsedRows.length, matched: 0, duplicates: 0, unmatched: 0 });
+
+                // Snapshot existing library fingerprints so we can check duplicates
+                const existingByIsbn = new Map();
+                const existingByNorm = new Map();
+                for (const b of books) {
+                    if (b.isbn && b.isbn !== 'Not Available') existingByIsbn.set(b.isbn, b);
+                    const nk = `${(b.title || '').toLowerCase().trim()}|${(b.author || '').toLowerCase().trim()}`;
+                    existingByNorm.set(nk, b);
+                }
+                const addedIsbn = new Set();
+                const addedNorm = new Set();
+
+                let processed = 0, matched = 0, duplicates = 0, unmatched = 0;
+                const unmatchedRows = [];
+                const newBooks = [];
+
+                let authUser = null;
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    authUser = user;
+                } catch (_) {}
+
+                const BATCH = 10;
+                for (let bi = 0; bi < parsedRows.length; bi += BATCH) {
+                    if (!importRunningRef.current) break;
+                    const batch = parsedRows.slice(bi, bi + BATCH);
+
+                    const results = await Promise.allSettled(
+                        batch.map(row => findBookForImport(row).then(book => ({ row, book })))
+                    );
+
+                    for (const r of results) {
+                        processed++;
+                        const payload = r.status === 'fulfilled' ? r.value : null;
+                        const row = payload?.row || batch[processed - bi - 1 + (results.indexOf(r) - (processed - bi - 1))];
+
+                        if (!payload || !payload.book) {
+                            unmatched++;
+                            if (payload?.row) unmatchedRows.push(payload.row);
+                            continue;
+                        }
+
+                        const { row: importRow, book } = payload;
+                        const cleanIsbn = book.isbn && book.isbn !== 'Not Available' ? book.isbn : null;
+                        const normKey = `${(book.title || '').toLowerCase().trim()}|${(book.author || '').toLowerCase().trim()}`;
+
+                        const isDup = (cleanIsbn && (existingByIsbn.has(cleanIsbn) || addedIsbn.has(cleanIsbn)))
+                            || existingByNorm.has(normKey) || addedNorm.has(normKey);
+
+                        if (isDup) {
+                            duplicates++;
+                            // Fill blanks on existing record (never overwrite)
+                            const existing = cleanIsbn ? (existingByIsbn.get(cleanIsbn)) : (existingByNorm.get(normKey));
+                            if (existing?.id) {
+                                const ud = existing.userData || {};
+                                const fillUD = {};
+                                if (!ud.status && importRow.readStatus) fillUD.status = importRow.readStatus;
+                                if (!ud.rating && importRow.rating) fillUD.rating = importRow.rating;
+                                if (!ud.review && importRow.review) fillUD.review = importRow.review;
+                                if (Object.keys(fillUD).length > 0) {
+                                    const merged = { ...ud, ...fillUD };
+                                    supabaseClient.from('books').update({ userData: merged }).eq('id', existing.id).then(() => {});
+                                }
+                            }
+                        } else {
+                            if (!authUser) { unmatched++; unmatchedRows.push(importRow); continue; }
+                            try {
+                                const insertRow = {
+                                    user_id: authUser.id,
+                                    title: book.title,
+                                    author: book.author,
+                                    cover: book.cover || null,
+                                    color: getRandomColor(),
+                                    isbn: cleanIsbn,
+                                    shelf_id: null,
+                                    board_index: null,
+                                    position: null,
+                                    userData: {
+                                        status: importRow.readStatus || null,
+                                        rating: importRow.rating || null,
+                                        review: importRow.review || null,
+                                    }
+                                };
+                                let { data: ins, error: insErr } = await supabaseClient.from('books').insert([insertRow]).select();
+                                if (insErr && insErr.message && (insErr.message.includes('isbn') || insErr.message.includes('userData') || insErr.message.includes('column'))) {
+                                    const { isbn, userData, ...baseRow } = insertRow;
+                                    ({ data: ins, error: insErr } = await supabaseClient.from('books').insert([baseRow]).select());
+                                }
+                                if (insErr) throw insErr;
+                                newBooks.push(ins[0]);
+                                if (cleanIsbn) { existingByIsbn.set(cleanIsbn, ins[0]); addedIsbn.add(cleanIsbn); }
+                                existingByNorm.set(normKey, ins[0]); addedNorm.add(normKey);
+                                matched++;
+                            } catch (e) {
+                                unmatched++;
+                                unmatchedRows.push(importRow);
+                            }
+                        }
+                    }
+
+                    setImportProgress({ processed, total: parsedRows.length, matched, duplicates, unmatched });
+
+                    // Update Supabase import record if it exists
+                    if (importId) {
+                        supabaseClient.from('imports').update({ matched_count: matched, duplicate_count: duplicates, unmatched_count: unmatched, status: 'running' }).eq('id', importId).then(() => {});
+                    }
+
+                    if (bi + BATCH < parsedRows.length) await new Promise(res => setTimeout(res, 250));
+                }
+
+                // Flush new books into React state
+                if (newBooks.length > 0) setBooks(prev => [...prev, ...newBooks]);
+
+                // Final Supabase update
+                if (importId) {
+                    supabaseClient.from('imports').update({
+                        matched_count: matched,
+                        duplicate_count: duplicates,
+                        unmatched_count: unmatched,
+                        status: 'complete',
+                        completed_at: new Date().toISOString()
+                    }).eq('id', importId).then(() => {});
+                }
+
+                const summary = { added: matched, duplicates, unmatchedRows };
+                setImportSummary(summary);
+                importRunningRef.current = false;
+                setImportRunning(false);
+
+                if (!showSettings) {
+                    showMessage(`✅ Import complete: ${matched} books added, ${duplicates} duplicates, ${unmatchedRows.length} unmatched`);
+                } else {
+                    setSettingsImportView('summary');
+                }
+
+                loadImportHistory();
+            };
+
+            // Called when user selects a CSV file in the source modal
+            const startImport = async (file, format) => {
+                if (!file || !currentUser?.id) return;
+                setImportSourceModal(null);
+                let importId = null;
+                try {
+                    const text = await file.text();
+                    const { format: detectedFormat, rows } = parseImportCSV(text);
+
+                    if (!detectedFormat || rows.length === 0) {
+                        showMessage('❌ Could not parse this CSV. Check the format and try again.');
+                        return;
+                    }
+
+                    // Create import record in Supabase (gracefully skip if table not yet created)
+                    try {
+                        const { data: rec } = await supabaseClient.from('imports').insert([{
+                            user_id: currentUser.id,
+                            source: detectedFormat,
+                            filename: file.name,
+                            total_rows: rows.length,
+                            matched_count: 0,
+                            duplicate_count: 0,
+                            unmatched_count: 0,
+                            status: 'running',
+                            started_at: new Date().toISOString()
+                        }]).select().maybeSingle();
+                        importId = rec?.id || null;
+                    } catch (_) {}
+
+                    runImport(rows, importId, detectedFormat);
+                } catch (e) {
+                    showMessage('❌ Failed to read the file. Please try again.');
+                }
             };
 
             // Searches the shared book_cache by title or author text match.
@@ -13082,7 +13454,7 @@
                             </div>
                             {/* Mobile tab bar */}
                             <div className="settings-tab-bar">
-                                {[['account','Account'],['privacy','Privacy'],['security','Security'],['stats','Stats'],['preferences','Prefs']].map(([id, label]) => (
+                                {[['account','Account'],['privacy','Privacy'],['security','Security'],['stats','Stats'],['preferences','Prefs'],['import','Import']].map(([id, label]) => (
                                     <button key={id} className={`settings-tab-pill${settingsTab === id ? ' active' : ''}`} onClick={() => setSettingsTab(id)}>{label}</button>
                                 ))}
                             </div>
@@ -13113,11 +13485,17 @@
                                     >
                                         Library Stats
                                     </div>
-                                    <div 
+                                    <div
                                         className={`settings-tab ${settingsTab === 'preferences' ? 'active' : ''}`}
                                         onClick={() => setSettingsTab('preferences')}
                                     >
                                         Preferences
+                                    </div>
+                                    <div
+                                        className={`settings-tab ${settingsTab === 'import' ? 'active' : ''}`}
+                                        onClick={() => setSettingsTab('import')}
+                                    >
+                                        Import Library
                                     </div>
                                 </div>
 
@@ -13369,6 +13747,247 @@
                                             </div>
                                         </>
                                     )}
+
+                                    {settingsTab === 'import' && (() => {
+                                        // ── Source cards ─────────────────────────────────────────────────
+                                        if (settingsImportView === 'sources') return (
+                                            <>
+                                                <h2 className="settings-section-title">Import Library</h2>
+                                                <p className="settings-section-subtitle">Bring in your existing book collection from another service</p>
+
+                                                {/* Goodreads — hero card */}
+                                                <div
+                                                    onClick={() => setImportSourceModal('goodreads')}
+                                                    style={{background:'linear-gradient(135deg,#f5f0e8,#ede5d5)', border:'2px solid #c9a87c', borderRadius:14, padding:'1.4rem 1.5rem', marginBottom:'1rem', cursor:'pointer', position:'relative'}}
+                                                >
+                                                    <div style={{position:'absolute', top:12, right:14, background:'#c9a87c', color:'#fff', fontSize:'0.7rem', fontWeight:700, padding:'2px 8px', borderRadius:20}}>Recommended</div>
+                                                    <div style={{display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.4rem'}}>
+                                                        <span style={{fontSize:'1.6rem'}}>📗</span>
+                                                        <div>
+                                                            <div style={{fontFamily:"'Libre Baskerville',serif", fontSize:'1.1rem', fontWeight:700, color:'#3d2817'}}>Goodreads</div>
+                                                            <div style={{fontSize:'0.8rem', color:'#8b6f47'}}>Import your entire reading history with ratings, shelves &amp; reviews</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Kindle */}
+                                                <div
+                                                    onClick={() => setImportSourceModal('kindle')}
+                                                    style={{background:'#fdf8f2', border:'1.5px solid #e8d5bb', borderRadius:12, padding:'1.1rem 1.3rem', marginBottom:'1rem', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.75rem'}}
+                                                >
+                                                    <span style={{fontSize:'1.4rem'}}>📱</span>
+                                                    <div>
+                                                        <div style={{fontWeight:700, color:'#3d2817', fontSize:'1rem'}}>Amazon Kindle</div>
+                                                        <div style={{fontSize:'0.8rem', color:'#8b6f47'}}>Import your Kindle library from Amazon's data export</div>
+                                                    </div>
+                                                    <span style={{marginLeft:'auto', color:'#c9a87c', fontSize:'1.2rem'}}>›</span>
+                                                </div>
+
+                                                {/* Generic CSV */}
+                                                <div
+                                                    onClick={() => setImportSourceModal('generic')}
+                                                    style={{background:'#fdf8f2', border:'1.5px solid #e8d5bb', borderRadius:12, padding:'1.1rem 1.3rem', marginBottom:'2rem', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.75rem'}}
+                                                >
+                                                    <span style={{fontSize:'1.4rem'}}>📄</span>
+                                                    <div>
+                                                        <div style={{fontWeight:700, color:'#3d2817', fontSize:'1rem'}}>Other (CSV)</div>
+                                                        <div style={{fontSize:'0.8rem', color:'#8b6f47'}}>Any CSV with Title and Author columns</div>
+                                                    </div>
+                                                    <span style={{marginLeft:'auto', color:'#c9a87c', fontSize:'1.2rem'}}>›</span>
+                                                </div>
+
+                                                {/* Past imports */}
+                                                {importHistoryLoading ? (
+                                                    <div style={{textAlign:'center', color:'#8b6f47', padding:'1rem'}}>Loading history…</div>
+                                                ) : importHistory.length > 0 && (
+                                                    <div className="settings-card">
+                                                        <h3 className="settings-card-title">Past Imports</h3>
+                                                        <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
+                                                            {importHistory.map(rec => (
+                                                                <div key={rec.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.5rem 0', borderBottom:'1px solid #f0e8d8', fontSize:'0.85rem'}}>
+                                                                    <div>
+                                                                        <div style={{fontWeight:600, color:'#3d2817', textTransform:'capitalize'}}>{rec.source} — {rec.filename}</div>
+                                                                        <div style={{color:'#8b6f47', fontSize:'0.78rem'}}>{new Date(rec.started_at).toLocaleDateString()}</div>
+                                                                    </div>
+                                                                    <div style={{textAlign:'right'}}>
+                                                                        <div style={{color:'#5a8a6a', fontWeight:600}}>{rec.matched_count} added</div>
+                                                                        <div style={{color:'#8b6f47'}}>{rec.duplicate_count} dups · {rec.unmatched_count} unmatched</div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+
+                                        // ── Progress view ─────────────────────────────────────────────────
+                                        if (settingsImportView === 'progress') return (
+                                            <>
+                                                <h2 className="settings-section-title">Importing…</h2>
+                                                <p className="settings-section-subtitle">Please wait while we import your books</p>
+                                                <div className="settings-card">
+                                                    <div style={{marginBottom:'1rem'}}>
+                                                        <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.9rem', color:'#8b6f47', marginBottom:'0.4rem'}}>
+                                                            <span>Importing {importProgress.processed} of {importProgress.total} books…</span>
+                                                            <span>{importProgress.total > 0 ? Math.round((importProgress.processed / importProgress.total) * 100) : 0}%</span>
+                                                        </div>
+                                                        <div style={{height:10, background:'#f0e8d8', borderRadius:10, overflow:'hidden'}}>
+                                                            <div style={{height:'100%', background:'linear-gradient(90deg,#c9a87c,#8b6f47)', borderRadius:10, width: importProgress.total > 0 ? `${(importProgress.processed / importProgress.total) * 100}%` : '0%', transition:'width 0.3s'}} />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.5rem', textAlign:'center'}}>
+                                                        <div style={{padding:'0.75rem', background:'#eef7f1', borderRadius:10}}>
+                                                            <div style={{fontSize:'1.4rem', fontWeight:700, color:'#5a8a6a'}}>{importProgress.matched}</div>
+                                                            <div style={{fontSize:'0.75rem', color:'#5a8a6a', fontWeight:600}}>Matched</div>
+                                                        </div>
+                                                        <div style={{padding:'0.75rem', background:'#eef0f7', borderRadius:10}}>
+                                                            <div style={{fontSize:'1.4rem', fontWeight:700, color:'#4a6a9a'}}>{importProgress.duplicates}</div>
+                                                            <div style={{fontSize:'0.75rem', color:'#4a6a9a', fontWeight:600}}>Duplicates</div>
+                                                        </div>
+                                                        <div style={{padding:'0.75rem', background:'#fdf6e8', borderRadius:10}}>
+                                                            <div style={{fontSize:'1.4rem', fontWeight:700, color:'#b8860b'}}>{importProgress.unmatched}</div>
+                                                            <div style={{fontSize:'0.75rem', color:'#b8860b', fontWeight:600}}>Unmatched</div>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => { setShowSettings(false); }}
+                                                        style={{marginTop:'1.25rem', width:'100%', padding:'0.65rem', background:'transparent', border:'1.5px solid #c9a87c', borderRadius:8, color:'#8b6f47', fontSize:'0.9rem', cursor:'pointer', fontFamily:'inherit'}}
+                                                    >
+                                                        Run in Background
+                                                    </button>
+                                                </div>
+                                            </>
+                                        );
+
+                                        // ── Summary view ──────────────────────────────────────────────────
+                                        if (settingsImportView === 'summary' && importSummary) {
+                                            if (importUnmatchedView) return (
+                                                <>
+                                                    <div style={{display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'1rem'}}>
+                                                        <button onClick={() => setImportUnmatchedView(false)} style={{background:'none', border:'none', color:'#8b6f47', fontSize:'1.2rem', cursor:'pointer', padding:0}}>←</button>
+                                                        <h2 className="settings-section-title" style={{margin:0}}>Unmatched Books</h2>
+                                                    </div>
+                                                    <p className="settings-section-subtitle">These books couldn't be found automatically. Search for them to add manually.</p>
+                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
+                                                        {importSummary.unmatchedRows.map((row, i) => (
+                                                            <div key={i} className="settings-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.85rem 1rem'}}>
+                                                                <div style={{flex:1, minWidth:0}}>
+                                                                    <div style={{fontWeight:600, color:'#3d2817', fontSize:'0.9rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{row.title}</div>
+                                                                    <div style={{color:'#8b6f47', fontSize:'0.8rem'}}>{row.author}</div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setShowSettings(false);
+                                                                        setTimeout(() => {
+                                                                            setActiveTab('search');
+                                                                        }, 200);
+                                                                    }}
+                                                                    style={{marginLeft:'0.75rem', flexShrink:0, padding:'0.35rem 0.75rem', background:'#c9a87c', color:'#fff', border:'none', borderRadius:6, fontSize:'0.8rem', cursor:'pointer', fontFamily:'inherit', fontWeight:600}}
+                                                                >
+                                                                    Search
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            );
+
+                                            return (
+                                                <>
+                                                    <h2 className="settings-section-title">Import Complete</h2>
+                                                    <p className="settings-section-subtitle">Here's what happened with your import</p>
+                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.75rem', marginBottom:'1.5rem'}}>
+                                                        <div style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'1rem 1.2rem', background:'#eef7f1', borderRadius:12, border:'1.5px solid #b2d8c0'}}>
+                                                            <span style={{fontSize:'1.5rem'}}>✅</span>
+                                                            <div>
+                                                                <div style={{fontSize:'1.3rem', fontWeight:700, color:'#2d7a4a'}}>{importSummary.added}</div>
+                                                                <div style={{fontSize:'0.85rem', color:'#5a8a6a', fontWeight:600}}>Books Added to Library</div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'1rem 1.2rem', background:'#eef0f7', borderRadius:12, border:'1.5px solid #b2c0e0'}}>
+                                                            <span style={{fontSize:'1.5rem'}}>🔵</span>
+                                                            <div>
+                                                                <div style={{fontSize:'1.3rem', fontWeight:700, color:'#2d4a8a'}}>{importSummary.duplicates}</div>
+                                                                <div style={{fontSize:'0.85rem', color:'#4a6a9a', fontWeight:600}}>Duplicates Updated</div>
+                                                            </div>
+                                                        </div>
+                                                        {importSummary.unmatchedRows.length > 0 && (
+                                                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem 1.2rem', background:'#fdf6e8', borderRadius:12, border:'1.5px solid #e0cc80'}}>
+                                                                <div style={{display:'flex', alignItems:'center', gap:'0.75rem'}}>
+                                                                    <span style={{fontSize:'1.5rem'}}>⚠️</span>
+                                                                    <div>
+                                                                        <div style={{fontSize:'1.3rem', fontWeight:700, color:'#8a6a2d'}}>{importSummary.unmatchedRows.length}</div>
+                                                                        <div style={{fontSize:'0.85rem', color:'#b8860b', fontWeight:600}}>Couldn't Be Matched</div>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => setImportUnmatchedView(true)}
+                                                                    style={{padding:'0.4rem 0.9rem', background:'#e0cc80', border:'none', borderRadius:8, color:'#5a4a00', fontWeight:700, fontSize:'0.85rem', cursor:'pointer', fontFamily:'inherit'}}
+                                                                >
+                                                                    Review
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        className="settings-btn"
+                                                        onClick={() => { setSettingsImportView('sources'); setImportSummary(null); setImportUnmatchedView(false); loadImportHistory(); }}
+                                                    >
+                                                        Import Another File
+                                                    </button>
+                                                </>
+                                            );
+                                        }
+
+                                        return null;
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Import Source Instructions Modal */}
+                    {importSourceModal && (
+                        <div className="book-detail-overlay" onClick={() => setImportSourceModal(null)}>
+                            <div className="book-detail-popup" style={{maxWidth:'480px', width:'94%'}} onClick={e => e.stopPropagation()}>
+                                <button className="book-detail-close" onClick={() => setImportSourceModal(null)}>×</button>
+                                <div className="book-detail-content">
+                                    {importSourceModal === 'goodreads' && (<>
+                                        <h3 style={{fontFamily:"'Libre Baskerville',serif", fontSize:'1.15rem', color:'#3d2817', marginBottom:'0.5rem'}}>📗 Import from Goodreads</h3>
+                                        <ol style={{paddingLeft:'1.2rem', color:'#5a4030', lineHeight:1.9, fontSize:'0.9rem', marginBottom:'1.25rem'}}>
+                                            <li>Go to <strong>goodreads.com/review/import</strong></li>
+                                            <li>Click <strong>"Export Library"</strong></li>
+                                            <li>Wait for the CSV (usually under 1 min), then download it</li>
+                                            <li>Upload the CSV using the button below</li>
+                                        </ol>
+                                    </>)}
+                                    {importSourceModal === 'kindle' && (<>
+                                        <h3 style={{fontFamily:"'Libre Baskerville',serif", fontSize:'1.15rem', color:'#3d2817', marginBottom:'0.5rem'}}>📱 Import from Amazon Kindle</h3>
+                                        <ol style={{paddingLeft:'1.2rem', color:'#5a4030', lineHeight:1.9, fontSize:'0.9rem', marginBottom:'1.25rem'}}>
+                                            <li>Go to <strong>amazon.com/hz/privacycentral/dsar/preview.html</strong></li>
+                                            <li>Request <strong>"Kindle"</strong> data</li>
+                                            <li>Wait for Amazon's email (can take up to 24 hours)</li>
+                                            <li>Download the ZIP, extract <strong>Kindle.KindleDocs.csv</strong></li>
+                                            <li>Upload that CSV using the button below</li>
+                                        </ol>
+                                    </>)}
+                                    {importSourceModal === 'generic' && (<>
+                                        <h3 style={{fontFamily:"'Libre Baskerville',serif", fontSize:'1.15rem', color:'#3d2817', marginBottom:'0.5rem'}}>📄 Import from CSV</h3>
+                                        <p style={{color:'#5a4030', fontSize:'0.9rem', lineHeight:1.7, marginBottom:'1.25rem'}}>
+                                            Upload any CSV with at minimum: <strong>Title</strong> and <strong>Author</strong> columns.<br/>
+                                            <span style={{color:'#8b6f47'}}>ISBN, Rating, Date Read, and Shelf columns will be used if present.</span>
+                                        </p>
+                                    </>)}
+                                    <label style={{display:'block', width:'100%', padding:'0.75rem 1rem', background:'#c9a87c', color:'#fff', borderRadius:10, textAlign:'center', fontWeight:700, fontSize:'0.95rem', cursor:'pointer', fontFamily:'inherit'}}>
+                                        Choose CSV File
+                                        <input
+                                            type="file"
+                                            accept=".csv,text/csv"
+                                            style={{display:'none'}}
+                                            onChange={e => { const f = e.target.files?.[0]; if (f) startImport(f, importSourceModal); }}
+                                        />
+                                    </label>
                                 </div>
                             </div>
                         </div>

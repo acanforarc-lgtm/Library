@@ -31,6 +31,8 @@ const jsx = html.slice(jsxStart, end);
 //    Only transforms JSX syntax; all modern JS stays as-is for native browser support.
 const { code } = babel.transformSync(jsx, {
     presets: [['@babel/preset-react', { runtime: 'classic' }]],
+    // Transform const/let → var to match browser Babel's behaviour and eliminate TDZ errors
+    plugins: ['@babel/plugin-transform-block-scoping'],
     filename: 'app.jsx',
     sourceMaps: false,
     compact: false,

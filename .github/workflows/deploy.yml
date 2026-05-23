@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install build tools
-        run: npm install @babel/core @babel/preset-react
+        run: npm install @babel/core @babel/preset-react @babel/plugin-transform-block-scoping
 
       - name: Compile JSX
         run: node scripts/compile.js

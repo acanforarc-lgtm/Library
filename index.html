@@ -6,7 +6,7 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 4.0.0
+    YOUR LIBRARY - VERSION 4.0.1
     ========================================
     v3.1.0: Isometric Library Room — CSS/SVG isometric room in the Room tab; furniture catalog drag-and-drop; shelf items wired to live books/shelves; Supabase rooms table; edit mode owner-only; read-only for visitors; lazy-mounted on tab activation
     v3.0.0: Library Import System — import from Goodreads CSV, Amazon Kindle CSV, or any generic CSV; auto-detects format; parallel ISBN + fuzzy-title matching against Google Books + Open Library; batched processing (10/batch, 250ms delay); duplicate detection fills blanks never overwrites; live progress bar; "Run in Background" option; summary screen with unmatched-row review flow; import history tracked in Supabase imports table
@@ -4507,10 +4507,10 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '4.0.0';
+        const APP_VERSION = '4.0.1';
         const WHATS_NEW = {
-            version: '4.0.0',
-            type: 'major',
+            version: '4.0.1',
+            type: 'feature',
             items: [
                 'My Room — isometric 3D library room with drag-and-drop furniture placement',
                 'Your real bookshelves and books appear inside your 3D room',

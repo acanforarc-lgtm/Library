@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 3.0.0
+    YOUR LIBRARY - VERSION 3.1.0
     ========================================
+    v3.1.0: Isometric Library Room — CSS/SVG isometric room in the Room tab; furniture catalog drag-and-drop; shelf items wired to live books/shelves; Supabase rooms table; edit mode owner-only; read-only for visitors; lazy-mounted on tab activation
     v3.0.0: Library Import System — import from Goodreads CSV, Amazon Kindle CSV, or any generic CSV; auto-detects format; parallel ISBN + fuzzy-title matching against Google Books + Open Library; batched processing (10/batch, 250ms delay); duplicate detection fills blanks never overwrites; live progress bar; "Run in Background" option; summary screen with unmatched-row review flow; import history tracked in Supabase imports table
     v2.6.2: Books per board preset in create-shelf modal (saved to Supabase on creation); changing books-per-board repacks all existing book positions to the new grid so bindings always align correctly
     v2.6.1: Recommend book to friends (friend picker + notifications); Netflix-style Your Books categories (Currently Reading, Want to Read, Finished, Highly Rated, By Author); friend profile ⓘ info button (report/block/message) + ✓ following checkmark; friend book popup enriched from book_cache (isbn/date/pages/summary); custom book cover via URL (+ Add Cover when missing); shelf book image scaling fix (explicit inline width vs CSS var); book meta (isbn/date/pages/summary) moved under title/author in popups; new releases filtered to books only (no magazines/papers)
@@ -75,7 +76,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -4250,6 +4251,231 @@
         .visibility-pill-label { font-size: 0.78rem; font-weight: 600; }
         .visibility-pill-desc { font-size: 0.68rem; color: #8b6f47; margin-top: 0.15rem; }
         .visibility-pill.active .visibility-pill-desc { color: #c9a87c; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           ISOMETRIC LIBRARY ROOM — all selectors scoped under .libroom-root
+           ═══════════════════════════════════════════════════════════════ */
+        .libroom-root {
+            --bg:#f5ede0;--fg:#2a2418;--muted:#7a6a52;--accent:#c98a5a;--accent-2:#a3715a;
+            --rose:#c88888;--sage:#9fb0a0;--cream:#faf4e8;
+            --card:rgba(255,250,240,0.78);--line:rgba(42,36,24,0.1);
+            --wall:#e8dcc8;--floor-base:#d0a878;--floor-line:#8a6a42;
+            --serif:'Fraunces',Georgia,serif;--sans:'Inter','Work Sans',system-ui,-apple-system,sans-serif;
+            position:absolute;inset:0;overflow:hidden;
+            font-family:var(--sans);color:var(--fg);
+            background:radial-gradient(ellipse at 30% 20%,#f8f0e0,#e8dcc0 60%,#d4c0a0);
+            -webkit-font-smoothing:antialiased;
+        }
+        .libroom-root *{box-sizing:border-box;}
+        .libroom-root.theme-cottage{--bg:#f5ede0;--wall:#e8dcc8;--floor-base:#d0a878;--floor-line:#8a6a42;--accent:#c98a5a;--rose:#c88888;--sage:#9fb0a0;}
+        .libroom-root.theme-academia{
+            --bg:#2a2418;--fg:#f0e4c8;--muted:#c8b898;--wall:#4a3a2a;--floor-base:#3a2a1a;--floor-line:#1a1008;
+            --accent:#b8894a;--rose:#8a5a4a;--sage:#6a7a5a;--card:rgba(42,36,24,0.78);--cream:#2a2418;--line:rgba(240,228,200,0.15);
+            background:radial-gradient(ellipse at 30% 20%,#3a2e20,#1a1008 70%);
+        }
+        .libroom-root.theme-modern{--bg:#f5f2ee;--wall:#e8e2d8;--floor-base:#c8b898;--floor-line:#8a7a5a;--accent:#a89878;--rose:#c8a4a0;--sage:#a8b4a0;background:radial-gradient(ellipse at 30% 20%,#faf6f0,#ebe4d8 60%,#d8ccbc);}
+        .libroom-root.fullscreen-mode{position:fixed;inset:0;z-index:1000;}
+
+        /* Stage */
+        .libroom-root .room-stage{position:absolute;inset:0;overflow:hidden;}
+        .libroom-root .room-stage-inner{position:absolute;inset:0;overflow:hidden;transition:filter 1.2s ease;touch-action:none;}
+        .libroom-root .scene{transition:transform .12s ease-out;will-change:transform;}
+
+        /* Walls */
+        .libroom-root .walls-svg{overflow:visible;filter:drop-shadow(0 12px 30px rgba(0,0,0,.12));}
+        .libroom-root .wall-items{position:absolute;inset:0;pointer-events:none;}
+        .libroom-root .wall-item{position:absolute;pointer-events:auto;cursor:default;}
+        .libroom-root.edit-on .wall-item{cursor:pointer;}
+        .libroom-root.edit-on .wall-item.selected,.libroom-root.edit-on .wall-item:hover{outline:1px dashed rgba(201,138,90,.85);outline-offset:2px;}
+        .libroom-root .item-rotor{display:inline-block;}
+
+        /* Selection toolbar */
+        .libroom-root .sel-toolbar{position:absolute;transform:translate(-50%,-100%);display:flex;align-items:center;gap:4px;background:#2a201a;color:white;padding:5px 6px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:10000;pointer-events:auto;font:500 12px var(--sans);}
+        .libroom-root .sel-toolbar::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#2a201a;border-bottom:0;}
+        .libroom-root .st-btn{appearance:none;border:0;background:transparent;color:white;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:14px;line-height:1;}
+        .libroom-root .st-btn:hover{background:rgba(255,255,255,.12);}
+        .libroom-root .st-btn.danger:hover{background:#c84a3a;}
+        .libroom-root .st-sep{width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 2px;}
+
+        /* Items */
+        .libroom-root .items-layer{position:absolute;left:0;top:0;}
+        .libroom-root .item-wrap{position:absolute;transform:translate(-50%,-100%);cursor:grab;transition:filter .2s;}
+        .libroom-root .item-wrap.rug-item{transform:translate(-50%,-50%);}
+        .libroom-root .item-wrap:hover{filter:brightness(1.08);}
+        .libroom-root .item-wrap.selected{filter:drop-shadow(0 0 0 2px var(--accent)) brightness(1.05);}
+        .libroom-root .item-wrap:active{cursor:grabbing;}
+        .libroom-root:not(.edit-on) .item-wrap{cursor:pointer;}
+        .libroom-root.edit-on .item-wrap{cursor:grab;}
+        .libroom-root.edit-on .item-wrap:hover::before,.libroom-root.edit-on .item-wrap.selected::before{content:'';position:absolute;inset:0;border:1px dashed rgba(201,138,90,.85);border-radius:3px;pointer-events:none;}
+
+        /* Zoom */
+        .libroom-root .zoom-controls{position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;background:var(--card);backdrop-filter:blur(30px);border:.5px solid var(--line);border-radius:12px;padding:4px;box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:20;}
+        .libroom-root .zoom-controls button{appearance:none;border:0;background:transparent;color:var(--fg);width:32px;height:32px;border-radius:8px;cursor:pointer;font:500 15px var(--sans);}
+        .libroom-root .zoom-controls button:hover{background:rgba(42,36,24,0.08);}
+        .libroom-root.theme-academia .zoom-controls button:hover{background:rgba(240,228,200,0.1);}
+        .libroom-root .zoom-controls .zoom-reset{font-size:13px;color:var(--muted);}
+        .libroom-root .zoom-level{font:500 10px var(--sans);color:var(--muted);text-align:center;padding:2px 0;font-variant-numeric:tabular-nums;}
+
+        /* Night overlay */
+        .libroom-root .night-overlay{position:absolute;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,transparent,rgba(20,30,60,.6) 80%);transition:opacity 1.5s;}
+
+        /* Furniture */
+        .libroom-root .furniture{position:relative;user-select:none;}
+        .libroom-root .furn-shadow{display:none!important;}
+        .libroom-root .furniture svg ellipse[fill^="rgba(0,0,0"]{display:none;}
+
+        /* Shelf */
+        .libroom-root .shelf{display:flex;align-items:flex-end;justify-content:center;}
+        .libroom-root .shelf-body{position:relative;border-radius:3px 3px 2px 2px;}
+        .libroom-root .shelf-row{position:absolute;left:6px;right:6px;height:6px;border-radius:1px;box-shadow:0 1px 2px rgba(0,0,0,.4),inset 0 -1px 0 rgba(0,0,0,.2);}
+        .libroom-root .shelf-books{position:absolute;bottom:6px;left:3px;right:3px;display:flex;align-items:flex-end;gap:1.5px;overflow:hidden;}
+        .libroom-root .shelf-book-mini{border-radius:.5px .5px 0 0;box-shadow:inset -1px 0 1px rgba(0,0,0,.3),inset 1px 0 0 rgba(255,255,255,.1);flex-shrink:0;}
+        .libroom-root .shelf-nameplate{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-family:var(--serif);font-size:10px;font-style:italic;color:rgba(255,248,235,0.9);background:rgba(42,30,20,0.6);padding:2px 8px;border-radius:2px;white-space:nowrap;opacity:0;transition:opacity .2s;}
+        .libroom-root .item-wrap:hover .shelf-nameplate,.libroom-root .item-wrap.selected .shelf-nameplate{opacity:1;}
+
+        /* Lamp / candle glow */
+        .libroom-root .lamp-halo{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,224,160,.5),transparent 60%);pointer-events:none;animation:lr-flicker 4s ease-in-out infinite;}
+        .libroom-root .lamp-halo.small{width:90px;height:90px;top:-10px;}
+        @keyframes lr-flicker{0%,100%{opacity:1;}50%{opacity:.85;}}
+        .libroom-root .candle-glow{position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(255,220,140,.7),transparent 60%);animation:lr-flicker2 1.8s ease-in-out infinite;}
+        @keyframes lr-flicker2{0%,100%{opacity:.9;transform:translateX(-50%) scale(1);}50%{opacity:1;transform:translateX(-50%) scale(1.08);}}
+
+        /* Window */
+        .libroom-root .window-frame{position:relative;width:100%;height:100%;border:6px solid #6a4a3a;box-shadow:0 0 0 2px #4a3020,inset 0 0 20px rgba(0,0,0,.3);background:#4a3020;}
+        .libroom-root .window-view{position:absolute;inset:0;overflow:hidden;transition:background 1.5s;}
+        .libroom-root .window-landscape{position:absolute;bottom:0;left:0;}
+        .libroom-root .window-mullion-v{position:absolute;top:0;bottom:0;left:50%;width:4px;background:#6a4a3a;transform:translateX(-50%);}
+        .libroom-root .window-mullion-h{position:absolute;left:0;right:0;top:50%;height:4px;background:#6a4a3a;transform:translateY(-50%);}
+        .libroom-root .window-sill{position:absolute;bottom:-12px;left:-8px;right:-8px;height:12px;background:linear-gradient(180deg,#8a6a4a,#6a4a2a);box-shadow:0 2px 4px rgba(0,0,0,.3);}
+        .libroom-root .rain{position:absolute;inset:0;overflow:hidden;background-image:repeating-linear-gradient(100deg,transparent 0 4px,rgba(180,200,220,.3) 4px 5px,transparent 5px 8px),repeating-linear-gradient(100deg,transparent 0 6px,rgba(200,220,240,.4) 6px 7px,transparent 7px 12px);animation:lr-rain .5s linear infinite;}
+        @keyframes lr-rain{0%{background-position:0 0,0 0;}100%{background-position:20px 100px,-18px 120px;}}
+        .libroom-root .snow{position:absolute;inset:0;overflow:hidden;background-image:radial-gradient(circle 1.5px at 20% 30%,white 100%,transparent),radial-gradient(circle 1px at 60% 60%,white 100%,transparent),radial-gradient(circle 1.5px at 80% 20%,white 100%,transparent),radial-gradient(circle 1px at 40% 80%,white 100%,transparent);animation:lr-snow 6s linear infinite;}
+        @keyframes lr-snow{0%{background-position:0 -40px,0 -40px,0 -40px,0 -40px;}100%{background-position:10px 120px,-10px 160px,6px 180px,-8px 140px;}}
+
+        /* Book spine (ShelfDetail) */
+        .libroom-root .book-spine{appearance:none;border:0;padding:0;position:relative;border-radius:2px 2px 0 0;cursor:pointer;display:flex;align-items:flex-end;transition:transform .15s,box-shadow .15s;overflow:hidden;flex-shrink:0;}
+        .libroom-root .book-spine:hover{transform:translateY(-6px);}
+        .libroom-root .book-spine-title{writing-mode:vertical-rl;text-orientation:mixed;padding:8px 2px 10px 3px;font:500 9px var(--sans);letter-spacing:.02em;white-space:nowrap;overflow:hidden;max-height:calc(100% - 4px);}
+        .libroom-root .book-bookmark{position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:6px;height:14px;background:var(--rose);clip-path:polygon(0 0,100% 0,100% 100%,50% 75%,0 100%);}
+
+        /* Shelf detail drawer */
+        .libroom-root .shelf-detail{position:absolute;bottom:0;left:0;right:0;background:var(--card);backdrop-filter:blur(30px);border-top:.5px solid var(--line);box-shadow:0 -10px 40px rgba(0,0,0,.12);padding:20px 28px 24px;z-index:30;animation:lr-slide-up .3s ease-out;}
+        @keyframes lr-slide-up{from{transform:translateY(100%);}to{transform:translateY(0);}}
+        .libroom-root .shelf-detail-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+        .libroom-root .sd-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+        .libroom-root .shelf-detail h2{font-family:var(--serif);font-weight:500;font-size:28px;margin:2px 0 6px;letter-spacing:-0.01em;}
+        .libroom-root .sd-meta{font-size:12px;color:var(--muted);display:flex;gap:12px;align-items:center;}
+        .libroom-root .sd-sync{display:inline-flex;align-items:center;gap:4px;background:rgba(159,176,160,0.2);color:#5a7a5a;padding:2px 8px;border-radius:999px;font-size:11px;}
+        .libroom-root.theme-academia .sd-sync{background:rgba(159,176,160,0.15);color:#9fb0a0;}
+        .libroom-root .sd-close{appearance:none;border:0;background:transparent;color:var(--muted);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;}
+        .libroom-root .sd-close:hover{background:rgba(0,0,0,.06);color:var(--fg);}
+        .libroom-root .sd-books{display:flex;align-items:flex-end;gap:2px;min-height:100px;padding:12px 0;border-top:.5px solid var(--line);overflow-x:auto;}
+        .libroom-root .sd-books::-webkit-scrollbar{height:6px;}
+        .libroom-root .sd-books::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px;}
+
+        /* Book detail */
+        .libroom-root .book-detail{position:absolute;top:60px;right:20px;width:360px;max-height:calc(100% - 80px);background:var(--card);backdrop-filter:blur(30px);border-radius:18px;border:.5px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;z-index:35;animation:lr-fade-in .2s;}
+        @keyframes lr-fade-in{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+        .libroom-root .bd-head{position:relative;height:220px;background:linear-gradient(135deg,#d4c0a0,#b89868);display:flex;align-items:center;justify-content:center;}
+        .libroom-root .bd-cover{width:130px;height:190px;border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.3),inset -8px 0 12px rgba(0,0,0,.25);padding:16px 14px;display:flex;flex-direction:column;justify-content:space-between;color:rgba(255,248,235,0.9);}
+        .libroom-root .bd-cover-title{font-family:var(--serif);font-weight:500;font-size:15px;line-height:1.2;letter-spacing:-0.01em;}
+        .libroom-root .bd-cover-author{font-size:10px;opacity:.8;letter-spacing:.05em;text-transform:uppercase;}
+        .libroom-root .bd-close{position:absolute;top:10px;right:10px;appearance:none;border:0;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.3);color:white;cursor:pointer;font-size:13px;}
+        .libroom-root .bd-body{padding:20px 22px 22px;}
+        .libroom-root .bd-body h2{font-family:var(--serif);font-weight:500;font-size:22px;margin:0 0 4px;letter-spacing:-0.01em;line-height:1.2;}
+        .libroom-root .bd-author{font-size:13px;color:var(--muted);font-style:italic;margin-bottom:14px;}
+        .libroom-root .bd-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+        .libroom-root .bd-chip{font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(42,36,24,0.08);color:var(--fg);font-weight:500;}
+        .libroom-root.theme-academia .bd-chip{background:rgba(240,228,200,0.12);}
+        .libroom-root .bd-chip.status-reading{background:rgba(201,138,90,0.18);color:var(--accent-2);}
+        .libroom-root .bd-chip.status-read{background:rgba(159,176,160,0.25);color:#5a7a5a;}
+        .libroom-root.theme-academia .bd-chip.status-read{color:#9fb0a0;}
+        .libroom-root .bd-chip.status-tbr{background:rgba(200,136,136,0.2);color:#a85858;}
+        .libroom-root .bd-chip.stars{background:transparent;color:var(--accent);padding-left:0;letter-spacing:1px;}
+        .libroom-root .bd-progress{margin-bottom:14px;}
+        .libroom-root .bd-progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px;}
+        .libroom-root .bd-progress-bar{height:4px;background:rgba(42,36,24,0.1);border-radius:999px;overflow:hidden;}
+        .libroom-root.theme-academia .bd-progress-bar{background:rgba(240,228,200,0.15);}
+        .libroom-root .bd-progress-bar>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px;transition:width .4s;}
+        .libroom-root .bd-notes{background:rgba(201,138,90,0.08);padding:10px 12px;border-radius:8px;border-left:2px solid var(--accent);margin-bottom:16px;font-family:var(--serif);font-size:13px;font-style:italic;color:var(--fg);}
+        .libroom-root .bd-notes-label{font-family:var(--sans);font-style:normal;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px;}
+        .libroom-root .bd-actions{display:flex;gap:8px;}
+        .libroom-root .bd-btn{appearance:none;border:0;padding:9px 14px;border-radius:8px;font:500 12px var(--sans);cursor:pointer;background:rgba(42,36,24,0.06);color:var(--fg);}
+        .libroom-root.theme-academia .bd-btn{background:rgba(240,228,200,0.1);color:var(--fg);}
+        .libroom-root .bd-btn:hover{background:rgba(42,36,24,0.1);}
+        .libroom-root .bd-btn.primary{background:var(--accent);color:white;}
+        .libroom-root .bd-btn.primary:hover{background:var(--accent-2);}
+
+        /* Inventory */
+        .libroom-root .inv-panel{position:absolute;top:60px;left:20px;width:320px;max-height:calc(100% - 130px);background:var(--card);backdrop-filter:blur(30px);border-radius:18px;border:.5px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.2);z-index:30;display:flex;flex-direction:column;overflow:hidden;animation:lr-slide-right .25s ease-out;}
+        @keyframes lr-slide-right{from{transform:translateX(-20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+        .libroom-root .inv-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 8px;}
+        .libroom-root .inv-head h3{font-family:var(--serif);font-weight:500;font-size:20px;margin:0;letter-spacing:-.01em;}
+        .libroom-root .inv-close{appearance:none;border:0;background:transparent;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;}
+        .libroom-root .inv-close:hover{background:rgba(0,0,0,.06);color:var(--fg);}
+        .libroom-root .inv-tabs-wrap{position:relative;padding:0 10px 10px;border-bottom:.5px solid var(--line);}
+        .libroom-root .inv-tabs{display:flex;gap:4px;overflow-x:auto;scroll-behavior:smooth;-ms-overflow-style:none;scrollbar-width:none;}
+        .libroom-root .inv-tabs::-webkit-scrollbar{display:none;}
+        .libroom-root .inv-arrow{position:absolute;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:0;background:rgba(255,250,240,0.95);color:var(--fg);font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);z-index:2;transition:opacity .15s;}
+        .libroom-root .inv-arrow.left{left:2px;}.libroom-root .inv-arrow.right{right:2px;}
+        .libroom-root .inv-arrow.dim{opacity:.25;pointer-events:none;}
+        .libroom-root.theme-academia .inv-arrow{background:rgba(58,46,32,0.95);color:var(--fg);}
+        .libroom-root .inv-preview{position:relative;width:100%;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:linear-gradient(145deg,#ede0c8,#ddcbab);border:.5px solid rgba(0,0,0,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -4px 8px rgba(0,0,0,.04);}
+        .libroom-root .inv-preview::before{content:'';position:absolute;inset:8px;border-radius:7px;background:linear-gradient(145deg,#f0e3cd,#e4d3b8);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 6px rgba(0,0,0,.06);}
+        .libroom-root .inv-preview-inner{position:absolute;left:50%;top:58%;transform-origin:center;pointer-events:none;}
+        .libroom-root .inv-preview-inner .furniture{position:relative;}
+        .libroom-root .inv-preview-inner .shelf-nameplate,.libroom-root .inv-preview-inner .lamp-halo,.libroom-root .inv-preview-inner .candle-glow,.libroom-root .inv-preview-inner .furn-shadow{display:none!important;}
+        .libroom-root .inv-tab{appearance:none;border:0;background:transparent;padding:6px 10px;border-radius:999px;cursor:pointer;font:500 11.5px var(--sans);color:var(--muted);white-space:nowrap;}
+        .libroom-root .inv-tab.on{background:var(--fg);color:var(--cream);}
+        .libroom-root.theme-academia .inv-tab.on{background:var(--accent);color:white;}
+        .libroom-root .inv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px;overflow-y:auto;min-height:0;}
+        .libroom-root .inv-card{border-radius:10px;padding:6px;cursor:grab;background:rgba(255,250,240,0.5);border:.5px solid var(--line);transition:transform .15s,box-shadow .15s;text-align:center;}
+        .libroom-root.theme-academia .inv-card{background:rgba(240,228,200,0.05);}
+        .libroom-root .inv-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1);}
+        .libroom-root .inv-card.locked{opacity:.5;cursor:not-allowed;}
+        .libroom-root .inv-card:active{cursor:grabbing;}
+        .libroom-root .inv-thumb{aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:4px;}
+        .libroom-root .inv-name{font-size:10.5px;font-weight:500;color:var(--fg);line-height:1.2;}
+        .libroom-root .inv-lock{font-size:9px;color:var(--muted);margin-top:2px;}
+        .libroom-root .inv-hint{padding:8px 14px;font-size:10.5px;color:var(--muted);text-align:center;border-top:.5px solid var(--line);letter-spacing:.02em;}
+        .libroom-root .inv-empty{grid-column:1/-1;padding:28px 16px;text-align:center;}
+        .libroom-root .inv-empty-icon{font-size:32px;margin-bottom:8px;opacity:.7;}
+        .libroom-root .inv-empty-title{font-family:var(--serif);font-size:15px;font-weight:500;margin-bottom:4px;}
+
+        /* Edit banner & drag ghost */
+        .libroom-root .edit-banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;font:500 12px var(--sans);padding:7px 16px;border-radius:999px;box-shadow:0 6px 20px rgba(201,138,90,.4);z-index:36;display:flex;align-items:center;gap:10px;}
+        .libroom-root .edit-banner button{appearance:none;border:0;background:rgba(255,255,255,.2);color:white;padding:3px 10px;border-radius:999px;font:500 11px var(--sans);cursor:pointer;}
+        .libroom-root .edit-banner button:hover{background:rgba(255,255,255,.3);}
+        .libroom-root .drag-ghost{position:fixed;pointer-events:none;z-index:9999;opacity:.7;transform:translate(-50%,-100%);filter:drop-shadow(0 6px 10px rgba(0,0,0,.25));}
+        .libroom-root .drag-ghost.hanging{transform:translate(-50%,0);}
+        .libroom-root .drag-ghost .shelf-nameplate,.libroom-root .drag-ghost .lamp-halo,.libroom-root .drag-ghost .candle-glow{display:none!important;}
+
+        /* Toolbar */
+        .libroom-root .toolbar{position:absolute;left:20px;right:20px;bottom:20px;display:flex;gap:16px;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--card);backdrop-filter:blur(30px);border-radius:999px;border:.5px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.15);z-index:25;}
+        .libroom-root .tb-group{display:flex;gap:6px;align-items:center;}
+        .libroom-root .tb-center{flex:1;justify-content:center;}
+        .libroom-root .tb-btn{appearance:none;border:0;padding:8px 14px;border-radius:999px;font:500 12.5px var(--sans);cursor:pointer;background:transparent;color:var(--fg);display:inline-flex;align-items:center;gap:6px;}
+        .libroom-root .tb-btn.primary{background:var(--fg);color:var(--cream);}
+        .libroom-root.theme-academia .tb-btn.primary{background:var(--accent);color:white;}
+        .libroom-root .tb-btn.primary:hover{background:var(--accent-2);color:white;}
+        .libroom-root .tb-btn.ghost{background:transparent;color:var(--muted);padding:8px;font-size:16px;border-radius:50%;width:32px;height:32px;justify-content:center;}
+        .libroom-root .tb-btn:hover:not(.primary){background:rgba(42,36,24,0.08);}
+        .libroom-root.theme-academia .tb-btn:hover:not(.primary){background:rgba(240,228,200,0.08);}
+        .libroom-root .tb-icon{font-size:14px;}
+        .libroom-root .tb-chip{appearance:none;border:0;padding:6px 12px;border-radius:999px;font:500 11.5px var(--sans);cursor:pointer;background:transparent;color:var(--muted);display:inline-flex;align-items:center;gap:4px;}
+        .libroom-root .tb-chip.on{background:rgba(201,138,90,0.18);color:var(--accent-2);}
+        .libroom-root .tb-chip:hover:not(.on){background:rgba(42,36,24,0.06);color:var(--fg);}
+        .libroom-root .tb-divider{width:.5px;height:20px;background:var(--line);}
+        .libroom-root .tb-time{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--muted);}
+        .libroom-root .tb-time input{width:90px;accent-color:var(--accent);}
+        .libroom-root .tb-streak{font-size:12px;color:var(--muted);padding:6px 10px;background:rgba(201,138,90,0.12);border-radius:999px;}
+        .libroom-root .tb-streak b{color:var(--accent-2);font-weight:600;}
+        .libroom-root.theme-academia .tb-streak b{color:var(--accent);}
+        .libroom-root .tb-privacy{font-size:11.5px;color:var(--muted);padding:6px 10px;border:.5px solid var(--line);border-radius:999px;display:inline-flex;align-items:center;gap:4px;text-transform:capitalize;}
+
+        /* Art */
+        .libroom-root .art-frame{border:8px solid #6a4a3a;box-shadow:4px 4px 0 #4a3020,inset 0 0 12px rgba(0,0,0,.2);}
+        .libroom-root .art-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;}
     </style>
     <!-- QuaggaJS for Barcode Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
@@ -4281,13 +4507,14 @@
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '2.6.2';
+        const APP_VERSION = '3.1.0';
         const WHATS_NEW = {
-            version: '2.6.2',
-            type: 'bugfix',
+            version: '3.1.0',
+            type: 'feature',
             items: [
-                'Set books-per-board when creating a shelf — no more post-creation adjustments',
-                'Changing books-per-board now repacks all books to the new grid automatically',
+                'My Room — isometric library room with drag-and-drop furniture placement',
+                'Your real bookshelves and books appear inside your 3D room',
+                'Room state persists to the cloud; visitors can explore read-only',
             ]
         };
 
@@ -4351,6 +4578,1645 @@
                 )}
             </div>
         );
+
+
+        // ══════════════════════════════════════════════════════════════════════
+        // ROOM COMPONENTS — v3.1.0 Isometric Library Room
+        // tweaks-panel.jsx · furniture.jsx · panels.jsx · scene.jsx
+        // ══════════════════════════════════════════════════════════════════════
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+  .twk-field{appearance:none;width:100%;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;height:22px;
+    border-radius:6px;cursor:default;padding:0}
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+  .twk-num{display:flex;align-items:center;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+`;
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  const setTweak = React.useCallback((key, val) => {
+    setValues((prev) => ({ ...prev, [key]: val }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: val } }, '*');
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ title = 'Tweaks', children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = { x: startRight - (ev.clientX - sx), y: startBottom - (ev.clientY - sy) };
+      clampToViewport();
+    };
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks" onMouseDown={(e) => e.stopPropagation()} onClick={dismiss}>✕</button>
+        </div>
+        <div className="twk-body">{children}</div>
+      </div>
+    </>
+  );
+}
+
+function TweakSection({ label, children }) {
+  return (<><div className="twk-sect">{label}</div>{children}</>);
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value} onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => { if (!trackRef.current) return; const v = segAt(ev.clientX); if (v !== valueRef.current) onChange(v); };
+    const up = () => { setDragging(false); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`, width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>{o.label}</button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => { const v = typeof o === 'object' ? o.value : o; const l = typeof o === 'object' ? o.label : o; return <option key={v} value={v}>{l}</option>; })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => { if (min != null && n < min) return min; if (max != null && n > max) return max; return n; };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => { const dx = ev.clientX - startRef.current.x; const raw = startRef.current.val + dx * step; const snapped = Math.round(raw / step) * step; onChange(clamp(Number(snapped.toFixed(decimals)))); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step} onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+function TweakColor({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <input type="color" className="twk-swatch" value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'} onClick={onClick}>{label}</button>
+  );
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+});
+
+// furniture.jsx — Isometric sprite components.
+function tileToIso(x, y, tileSize) {
+  const isoX = (x - y) * tileSize * 0.5;
+  const isoY = (x + y) * tileSize * 0.25;
+  return { left: isoX, top: isoY };
+}
+
+function BookSpine({ book, onClick, highlighted, selected }) {
+  const h = 64 * book.height;
+  const w = 40 * book.width + 6;
+  const readingBookmark = book.status === 'reading';
+  return (
+    <button className="book-spine" onClick={onClick} title={book.title} style={{
+      width: w, height: h,
+      background: `linear-gradient(180deg, ${book.spine}, ${shade(book.spine, -12)})`,
+      boxShadow: selected ?
+        '0 0 0 2px #c98a5a, 0 3px 8px rgba(0,0,0,.3)' :
+        highlighted ?
+        '0 0 0 1.5px rgba(217,138,90,.7), 0 2px 4px rgba(0,0,0,.2)' :
+        'inset -2px 0 4px rgba(0,0,0,.25), inset 1px 0 0 rgba(255,255,255,.15), 0 2px 3px rgba(0,0,0,.15)'
+    }}>
+      <span className="book-spine-title" style={{ color: textOn(book.spine) }}>{truncate(book.title, 18)}</span>
+      {readingBookmark && <span className="book-bookmark" />}
+    </button>
+  );
+}
+
+function shade(hex, pct) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16 & 0xff) + pct));
+  const g = Math.max(0, Math.min(255, (n >> 8 & 0xff) + pct));
+  const b = Math.max(0, Math.min(255, (n & 0xff) + pct));
+  return '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
+}
+function textOn(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const lum = 0.299 * (n >> 16 & 0xff) + 0.587 * (n >> 8 & 0xff) + 0.114 * (n & 0xff);
+  return lum > 140 ? 'rgba(40,30,20,.75)' : 'rgba(255,248,235,.8)';
+}
+function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+function Shelf({ item, style, shelf, books, onClickShelf, selected, dragging }) {
+  const widthPx = style.w * 56;
+  const heightPx = style.h * 32;
+  const wood = {
+    'shelf-tall-oak':    { body: '#b88a5a', dark: '#7a5a3a', shelves: 3 },
+    'shelf-wide-walnut': { body: '#6a4a3a', dark: '#4a2e20', shelves: 3 },
+    'shelf-short-oak':   { body: '#c8a070', dark: '#8a6a4a', shelves: 2 },
+    'shelf-glass':       { body: '#d4c8b0', dark: '#8a7a5a', shelves: 4 },
+    'shelf-ladder':      { body: '#d4a878', dark: '#8a6a4a', shelves: 4 }
+  }[style.styleId] || { body: '#b88a5a', dark: '#7a5a3a', shelves: 3 };
+  const shelfBooks = (shelf?.bookIds || []).map((id) => books.find((b) => b.id === id)).filter(Boolean);
+  const booksPerShelf = Math.ceil(shelfBooks.length / wood.shelves);
+  return (
+    <div className={'furniture shelf' + (selected ? ' selected' : '') + (dragging ? ' dragging' : '')}
+         onClick={(e) => { e.stopPropagation(); onClickShelf(item, shelf); }}
+         style={{ width: widthPx, height: heightPx + 90 }}>
+      <div className="shelf-body" style={{
+        width: widthPx, height: heightPx + 80,
+        background: `linear-gradient(180deg, ${wood.body}, ${wood.dark})`,
+        boxShadow: `inset -6px 0 12px ${wood.dark}, inset 0 -4px 6px rgba(0,0,0,.3), 0 6px 12px rgba(0,0,0,.2)`
+      }}>
+        {Array.from({ length: wood.shelves }).map((_, i) => {
+          const shelfRow = shelfBooks.slice(i * booksPerShelf, (i + 1) * booksPerShelf);
+          return (
+            <div key={i} className="shelf-row" style={{ bottom: 10 + i * ((heightPx + 60) / wood.shelves), background: wood.dark }}>
+              <div className="shelf-books">
+                {shelfRow.map((b) => (
+                  <div key={b.id} className="shelf-book-mini" style={{
+                    height: 28 + 18 * b.height, width: 6 + 10 * b.width,
+                    background: `linear-gradient(180deg, ${b.spine}, ${shade(b.spine, -15)})`
+                  }} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        <div className="shelf-nameplate">{shelf?.name || 'Empty shelf'}</div>
+      </div>
+      <div className="furn-shadow" style={{ width: widthPx * 0.9 }} />
+    </div>
+  );
+}
+
+function Armchair({ item, style }) {
+  const color = style.styleId === 'armchair-cream' ? '#ede3d0' : style.styleId === 'armchair-rose' ? '#c88888' : '#9fb0a0';
+  const top = shade(color, 8); const right = shade(color, -10); const left = shade(color, -20);
+  return (
+    <div className="furniture armchair" style={{ width: 96, height: 110 }}>
+      <svg viewBox="0 0 96 110" width="96" height="110">
+        <polygon points="88,72  88,88  48,108  48,92" fill={right} />
+        <polygon points="8,72   8,88   48,108  48,92" fill={left} />
+        <polygon points="48,56  88,72  48,92  8,72" fill={top} />
+        <polygon points="48,56  8,72   8,24   48,8" fill={shade(color, -8)} />
+        <polygon points="48,56  88,72  88,24  48,8" fill={shade(color, -18)} />
+        <polygon points="48,8  88,24  84,26  48,12  12,26  8,24" fill={shade(color, 14)} />
+        <polygon points="68,64  88,72  88,60  68,52" fill={top} />
+        <polygon points="68,64  88,72  88,80  68,72" fill={right} />
+        <polygon points="28,64  8,72   8,60   28,52" fill={top} />
+        <polygon points="28,64  8,72   8,80   28,72" fill={left} />
+        <polygon points="48,62  76,74  48,84  20,74" fill={shade(color, 14)} opacity=".7" />
+      </svg>
+    </div>
+  );
+}
+
+function Sofa({ item, style }) {
+  const color = style.styleId === 'sofa-sage' ? '#a3b598' : '#c88888';
+  const top = shade(color, 8); const right = shade(color, -10); const left = shade(color, -20);
+  return (
+    <div className="furniture sofa" style={{ width: 184, height: 110 }}>
+      <svg viewBox="0 0 184 110" width="184" height="110">
+        <polygon points="176,72  176,88  92,106  92,90" fill={right} />
+        <polygon points="8,72    8,88    92,106  92,90" fill={left} />
+        <polygon points="92,54   176,72  92,90   8,72" fill={top} />
+        <polygon points="92,54   8,72    8,22    92,4" fill={shade(color, -8)} />
+        <polygon points="92,54   176,72  176,22  92,4" fill={shade(color, -18)} />
+        <polygon points="92,4    176,22  172,24  92,8    12,24   8,22" fill={shade(color, 14)} />
+        <polygon points="30,63   8,72    8,60    30,51" fill={top} />
+        <polygon points="30,63   8,72    8,80    30,72" fill={right} />
+        <polygon points="154,63  176,72  176,60  154,51" fill={top} />
+        <polygon points="154,63  176,72  176,80  154,72" fill={left} />
+        <polygon points="40,68   78,79   40,86   12,75" fill={shade(color, 14)} opacity=".6" />
+        <polygon points="92,64   130,75  92,86   52,75" fill={shade(color, 14)} opacity=".6" />
+        <polygon points="144,68  172,75  144,86  108,79" fill={shade(color, 14)} opacity=".6" />
+      </svg>
+    </div>
+  );
+}
+
+function BeanBag({ item, style }) {
+  return (
+    <div className="furniture beanbag" style={{ width: 80, height: 50 }}>
+      <svg viewBox="0 0 80 50" width="80" height="50">
+        <ellipse cx="40" cy="42" rx="34" ry="6" fill="#8a4a3a" />
+        <ellipse cx="40" cy="32" rx="34" ry="14" fill="#b86850" />
+        <ellipse cx="40" cy="22" rx="24" ry="10" fill="#d88868" />
+        <ellipse cx="32" cy="18" rx="8" ry="3" fill="#e8a888" opacity=".7" />
+      </svg>
+    </div>
+  );
+}
+
+function SideTable({ item, style }) {
+  const wood = '#a8824e', dark = '#7a5a36', mid = '#8a6a42';
+  return (
+    <div className="furniture sidetable" style={{ width: 60, height: 64 }}>
+      <svg viewBox="0 0 60 64" width="60" height="64">
+        <polygon points="56,24  56,28  30,40  30,36" fill={dark} />
+        <polygon points="4,24   4,28   30,40  30,36" fill={shade(dark, -6)} />
+        <polygon points="30,12  56,24  30,36  4,24" fill={wood} />
+        <polygon points="50,30  50,48  30,58  30,40" fill={mid} />
+        <polygon points="10,30  10,48  30,58  30,40" fill={shade(mid, -10)} />
+      </svg>
+    </div>
+  );
+}
+
+function FloorLamp({ item, style, daynight }) {
+  const on = daynight < 0.4 || daynight > 0.75;
+  return (
+    <div className="furniture floorlamp" style={{ width: 42, height: 174 }}>
+      <svg viewBox="14 28 44 156" width="42" height="174">
+        <ellipse cx="30" cy="184" rx="14" ry="3" fill="rgba(0,0,0,.25)" />
+        <ellipse cx="30" cy="180" rx="12" ry="3" fill="#8a6a3a" />
+        <rect x="28.5" y="60" width="3" height="120" fill="#a88a4a" />
+        <path d="M10 60 L50 60 L44 30 L16 30 Z" fill={on ? '#f5dc9a' : '#b8a070'} />
+        <path d="M10 60 L50 60 L44 30 L16 30 Z" fill={on ? 'url(#lampglow)' : 'transparent'} opacity=".8" />
+        <defs><radialGradient id="lampglow" cx="50%" cy="70%"><stop offset="0%" stopColor="#ffe9a8" /><stop offset="100%" stopColor="#e8b858" /></radialGradient></defs>
+      </svg>
+      {on && <div className="lamp-halo" />}
+    </div>
+  );
+}
+
+function TableLamp({ item, style, daynight }) {
+  const on = daynight < 0.4 || daynight > 0.75;
+  return (
+    <div className="furniture tablelamp" style={{ width: 30, height: 50 }}>
+      <svg viewBox="7 6 30 50" width="30" height="50">
+        <ellipse cx="22" cy="52" rx="10" ry="3" fill="rgba(0,0,0,.25)" />
+        <rect x="20" y="30" width="4" height="20" fill="#a88a4a" />
+        <path d="M8 30 L36 30 L30 8 L14 8 Z" fill={on ? '#f5e8c0' : '#d0c090'} />
+      </svg>
+      {on && <div className="lamp-halo small" />}
+    </div>
+  );
+}
+
+function Plant({ item, style }) {
+  if (style.styleId === 'fern-hanging') {
+    return (
+      <div className="furniture plant-hanging" style={{ width: 70, height: 120 }}>
+        <svg viewBox="0 0 70 120" width="70" height="120" style={{ width: "70px" }}>
+          <line x1="35" y1="0" x2="35" y2="40" stroke="#6a4a2a" strokeWidth="1.5" />
+          <ellipse cx="35" cy="50" rx="20" ry="8" fill="#6a4a2a" />
+          <ellipse cx="35" cy="46" rx="20" ry="8" fill="#8a6a3a" />
+          {[...Array(14)].map((_, i) => {
+            const a = i / 14 * Math.PI;
+            const x = 35 + Math.cos(a) * 18;
+            return <path key={i} d={`M${x} 50 Q${x + (i % 2 ? 6 : -6)} ${65 + i * 2} ${x + (i % 2 ? -4 : 8)} ${90 + i * 2}`} stroke={['#5a7a4a', '#6a8a5a', '#4a6a3a'][i % 3]} strokeWidth="3" fill="none" strokeLinecap="round" />;
+          })}
+        </svg>
+      </div>
+    );
+  }
+  if (style.styleId === 'succulent-set') {
+    return (
+      <div className="furniture plant-succ" style={{ width: 32, height: 30 }}>
+        <svg viewBox="10 12 32 32" width="32" height="32">
+          <ellipse cx="25" cy="42" rx="14" ry="2.5" fill="rgba(0,0,0,.2)" />
+          <path d="M10 36 L40 36 L36 26 L14 26 Z" fill="#c8a080" />
+          <g>
+            <circle cx="20" cy="22" r="5" fill="#6a8a5a" />
+            <circle cx="30" cy="20" r="6" fill="#7a9a6a" />
+            <circle cx="25" cy="16" r="4" fill="#8aa878" />
+          </g>
+          <defs><linearGradient id="potsh" x1="0" x2="1"><stop stopColor="#fff" /><stop offset="1" stopColor="#000" /></linearGradient></defs>
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="furniture plant-monstera" style={{ width: 50, height: 110 }}>
+      <svg viewBox="15 28 50 110" width="50" height="110">
+        <ellipse cx="40" cy="134" rx="22" ry="4" fill="rgba(0,0,0,.25)" />
+        <path d="M16 130 L64 130 L58 108 L22 108 Z" fill="#a8684a" />
+        <path d="M40 108 Q26 80 18 60 Q22 40 40 30 Q58 40 62 60 Q54 80 40 108 Z" fill="#4a7a4a" />
+        <path d="M40 108 Q32 74 32 48 M40 108 Q28 90 18 72 M40 108 Q52 90 62 72 M40 108 Q50 78 56 54" stroke="#3a5a3a" strokeWidth="1" fill="none" />
+        <defs><linearGradient id="mg" x1="0" x2="1"><stop stopColor="#fff" /><stop offset="1" stopColor="#000" /></linearGradient></defs>
+      </svg>
+    </div>
+  );
+}
+
+function Rug({ item, style }) {
+  const N = style.w; const M = style.d; const T = 56;
+  const p = (x, y) => ({ x: (x - y) * T / 2, y: (x + y) * T / 4 });
+  const c1 = p(0, 0), c2 = p(N, 0), c3 = p(N, M), c4 = p(0, M);
+  const minX = Math.min(c1.x, c2.x, c3.x, c4.x), maxX = Math.max(c1.x, c2.x, c3.x, c4.x);
+  const minY = Math.min(c1.y, c2.y, c3.y, c4.y), maxY = Math.max(c1.y, c2.y, c3.y, c4.y);
+  const w = maxX - minX, h = maxY - minY;
+  const off = (q) => `${q.x - minX},${q.y - minY}`;
+  const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const band = (t) => {
+    const center = { x: (c1.x + c3.x) / 2, y: (c1.y + c3.y) / 2 };
+    const ic1 = lerp(c1, center, t), ic2 = lerp(c2, center, t), ic3 = lerp(c3, center, t), ic4 = lerp(c4, center, t);
+    return `${off(ic1)} ${off(ic2)} ${off(ic3)} ${off(ic4)}`;
+  };
+  const palette = {
+    'rug-persian-warm': ['#a04a3a', '#d8a868', '#3a2a1a', '#c88858'],
+    'rug-sheepskin':    ['#f0e8d8', '#e8dccc', '#d8ccbc', '#f0e8d8'],
+    'rug-jute':         ['#c8a878', '#b89868', '#d8b888', '#a88858']
+  }[style.styleId] || ['#a04a3a', '#d8a868', '#3a2a1a', '#c88858'];
+  return (
+    <div className="furniture rug" style={{ width: w, height: h }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+        <polygon points={`${off(c1)} ${off(c2)} ${off(c3)} ${off(c4)}`} fill={palette[0]} />
+        <polygon points={band(0.10)} fill={palette[1]} />
+        <polygon points={band(0.22)} fill={palette[2]} />
+        <polygon points={band(0.35)} fill={palette[3]} />
+        {style.styleId === 'rug-persian-warm' && (
+          <g opacity=".5" transform={`translate(${w / 2} ${h / 2})`}>
+            <ellipse rx="14" ry="6" fill={palette[1]} />
+            <ellipse rx="5" ry="2.5" fill={palette[2]} />
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+}
+
+function Cat({ item, style }) {
+  const color = style.styleId === 'cat-tuxedo' ? '#2a2a2a' : '#d88848';
+  return (
+    <div className="furniture cat" style={{ width: 32, height: 32 }}>
+      <svg viewBox="3 9 36 32" width="32" height="32">
+        <ellipse cx="25" cy="42" rx="14" ry="3" fill="rgba(0,0,0,.25)" />
+        <ellipse cx="25" cy="32" rx="14" ry="9" fill={color} />
+        <circle cx="35" cy="22" r="7" fill={color} />
+        <polygon points="30,18 30,10 34,16" fill={color} />
+        <polygon points="40,18 40,10 36,16" fill={color} />
+        <circle cx="33" cy="22" r="1" fill="#1a1a1a" />
+        <circle cx="37" cy="22" r="1" fill="#1a1a1a" />
+        <path d="M34 25 Q35 26 36 25" stroke="#1a1a1a" strokeWidth=".8" fill="none" />
+        <path d="M12 32 Q8 38 4 30" stroke={color} strokeWidth="3" fill="none" strokeLinecap="round" />
+        {style.styleId === 'cat-tuxedo' && <ellipse cx="25" cy="34" rx="6" ry="5" fill="#f8f0e0" />}
+      </svg>
+    </div>
+  );
+}
+
+function Art({ item, style }) {
+  const style2 = {
+    'frame-botanical': { bg: '#e8dcc0' },
+    'frame-vintage':   { bg: '#d8c8a8' },
+    'mirror-oval':     { bg: '#d0dce4' },
+    'tapestry-woven':  { bg: '#b88868' }
+  }[style.styleId] || { bg: '#e8dcc0' };
+  const w = style.w * 50, h = style.h * 40;
+  return (
+    <div className="furniture art" style={{ width: w, height: h }}>
+      <div className="art-frame" style={{ width: w, height: h }}>
+        <div className="art-inner" style={{ background: style2.bg }}>
+          {style.styleId === 'frame-botanical' && <svg viewBox="0 0 60 80" width="100%" height="100%"><path d="M30 72 Q30 50 30 30 M30 50 Q22 44 18 38 M30 50 Q38 44 42 38 M30 38 Q24 32 20 26 M30 38 Q36 32 40 26" stroke="#5a7a4a" strokeWidth="1.5" fill="none" /><ellipse cx="18" cy="38" rx="4" ry="2" fill="#6a8a5a" /><ellipse cx="42" cy="38" rx="4" ry="2" fill="#6a8a5a" /><ellipse cx="20" cy="26" rx="3" ry="2" fill="#6a8a5a" /><ellipse cx="40" cy="26" rx="3" ry="2" fill="#6a8a5a" /></svg>}
+          {style.styleId === 'frame-vintage' && <svg viewBox="0 0 40 60" width="100%" height="100%"><circle cx="20" cy="22" r="8" fill="#d8b898" /><path d="M8 50 Q20 32 32 50 L32 60 L8 60 Z" fill="#8a5858" /></svg>}
+          {style.styleId === 'mirror-oval' && <svg viewBox="0 0 40 60" width="100%" height="100%"><ellipse cx="20" cy="30" rx="14" ry="22" fill="url(#mir)" /><defs><radialGradient id="mir"><stop stopColor="#f0f4f8" /><stop offset="1" stopColor="#a0b0bc" /></radialGradient></defs></svg>}
+          {style.styleId === 'tapestry-woven' && <svg viewBox="0 0 60 60" width="100%" height="100%">{[0, 1, 2, 3, 4].map((i) => <rect key={i} y={i * 12} width="60" height="10" fill={['#a04a3a', '#d8a868', '#3a2a1a', '#c88858', '#8a3828'][i]} opacity=".8" />)}</svg>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Window({ item, style, daynight }) {
+  const w = 110, h = 140;
+  const isNight = daynight < 0.2 || daynight > 0.85;
+  const isEvening = daynight > 0.7 && daynight <= 0.85;
+  const skyColor = isNight ? '#1a2540' : isEvening ? '#c88868' : daynight < 0.3 ? '#3a4a6a' : daynight < 0.5 ? '#a8b8c8' : '#b8c8d4';
+  const skyColor2 = isNight ? '#0a1024' : isEvening ? '#8a5850' : '#d8dce4';
+  return (
+    <div className="furniture window" style={{ width: w, height: h }}>
+      <div className="window-frame">
+        <div className="window-view" style={{ background: `linear-gradient(180deg, ${skyColor}, ${skyColor2})` }}>
+          <svg className="window-landscape" viewBox="0 0 170 220" width={w} height={h}>
+            <path d="M0 150 L30 130 L50 140 L70 120 L95 135 L120 118 L145 132 L170 125 L170 220 L0 220 Z" fill={isNight ? '#0a1024' : '#7a8a78'} opacity=".8" />
+            {isNight && [...Array(10)].map((_, i) => <circle key={i} cx={15 + i * 16} cy={20 + i % 3 * 12} r=".8" fill="#fff" opacity={.3 + i % 3 * .2} />)}
+            {isNight && <circle cx="130" cy="40" r="16" fill="#f0e4c0" opacity=".9" />}
+          </svg>
+          {style.styleId === 'window-rain' && <div className="rain" />}
+          {style.styleId === 'window-snow' && <div className="snow" />}
+        </div>
+        <div className="window-mullion-v" />
+        <div className="window-mullion-h" />
+        <div className="window-sill" />
+      </div>
+    </div>
+  );
+}
+
+function Trinket({ item, style }) {
+  if (style.styleId === 'mug-ceramic') {
+    return (
+      <div className="furniture trinket" style={{ width: 26, height: 30 }}>
+        <svg viewBox="0 0 26 30" width="26" height="30">
+          <ellipse cx="13" cy="28" rx="9" ry="2" fill="rgba(0,0,0,.2)" />
+          <path d="M5 10 L21 10 L19 26 L7 26 Z" fill="#f0e8d8" />
+          <ellipse cx="13" cy="10" rx="8" ry="2" fill="#d8c8a8" />
+          <path d="M20 14 Q24 16 22 20 Q20 22 19 20" fill="none" stroke="#d8c8a8" strokeWidth="2" />
+          <ellipse cx="13" cy="10.5" rx="6" ry="1.2" fill="#6a3a2a" />
+        </svg>
+      </div>
+    );
+  }
+  if (style.styleId === 'candle-amber') {
+    return (
+      <div className="furniture trinket candle" style={{ width: 22, height: 36 }}>
+        <svg viewBox="0 0 22 36" width="22" height="36">
+          <ellipse cx="11" cy="34" rx="8" ry="2" fill="rgba(0,0,0,.2)" />
+          <rect x="4" y="10" width="14" height="22" rx="2" fill="#d88848" />
+          <ellipse cx="11" cy="10" rx="7" ry="2" fill="#e89858" />
+          <path d="M11 10 L11 4" stroke="#3a2a1a" strokeWidth="1" />
+          <ellipse cx="11" cy="4" rx="2" ry="3" fill="#ffd080" />
+          <ellipse cx="11" cy="3" rx="1" ry="1.5" fill="#fff0c0" />
+        </svg>
+        <div className="candle-glow" />
+      </div>
+    );
+  }
+  if (style.styleId === 'globe-vintage') {
+    return (
+      <div className="furniture trinket" style={{ width: 36, height: 42 }}>
+        <svg viewBox="0 0 36 42" width="36" height="42">
+          <ellipse cx="18" cy="40" rx="12" ry="2" fill="rgba(0,0,0,.2)" />
+          <circle cx="18" cy="20" r="14" fill="#c88868" />
+          <path d="M6 20 Q18 14 30 20 M6 20 Q18 26 30 20 M18 6 Q24 20 18 34 M18 6 Q12 20 18 34" stroke="#6a3a2a" strokeWidth=".8" fill="none" />
+          <rect x="16" y="34" width="4" height="6" fill="#6a4a2a" />
+        </svg>
+      </div>
+    );
+  }
+  if (style.styleId === 'clock-mantel') {
+    return (
+      <div className="furniture trinket" style={{ width: 40, height: 50 }}>
+        <svg viewBox="0 0 40 50" width="40" height="50">
+          <ellipse cx="20" cy="48" rx="14" ry="2" fill="rgba(0,0,0,.2)" />
+          <path d="M6 16 Q20 8 34 16 L34 44 L6 44 Z" fill="#a8824a" />
+          <circle cx="20" cy="26" r="10" fill="#f0e4c0" />
+          <circle cx="20" cy="26" r="9" fill="none" stroke="#3a2a1a" strokeWidth=".5" />
+          <line x1="20" y1="26" x2="20" y2="19" stroke="#3a2a1a" strokeWidth="1.2" />
+          <line x1="20" y1="26" x2="24" y2="26" stroke="#3a2a1a" strokeWidth="1.2" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="furniture trinket" style={{ width: 32, height: 24 }}>
+      <svg viewBox="0 0 32 24" width="32" height="24">
+        <rect x="4" y="8" width="24" height="5" fill="#8a5a3a" />
+        <rect x="6" y="13" width="24" height="5" fill="#c88858" />
+        <rect x="4" y="18" width="24" height="5" fill="#6a4a2a" />
+      </svg>
+    </div>
+  );
+}
+
+function StringLights({ item, style }) {
+  return (
+    <div className="furniture stringlights" style={{ width: 260, height: 60 }}>
+      <svg viewBox="0 0 260 60" width="260" height="60">
+        <path d="M4 8 Q130 50 256 8" stroke="#6a4a3a" strokeWidth="1" fill="none" />
+        {[...Array(14)].map((_, i) => { const t = i / 13; const x = 4 + t * 252; const y = 8 + Math.sin(t * Math.PI) * 42; return <circle key={i} cx={x} cy={y} r="2.5" fill="#ffe090" opacity={.9} />; })}
+        {[...Array(14)].map((_, i) => { const t = i / 13; const x = 4 + t * 252; const y = 8 + Math.sin(t * Math.PI) * 42; return <circle key={'g' + i} cx={x} cy={y} r="6" fill="#ffe090" opacity={.15} />; })}
+      </svg>
+    </div>
+  );
+}
+
+function Furniture({ item, style, shelf, books, daynight, onClickShelf, selected, dragging }) {
+  if (!style) return null;
+  switch (item.type) {
+    case 'shelf': return <Shelf item={item} style={style} shelf={shelf} books={books} onClickShelf={onClickShelf} selected={selected} dragging={dragging} />;
+    case 'chair':
+      if (style.styleId.startsWith('sofa')) return <Sofa item={item} style={style} />;
+      if (style.styleId.startsWith('beanbag')) return <BeanBag item={item} style={style} />;
+      return <Armchair item={item} style={style} />;
+    case 'table': return <SideTable item={item} style={style} />;
+    case 'lamp':
+      if (style.styleId === 'floor-lamp-brass') return <FloorLamp item={item} style={style} daynight={daynight} />;
+      if (style.styleId === 'string-lights') return <StringLights item={item} style={style} />;
+      return <TableLamp item={item} style={style} daynight={daynight} />;
+    case 'plant': return <Plant item={item} style={style} />;
+    case 'rug': return <Rug item={item} style={style} />;
+    case 'pet': return <Cat item={item} style={style} />;
+    case 'art': return <Art item={item} style={style} />;
+    case 'window': return <Window item={item} style={style} daynight={daynight} />;
+    case 'trinket': return <Trinket item={item} style={style} />;
+    default: return null;
+  }
+}
+
+Object.assign(window, { Furniture, BookSpine, tileToIso, shade });
+
+// panels.jsx — Inventory catalog, shelf detail, book detail, toolbar.
+function Inventory({ open, onClose, catalog, onAdd, onStartPlacing }) {
+  const [active, setActive] = React.useState('My Shelves');
+  const tabsRef = React.useRef(null);
+  const [canL, setCanL] = React.useState(false);
+  const [canR, setCanR] = React.useState(false);
+  const cat = catalog.find((c) => c.category === active) || catalog[0];
+  const updateArrows = React.useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    setCanL(el.scrollLeft > 4);
+    setCanR(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+  React.useEffect(() => {
+    updateArrows();
+    const el = tabsRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateArrows);
+    window.addEventListener('resize', updateArrows);
+    return () => { el.removeEventListener('scroll', updateArrows); window.removeEventListener('resize', updateArrows); };
+  }, [updateArrows, open]);
+  const scrollBy = (dx) => tabsRef.current?.scrollBy({ left: dx, behavior: 'smooth' });
+  if (!open) return null;
+  return (
+    <div className="inv-panel">
+      <div className="inv-head">
+        <h3>Catalog</h3>
+        <button className="inv-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="inv-tabs-wrap">
+        <button className={'inv-arrow left' + (canL ? '' : ' dim')} onClick={() => scrollBy(-140)} aria-label="Scroll categories left">‹</button>
+        <div className="inv-tabs" ref={tabsRef}>
+          {catalog.map((c) => (
+            <button key={c.category} className={'inv-tab' + (c.category === active ? ' on' : '')} onClick={() => setActive(c.category)}>
+              {c.category}
+            </button>
+          ))}
+        </div>
+        <button className={'inv-arrow right' + (canR ? '' : ' dim')} onClick={() => scrollBy(140)} aria-label="Scroll categories right">›</button>
+      </div>
+      <div className="inv-grid">
+        {cat.items.length === 0 && active === 'My Shelves' && (
+          <div className="inv-empty">
+            <div className="inv-empty-icon">📚</div>
+            <div className="inv-empty-title">Your shelves will appear here</div>
+            <div className="inv-empty-sub">Once connected, the bookshelves you've set up in the 2D library will sync here, ready to place in your room.</div>
+          </div>
+        )}
+        {cat.items.map((it) => (
+          <div key={it.styleId}
+            className={'inv-card' + (it.locked ? ' locked' : '')}
+            draggable={!it.locked}
+            onDragStart={(e) => {
+              if (it.locked) return;
+              const empty = document.createElement('div');
+              empty.style.width = '1px'; empty.style.height = '1px'; empty.style.opacity = '0';
+              document.body.appendChild(empty);
+              try { e.dataTransfer.setDragImage(empty, 0, 0); } catch (err) {}
+              setTimeout(() => empty.remove(), 0);
+              onStartPlacing(e, it);
+            }}
+            onDoubleClick={() => !it.locked && onAdd(it)}
+          >
+            <div className="inv-thumb"><InventoryPreview item={it} /></div>
+            <div className="inv-name">{it.name}</div>
+            {it.locked && <div className="inv-lock">🔒 Streak 60</div>}
+          </div>
+        ))}
+      </div>
+      <div className="inv-hint">drag from a card to place · double-click to drop in center</div>
+    </div>
+  );
+}
+
+function InventoryPreview({ item }) {
+  const fakeItem = { id: 'prev_' + item.styleId, type: item.type, styleId: item.styleId, x: 0, y: 0, rotation: 0 };
+  const ref = React.useRef(null);
+  const [scale, setScale] = React.useState(1);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const sprite = el.querySelector('.furniture');
+    if (!sprite) return;
+    const w = sprite.offsetWidth || 100;
+    const h = sprite.offsetHeight || 100;
+    const boxW = el.clientWidth - 14;
+    const boxH = el.clientHeight - 14;
+    const s = Math.min(boxW / w, boxH / h, 1.15);
+    setScale(s);
+  }, [item.styleId]);
+  return (
+    <div className="inv-preview" ref={ref}>
+      <div className="inv-preview-inner" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
+        <Furniture
+          item={fakeItem} style={item} shelf={null} books={[]}
+          daynight={0.5} onClickShelf={() => {}} selected={false} dragging={false}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ShelfDetail({ shelf, books, onClose, onClickBook, selectedBookId }) {
+  if (!shelf) return null;
+  const shelfBooks = shelf.bookIds.map((id) => books.find((b) => b.id === id)).filter(Boolean);
+  const sorted = sortBooks(shelfBooks, shelf.sortBy);
+  return (
+    <div className="shelf-detail">
+      <div className="shelf-detail-head">
+        <div>
+          <div className="sd-label">Shelf</div>
+          <h2>{shelf.name}</h2>
+          <div className="sd-meta">
+            {shelfBooks.length} books · sorted by {shelf.sortBy}
+            <span className="sd-sync">⟳ synced with library</span>
+          </div>
+        </div>
+        <button className="sd-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="sd-books">
+        {sorted.map((b) => (
+          <BookSpine key={b.id} book={b} onClick={() => onClickBook(b)}
+            selected={selectedBookId === b.id} highlighted={false} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function sortBooks(books, mode) {
+  const copy = [...books];
+  if (mode === 'color') copy.sort((a, b) => hueOf(a.spine) - hueOf(b.spine));
+  else if (mode === 'height') copy.sort((a, b) => b.height - a.height);
+  else if (mode === 'recent') copy.sort((a, b) => (b.status === 'read' ? 1 : 0) - (a.status === 'read' ? 1 : 0));
+  return copy;
+}
+function hueOf(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 0xff) / 255, g = ((n >> 8) & 0xff) / 255, b = (n & 0xff) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max === min) return 0;
+  const d = max - min;
+  let h = 0;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return h * 60;
+}
+
+function BookDetail({ book, onClose }) {
+  if (!book) return null;
+  const pct = book.pages ? Math.round((book.pagesRead / book.pages) * 100) : 0;
+  const statusLabel = { read: 'Read', reading: 'Currently reading', tbr: 'To be read' }[book.status];
+  return (
+    <div className="book-detail">
+      <div className="bd-head">
+        <div className="bd-cover" style={{ background: `linear-gradient(145deg, ${book.spine}, ${shade(book.spine, -20)})` }}>
+          <div className="bd-cover-title">{book.title}</div>
+          <div className="bd-cover-author">{book.author}</div>
+        </div>
+        <button className="bd-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="bd-body">
+        <h2>{book.title}</h2>
+        <div className="bd-author">by {book.author}</div>
+        <div className="bd-chips">
+          <span className={'bd-chip status-' + book.status}>{statusLabel}</span>
+          <span className="bd-chip">{book.genre}</span>
+          {book.rating > 0 && <span className="bd-chip stars">{'★'.repeat(book.rating)}{'☆'.repeat(5 - book.rating)}</span>}
+        </div>
+        <div className="bd-progress">
+          <div className="bd-progress-label"><span>Progress</span><span>{book.pagesRead} / {book.pages} pages · {pct}%</span></div>
+          <div className="bd-progress-bar"><div style={{ width: pct + '%' }} /></div>
+        </div>
+        {book.notes && (
+          <div className="bd-notes">
+            <div className="bd-notes-label">Your notes</div>
+            <div>"{book.notes}"</div>
+          </div>
+        )}
+        <div className="bd-actions">
+          <button className="bd-btn primary">Open in library</button>
+          <button className="bd-btn">Edit</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Toolbar({ state, setState, account, onToggleInventory, onToggleRoomSettings, onResetRoom, onFullscreen, isFullscreen, editMode, onToggleEdit, editable }) {
+  const timeLabel = (() => {
+    const t = state.daynight;
+    if (t < 0.18) return '🌙 Late night';
+    if (t < 0.28) return '🌅 Dawn';
+    if (t < 0.45) return '☀︎ Morning';
+    if (t < 0.58) return '☀︎ Midday';
+    if (t < 0.72) return '☀︎ Afternoon';
+    if (t < 0.85) return '🌆 Dusk';
+    return '🌙 Evening';
+  })();
+  const privacyIcon = { public: '🌐', friends: '👥', private: '🔒' }[account.privacy];
+  return (
+    <div className="toolbar">
+      <div className="tb-group">
+        {editable && (
+          <>
+            <button className={'tb-btn primary' + (editMode ? ' on' : '')} onClick={onToggleEdit}>
+              <span className="tb-icon">✎</span> {editMode ? 'Done' : 'Edit room'}
+            </button>
+            {editMode && (
+              <button className="tb-btn" onClick={onToggleInventory}>
+                <span className="tb-icon">＋</span> Catalog
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      <div className="tb-group tb-center">
+        <button className={'tb-chip' + (state.gridVisible ? ' on' : '')} onClick={() => setState({ ...state, gridVisible: !state.gridVisible })}>⊞ Grid</button>
+        <button className={'tb-chip' + (state.snapToGrid ? ' on' : '')} onClick={() => setState({ ...state, snapToGrid: !state.snapToGrid })}>⟐ Snap</button>
+        <div className="tb-divider" />
+        <div className="tb-time">
+          <span>{timeLabel}</span>
+          <input type="range" min="0" max="1" step="0.01" value={state.daynight}
+            onChange={(e) => setState({ ...state, daynight: Number(e.target.value) })} />
+        </div>
+        <div className="tb-divider" />
+        <button className={'tb-chip' + (state.audioOn ? ' on' : '')} onClick={() => setState({ ...state, audioOn: !state.audioOn })}>
+          {state.audioOn ? '♪' : '♪̸'} Ambient
+        </button>
+      </div>
+      <div className="tb-group">
+        <div className="tb-streak">🔥 <b>{account.readingStreak}</b> day streak</div>
+        <div className="tb-privacy" title={`Room visibility: ${account.privacy}`}><span>{privacyIcon}</span> {account.privacy}</div>
+        <button className="tb-btn ghost" onClick={onFullscreen} title="Fullscreen">{isFullscreen ? '⤢' : '⛶'}</button>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Inventory, ShelfDetail, BookDetail, Toolbar });
+
+// scene.jsx — Isometric room: floor, walls, grid, item rendering, drag, zoom.
+function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
+  onClickShelf, selectedItemId, setSelectedItemId,
+  onDropCatalogItem, catalog, theme, zoom, onZoom,
+  editMode, books, shelves }) {
+  const sceneRef = React.useRef(null);
+  const stageRef = React.useRef(null);
+  const [dragItemId, setDragItemId] = React.useState(null);
+  const [pan, setPan] = React.useState({ x: 0, y: 0 });
+
+  const TILE = room.tileSize;
+  const W = room.size.w, D = room.size.d;
+  const isoW = (W + D) * TILE * 0.5;
+  const isoH = (W + D) * TILE * 0.25;
+  const wallH = 380;
+
+  const tileCenterToScreen = (tx, ty) => {
+    const sx = (tx - ty) * TILE * 0.5;
+    const sy = (tx + ty) * TILE * 0.25;
+    return { x: sx, y: sy };
+  };
+
+  const pxToTile = (clientX, clientY) => {
+    const rect = stageRef.current.getBoundingClientRect();
+    const cx = (clientX - rect.left - rect.width / 2) / zoom - pan.x;
+    const cy = (clientY - rect.top - rect.height / 2 - 40) / zoom - pan.y;
+    const tx = (cx / (TILE * 0.5) + cy / (TILE * 0.25)) / 2;
+    const ty = (cy / (TILE * 0.25) - cx / (TILE * 0.5)) / 2;
+    return { x: tx, y: ty };
+  };
+
+  const onItemPointerDown = (e, item) => {
+    e.stopPropagation();
+    if (item.onWall) return;
+    if (!editMode) return;
+    setDragItemId(item.id);
+    setSelectedItemId(item.id);
+    const isHanging = item.styleId === 'fern-hanging' || item.styleId === 'string-lights';
+    const startMouse = { x: e.clientX, y: e.clientY };
+    if (isHanging && item.pxX != null) {
+      const startPx = { x: item.pxX, y: item.pxY };
+      const move = (ev) => {
+        const dx = (ev.clientX - startMouse.x) / zoom;
+        const dy = (ev.clientY - startMouse.y) / zoom;
+        setRoom((r) => ({ ...r, items: r.items.map((it) => it.id === item.id ? { ...it, pxX: startPx.x + dx, pxY: startPx.y + dy } : it) }));
+      };
+      const up = () => { setDragItemId(null); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      return;
+    }
+    const startTile = { x: item.x, y: item.y };
+    const move = (ev) => {
+      const dx = (ev.clientX - startMouse.x) / zoom;
+      const dy = (ev.clientY - startMouse.y) / zoom;
+      const tileDx = (dx / (TILE * 0.5) + dy / (TILE * 0.25)) / 2;
+      const tileDy = (dy / (TILE * 0.25) - dx / (TILE * 0.5)) / 2;
+      let nx = startTile.x + tileDx, ny = startTile.y + tileDy;
+      if (snapToGrid) { nx = Math.round(nx); ny = Math.round(ny); }
+      nx = Math.max(0, Math.min(W, nx)); ny = Math.max(0, Math.min(D, ny));
+      setRoom((r) => ({ ...r, items: r.items.map((it) => it.id === item.id ? { ...it, x: nx, y: ny } : it) }));
+    };
+    const up = () => { setDragItemId(null); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const onWallItemPointerDown = (e, item) => {
+    e.stopPropagation();
+    if (!editMode) return;
+    setDragItemId(item.id);
+    setSelectedItemId(item.id);
+    const rect = stageRef.current.getBoundingClientRect();
+    const cursorScene = (cx, cy) => ({
+      x: (cx - rect.left - rect.width / 2) / zoom - pan.x,
+      y: (cy - rect.top - rect.height / 2 - 40) / zoom - pan.y,
+    });
+    const itemAnchorScene = (it) => {
+      if (it.onWall === 'north') {
+        const t = (it.x + 0.5) / W;
+        const sx = cBack.x + (cRight.x - cBack.x) * t;
+        const sy = cBack.y + (cRight.y - cBack.y) * t;
+        return { x: sx, y: sy - (it.wallY != null ? it.wallY : wallH * 0.35) };
+      } else {
+        const t = (it.x + 0.5) / D;
+        const sx = cBack.x + (cLeft.x - cBack.x) * t;
+        const sy = cBack.y + (cLeft.y - cBack.y) * t;
+        return { x: sx, y: sy - (it.wallY != null ? it.wallY : wallH * 0.35) };
+      }
+    };
+    const start = cursorScene(e.clientX, e.clientY);
+    const anchor0 = itemAnchorScene(item);
+    const grabOffset = { x: anchor0.x - start.x, y: anchor0.y - start.y };
+    const move = (ev) => {
+      const c = cursorScene(ev.clientX, ev.clientY);
+      const target = { x: c.x + grabOffset.x, y: c.y + grabOffset.y };
+      const wall = target.x >= cBack.x ? 'north' : 'west';
+      const wallLen = wall === 'north' ? W : D;
+      const endC = wall === 'north' ? cRight : cLeft;
+      const denom = endC.x - cBack.x;
+      const t = denom !== 0 ? (target.x - cBack.x) / denom : 0;
+      let along = t * wallLen - 0.5;
+      if (snapToGrid) along = Math.round(along);
+      along = Math.max(0, Math.min(wallLen - 1, along));
+      const ts = (along + 0.5) / wallLen;
+      const sy = cBack.y + (endC.y - cBack.y) * ts;
+      let nWallY = sy - target.y;
+      nWallY = Math.max(0, Math.min(wallH, nWallY));
+      setRoom((r) => ({ ...r, items: r.items.map((it) => it.id === item.id ? { ...it, onWall: wall, x: along, wallY: nWallY } : it) }));
+    };
+    const up = () => { setDragItemId(null); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    const data = e.dataTransfer.getData('application/x-catalog-item');
+    if (!data) return;
+    const cat = JSON.parse(data);
+    const pos = pxToTile(e.clientX, e.clientY);
+    const WALL_TYPES_HERE = new Set(['art', 'window']);
+    if (WALL_TYPES_HERE.has(cat.type)) {
+      const rect = stageRef.current.getBoundingClientRect();
+      const cx = (e.clientX - rect.left - rect.width / 2) / zoom - pan.x;
+      const cy = (e.clientY - rect.top - rect.height / 2 - 40) / zoom - pan.y;
+      const wall = pos.y < pos.x ? 'north' : 'west';
+      const cBackP = tileCenterToScreen(0, 0);
+      const cLeftP = tileCenterToScreen(0, D);
+      const cRightP = tileCenterToScreen(W, 0);
+      let along, wallY;
+      if (wall === 'north') {
+        const t = (cx - cBackP.x) / (cRightP.x - cBackP.x);
+        along = t * W - 0.5;
+        wallY = cBackP.y + (cRightP.y - cBackP.y) * t - cy;
+      } else {
+        const t = (cx - cBackP.x) / (cLeftP.x - cBackP.x);
+        along = t * D - 0.5;
+        wallY = cBackP.y + (cLeftP.y - cBackP.y) * t - cy;
+      }
+      if (snapToGrid) along = Math.round(along);
+      const wallLen = wall === 'north' ? W : D;
+      const itemW = cat.w || 2;
+      along = Math.max(itemW / 2, Math.min(wallLen - itemW / 2, along));
+      wallY = Math.max(0, Math.min(wallH, wallY));
+      onDropCatalogItem(cat, along, 0, { onWall: wall, wallY });
+    } else {
+      const isHanging = cat.styleId === 'fern-hanging' || cat.styleId === 'string-lights';
+      if (isHanging) {
+        const rect = stageRef.current.getBoundingClientRect();
+        const sx = (e.clientX - rect.left - rect.width / 2) / zoom - pan.x;
+        const sy = (e.clientY - rect.top - rect.height / 2 - 40) / zoom - pan.y;
+        onDropCatalogItem(cat, 0, 0, null, { pxX: sx, pxY: sy });
+      } else {
+        let x = pos.x - 0.5, y = pos.y - 0.5;
+        if (snapToGrid) { x = Math.round(x); y = Math.round(y); }
+        x = Math.max(0, Math.min(W - 1, x)); y = Math.max(0, Math.min(D - 1, y));
+        onDropCatalogItem(cat, x, y);
+      }
+    }
+  };
+
+  const onStageDown = (e) => {
+    if (e.target.closest('.item-wrap') || e.target.closest('.wall-item')) return;
+    if (e.target.closest('.zoom-controls')) return;
+    e.preventDefault();
+    const start = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+    let moved = false;
+    const move = (ev) => {
+      const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      setPan({ x: start.px + dx / zoom, y: start.py + dy / zoom });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!moved) setSelectedItemId(null);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  React.useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.0015;
+      const nz = Math.max(0.3, Math.min(2.5, zoom + delta * zoom));
+      onZoom(nz);
+    };
+    stage.addEventListener('wheel', onWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, [zoom, onZoom]);
+
+  const WALL_TYPES = new Set(['art', 'window']);
+
+  const getStyle = (item) => {
+    for (const c of catalog) for (const s of c.items) if (s.styleId === item.styleId) return s;
+    return { styleId: item.styleId, type: item.type, w: 2, d: 2, h: 2 };
+  };
+
+  const lightFilter = React.useMemo(() => {
+    const t = daynight;
+    if (t < 0.2) return 'brightness(.55) saturate(.7) hue-rotate(210deg)';
+    if (t < 0.3) return 'brightness(.72) saturate(.85) hue-rotate(30deg)';
+    if (t < 0.7) return 'brightness(1)';
+    if (t < 0.85) return 'brightness(.88) saturate(1.1) hue-rotate(-10deg)';
+    return 'brightness(.62) saturate(.75) hue-rotate(220deg)';
+  }, [daynight]);
+
+  const sortedItems = [...room.items].sort((a, b) => {
+    const aw = a.type === 'rug' ? -1 : 0, bw = b.type === 'rug' ? -1 : 0;
+    if (aw !== bw) return aw - bw;
+    return a.y + a.x - (b.y + b.x);
+  });
+  const wallItems = sortedItems.filter((i) => i.onWall);
+  const floorItems = sortedItems.filter((i) => !i.onWall);
+
+  const cBack = tileCenterToScreen(0, 0);
+  const cRight = tileCenterToScreen(W, 0);
+  const cFront = tileCenterToScreen(W, D);
+  const cLeft = tileCenterToScreen(0, D);
+
+  return (
+    <div ref={stageRef}
+      className={'room-stage-inner' + (gridVisible ? ' show-grid' : '')}
+      onContextMenu={(e) => e.preventDefault()}
+      onPointerDown={onStageDown}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onDrop}
+      style={{ filter: lightFilter, cursor: 'grab' }}>
+      <div ref={sceneRef} className="scene" style={{
+        position: 'absolute', left: '50%', top: '50%',
+        transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px + 40px)) scale(${zoom})`,
+        transformOrigin: 'center center'
+      }}>
+        <svg className="walls-svg" width={isoW + 100} height={isoH + wallH + 100}
+          style={{ position: 'absolute', left: -isoW / 2 - 50, top: -wallH - 50, pointerEvents: 'none' }}>
+          <defs>
+            <linearGradient id="wallNorth" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor={theme.wallColor} />
+              <stop offset="1" stopColor={shade(theme.wallColor, -14)} />
+            </linearGradient>
+            <linearGradient id="wallWest" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor={shade(theme.wallColor, -10)} />
+              <stop offset="1" stopColor={shade(theme.wallColor, -22)} />
+            </linearGradient>
+            <linearGradient id="floorGrad" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stopColor={theme.floorBase} />
+              <stop offset="1" stopColor={shade(theme.floorBase, -10)} />
+            </linearGradient>
+          </defs>
+          <g transform={`translate(${isoW / 2 + 50} ${wallH + 50})`}>
+            <polygon points={`${cBack.x},${cBack.y - wallH} ${cLeft.x},${cLeft.y - wallH} ${cLeft.x},${cLeft.y} ${cBack.x},${cBack.y}`} fill="url(#wallNorth)" />
+            <polygon points={`${cBack.x},${cBack.y - wallH} ${cRight.x},${cRight.y - wallH} ${cRight.x},${cRight.y} ${cBack.x},${cBack.y}`} fill="url(#wallWest)" />
+            <line x1={cBack.x} y1={cBack.y - wallH} x2={cBack.x} y2={cBack.y} stroke="rgba(0,0,0,.15)" strokeWidth="1" />
+            <polygon points={`${cBack.x},${cBack.y - 8} ${cLeft.x},${cLeft.y - 8} ${cLeft.x},${cLeft.y} ${cBack.x},${cBack.y}`} fill={shade(theme.wallColor, -28)} opacity=".85" />
+            <polygon points={`${cBack.x},${cBack.y - 8} ${cRight.x},${cRight.y - 8} ${cRight.x},${cRight.y} ${cBack.x},${cBack.y}`} fill={shade(theme.wallColor, -34)} opacity=".85" />
+            <polygon points={`${cBack.x},${cBack.y} ${cRight.x},${cRight.y} ${cFront.x},${cFront.y} ${cLeft.x},${cLeft.y}`} fill="url(#floorGrad)" />
+            {Array.from({ length: D + 1 }).map((_, yi) => {
+              const a = tileCenterToScreen(0, yi), b = tileCenterToScreen(W, yi);
+              return <line key={'p' + yi} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={theme.floorLine} strokeWidth=".6" opacity=".35" />;
+            })}
+            {Array.from({ length: W + 1 }).map((_, xi) => {
+              const a = tileCenterToScreen(xi, 0), b = tileCenterToScreen(xi, D);
+              return <line key={'q' + xi} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={theme.floorLine} strokeWidth=".3" opacity=".2" />;
+            })}
+            {gridVisible && Array.from({ length: W }).map((_, xi) =>
+              Array.from({ length: D }).map((_, yi) => {
+                const a = tileCenterToScreen(xi, yi), b = tileCenterToScreen(xi + 1, yi);
+                const c = tileCenterToScreen(xi + 1, yi + 1), d = tileCenterToScreen(xi, yi + 1);
+                return <polygon key={`g${xi}-${yi}`} points={`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`}
+                  fill="rgba(201,138,90,.06)" stroke="rgba(201,138,90,.5)" strokeDasharray="2 2" strokeWidth=".7" />;
+              })
+            )}
+            {daynight >= 0.25 && daynight <= 0.85 &&
+              <ellipse cx={cBack.x} cy={cBack.y + 80} rx="160" ry="50" fill="rgba(255,210,140,.25)" />
+            }
+          </g>
+        </svg>
+
+        <div className="wall-items">
+          {wallItems.map((item) => {
+            const st = getStyle(item);
+            const wallYpx = item.wallY != null ? item.wallY : wallH * 0.35;
+            let anchor;
+            if (item.onWall === 'north') {
+              const t = (item.x + 0.5) / W;
+              anchor = { x: cBack.x + (cRight.x - cBack.x) * t, y: cBack.y + (cRight.y - cBack.y) * t - wallYpx, skew: 'skewY(26.565deg)' };
+            } else {
+              const t = (item.x + 0.5) / D;
+              anchor = { x: cBack.x + (cLeft.x - cBack.x) * t, y: cBack.y + (cLeft.y - cBack.y) * t - wallYpx, skew: 'skewY(-26.565deg)' };
+            }
+            return (
+              <div key={item.id} className={'wall-item' + (selectedItemId === item.id ? ' selected' : '')}
+                style={{ left: anchor.x, top: anchor.y, transform: `translate(-50%, -100%) ${anchor.skew}`, transformOrigin: '50% 100%' }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (!editMode) { setSelectedItemId(item.id); return; }
+                  onWallItemPointerDown(e, item);
+                }}>
+                <Furniture item={item} style={st} daynight={daynight} />
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="items-layer">
+          {floorItems.map((item) => {
+            const st = getStyle(item);
+            const isHanging = item.styleId === 'fern-hanging' || item.styleId === 'string-lights';
+            const p = (isHanging && item.pxX != null)
+              ? { x: item.pxX, y: item.pxY }
+              : tileCenterToScreen(item.x + 0.5, item.y + 0.5);
+            const shelf = item.type === 'shelf'
+              ? shelves.find((s) => s.id === item.id)
+              : null;
+            const wrapTransform = isHanging ? 'translate(-50%, 0)' : (item.type === 'rug' ? 'translate(-50%, -50%)' : 'translate(-50%, -100%)');
+            return (
+              <div key={item.id}
+                className={'item-wrap' + (selectedItemId === item.id ? ' selected' : '') + (item.type === 'rug' ? ' rug-item' : '') + (isHanging ? ' hanging-item' : '')}
+                style={{ left: p.x, top: p.y, transform: wrapTransform, zIndex: Math.round((item.x + item.y) * 10), ['--rot']: (item.rotation || 0) % 360 + 'deg' }}
+                onPointerDown={(e) => onItemPointerDown(e, item)}>
+                <div className="item-rotor" style={{ transform: `rotate(${item.rotation || 0}deg)`, transformOrigin: 'center bottom' }}>
+                  <Furniture item={item} style={st} shelf={shelf}
+                    books={books} daynight={daynight}
+                    onClickShelf={onClickShelf}
+                    selected={selectedItemId === item.id}
+                    dragging={dragItemId === item.id} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {(daynight < 0.25 || daynight > 0.8) &&
+          <div className="night-overlay" style={{
+            opacity: daynight < 0.2 || daynight > 0.88 ? 0.42 : 0.22,
+            left: -isoW / 2 - 50, top: -wallH - 50, width: isoW + 100, height: isoH + wallH + 100
+          }} />
+        }
+
+        {(() => {
+          if (!selectedItemId) return null;
+          if (!editMode) return null;
+          const sel = room.items.find((i) => i.id === selectedItemId);
+          if (!sel) return null;
+          let pos;
+          if (sel.onWall) {
+            const t = (sel.x + 0.5) / W;
+            if (sel.onWall === 'north') {
+              pos = { x: cBack.x + (cRight.x - cBack.x) * t, y: cBack.y + (cRight.y - cBack.y) * t - wallH + 40 };
+            } else {
+              pos = { x: cBack.x + (cLeft.x - cBack.x) * t, y: cBack.y + (cLeft.y - cBack.y) * t - wallH + 40 };
+            }
+          } else {
+            const p = tileCenterToScreen(sel.x + 0.5, sel.y + 0.5);
+            pos = { x: p.x, y: p.y - 110 };
+          }
+          const rotateBy = (delta) => {
+            setRoom((r) => ({ ...r, items: r.items.map((i) => i.id === sel.id ? { ...i, rotation: (((i.rotation || 0) + delta) % 360 + 360) % 360 } : i) }));
+          };
+          const del = () => { setRoom((r) => ({ ...r, items: r.items.filter((i) => i.id !== sel.id) })); setSelectedItemId(null); };
+          return (
+            <div className="sel-toolbar" style={{ left: pos.x, top: pos.y }} onPointerDown={(e) => e.stopPropagation()}>
+              <button className="st-btn" title="Rotate left" onClick={() => rotateBy(-15)}>↺</button>
+              <button className="st-btn" title="Rotate right" onClick={() => rotateBy(15)}>↻</button>
+              <div className="st-sep" />
+              <button className="st-btn danger" title="Delete" onClick={del}>🗑</button>
+            </div>
+          );
+        })()}
+      </div>
+
+      <div className="zoom-controls">
+        <button onClick={() => onZoom(Math.min(2.5, zoom * 1.15))}>＋</button>
+        <div className="zoom-level">{Math.round(zoom * 100)}%</div>
+        <button onClick={() => onZoom(Math.max(0.3, zoom / 1.15))}>−</button>
+        <button className="zoom-reset" onClick={() => { onZoom(1); setPan({ x: 0, y: 0 }); }} title="Reset view">⟲</button>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Scene });
+
+        // ── Room constants ────────────────────────────────────────────────────
+
+        const ROOM_DEFAULT = {
+            size: { w: 12, d: 10 }, tileSize: 56, wallColor: '#e8dcc8', floorStyle: 'oak-plank', windowWall: 'north',
+            items: [
+                { id: 'chair1',     type: 'chair',   styleId: 'armchair-rose',    x: 4,   y: 5,   rotation: 45 },
+                { id: 'sidetable1', type: 'table',   styleId: 'sidetable-oak',    x: 6,   y: 5,   rotation: 0 },
+                { id: 'rug1',       type: 'rug',     styleId: 'rug-persian-warm', x: 3,   y: 4 },
+                { id: 'lamp1',      type: 'lamp',    styleId: 'floor-lamp-brass', x: 3,   y: 5,   rotation: 0 },
+                { id: 'plant1',     type: 'plant',   styleId: 'monstera',         x: 0,   y: 8,   rotation: 0 },
+                { id: 'plant2',     type: 'plant',   styleId: 'fern-hanging',     x: 11,  y: 8,   rotation: 0 },
+                { id: 'art1',       type: 'art',     styleId: 'frame-botanical',  x: 8,   y: 0,   rotation: 0, onWall: 'north' },
+                { id: 'cat1',       type: 'pet',     styleId: 'cat-orange',       x: 5,   y: 6,   rotation: 0 },
+                { id: 'mug1',       type: 'trinket', styleId: 'mug-ceramic',      x: 6,   y: 4.7, rotation: 0 },
+                { id: 'candle1',    type: 'trinket', styleId: 'candle-amber',     x: 6.4, y: 4.7, rotation: 0 },
+            ],
+            audio: { enabled: true, track: 'rain-fireplace', volume: 0.4 },
+            gridVisible: false,
+        };
+
+        const ROOM_CATALOG = [
+            { category: 'My Shelves', items: [] },
+            { category: 'Seating', items: [
+                { styleId: 'armchair-rose',      name: 'Rose Armchair',   type: 'chair', w: 2, d: 2, h: 2 },
+                { styleId: 'armchair-cream',     name: 'Cream Armchair',  type: 'chair', w: 2, d: 2, h: 2 },
+                { styleId: 'sofa-sage',          name: 'Sage Sofa',       type: 'chair', w: 4, d: 2, h: 2 },
+                { styleId: 'beanbag-terracotta', name: 'Bean Bag',        type: 'chair', w: 2, d: 2, h: 1 },
+                { styleId: 'chaise-velvet',      name: 'Velvet Chaise',   type: 'chair', w: 4, d: 2, h: 2, locked: true },
+            ]},
+            { category: 'Lighting', items: [
+                { styleId: 'floor-lamp-brass', name: 'Brass Floor Lamp', type: 'lamp', w: 1, d: 1, h: 4 },
+                { styleId: 'table-lamp-linen', name: 'Linen Table Lamp', type: 'lamp', w: 1, d: 1, h: 1 },
+                { styleId: 'string-lights',    name: 'String Lights',    type: 'lamp', w: 4, d: 0, h: 0 },
+                { styleId: 'candle-cluster',   name: 'Candle Cluster',   type: 'lamp', w: 1, d: 1, h: 0 },
+            ]},
+            { category: 'Plants', items: [
+                { styleId: 'monstera',     name: 'Monstera',       type: 'plant', w: 1, d: 1, h: 3 },
+                { styleId: 'fern-hanging', name: 'Hanging Fern',   type: 'plant', w: 1, d: 1, h: 2 },
+                { styleId: 'succulent-set',name: 'Succulent Trio', type: 'plant', w: 1, d: 1, h: 1 },
+                { styleId: 'olive-tree',   name: 'Olive Tree',     type: 'plant', w: 2, d: 2, h: 5, locked: true },
+            ]},
+            { category: 'Art & Decor', items: [
+                { styleId: 'frame-botanical', name: 'Botanical Print',  type: 'art', w: 2, d: 0, h: 2 },
+                { styleId: 'frame-vintage',   name: 'Vintage Portrait', type: 'art', w: 1, d: 0, h: 2 },
+                { styleId: 'mirror-oval',     name: 'Oval Mirror',      type: 'art', w: 1, d: 0, h: 2 },
+                { styleId: 'tapestry-woven',  name: 'Woven Tapestry',   type: 'art', w: 3, d: 0, h: 3 },
+            ]},
+            { category: 'Rugs', items: [
+                { styleId: 'rug-persian-warm', name: 'Persian Warm', type: 'rug', w: 4, d: 3 },
+                { styleId: 'rug-sheepskin',    name: 'Sheepskin',    type: 'rug', w: 3, d: 2 },
+                { styleId: 'rug-jute',         name: 'Jute',         type: 'rug', w: 5, d: 4 },
+            ]},
+            { category: 'Pets', items: [
+                { styleId: 'cat-orange', name: 'Marmalade Cat', type: 'pet', w: 1, d: 1, h: 1 },
+                { styleId: 'cat-tuxedo', name: 'Tuxedo Cat',    type: 'pet', w: 1, d: 1, h: 1 },
+                { styleId: 'dog-corgi',  name: 'Corgi',         type: 'pet', w: 1, d: 1, h: 1, locked: true },
+            ]},
+            { category: 'Windows', items: [
+                { styleId: 'window-rain',  name: 'Rainy Evening', type: 'window', w: 3, d: 0, h: 4 },
+                { styleId: 'window-sunny', name: 'Sunny Morning', type: 'window', w: 3, d: 0, h: 4 },
+                { styleId: 'window-snow',  name: 'Snowy Day',     type: 'window', w: 3, d: 0, h: 4, locked: true },
+            ]},
+            { category: 'Trinkets', items: [
+                { styleId: 'mug-ceramic',   name: 'Ceramic Mug',   type: 'trinket', w: 0, d: 0, h: 1 },
+                { styleId: 'candle-amber',  name: 'Amber Candle',  type: 'trinket', w: 0, d: 0, h: 1 },
+                { styleId: 'globe-vintage', name: 'Vintage Globe', type: 'trinket', w: 1, d: 1, h: 1 },
+                { styleId: 'clock-mantel',  name: 'Mantel Clock',  type: 'trinket', w: 1, d: 0, h: 1 },
+                { styleId: 'stack-books',   name: 'Stacked Books', type: 'trinket', w: 0, d: 0, h: 1 },
+            ]},
+        ];
+
+        // ── Live data helpers ─────────────────────────────────────────────────
+
+        const ROOM_STATUS_MAP = { 'finished': 'read', 'reading': 'reading', 'want-to-read': 'tbr', 'want': 'tbr' };
+
+        function bookSpineColor(book) {
+            const seed = book.isbn || book.title || book.id || 'x';
+            let h = 0;
+            for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff;
+            return 'hsl(' + (h % 360) + ',' + (35 + ((h >> 4) % 40)) + '%,' + (35 + ((h >> 8) % 30)) + '%)';
+        }
+        function bookSpineHeight(book) {
+            const pages = book.pages || book.pageCount || 0;
+            return pages ? Math.min(1.0, Math.max(0.80, 0.80 + (pages - 100) / 1800)) : 0.88;
+        }
+        function bookSpineWidth(book) {
+            const pages = book.pages || book.pageCount || 0;
+            return pages ? Math.min(0.32, Math.max(0.08, 0.08 + pages / 2500)) : 0.12;
+        }
+        function mapBooksToRoom(appBooks) {
+            return (appBooks || []).map(b => ({
+                id: b.id,
+                title: b.title || 'Untitled',
+                author: b.author || '',
+                spine: b.color || bookSpineColor(b),
+                height: bookSpineHeight(b),
+                width: bookSpineWidth(b),
+                status: ROOM_STATUS_MAP[b.userData && b.userData.status] || 'tbr',
+                rating: (b.userData && b.userData.rating) || 0,
+                pagesRead: 0,
+                pages: b.pages || b.pageCount || 0,
+                notes: (b.userData && b.userData.notes) || '',
+                genre: b.genre || '',
+            }));
+        }
+        function mapShelvesToRoom(appShelves, appBooks) {
+            return (appShelves || []).map(s => ({
+                id: s.id,
+                name: s.name || 'Untitled Shelf',
+                sortBy: 'manual',
+                bookIds: (appBooks || []).filter(b => b.shelf_id === s.id).map(b => b.id),
+                styleId: 'shelf-tall-oak',
+            }));
+        }
+        function rowToRoomState(row) {
+            if (!row) return ROOM_DEFAULT;
+            try {
+                const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+                if (data && Array.isArray(data.items)) return data;
+            } catch (e) {}
+            return ROOM_DEFAULT;
+        }
+
+        // ── LibraryRoom component ─────────────────────────────────────────────
+
+        function LibraryRoom({ books, shelves, account, roomRow, onRoomSave, editable }) {
+            const wrapperRef = React.useRef(null);
+            const [room, setRoom] = React.useState(() => rowToRoomState(roomRow));
+            const [theme, setTheme] = React.useState('cottage');
+            const [editMode, setEditMode] = React.useState(false);
+            const [inventoryOpen, setInventoryOpen] = React.useState(false);
+            const [selectedShelfId, setSelectedShelfId] = React.useState(null);
+            const [selectedBook, setSelectedBook] = React.useState(null);
+            const [selectedItemId, setSelectedItemId] = React.useState(null);
+            const [isFullscreen, setIsFullscreen] = React.useState(false);
+            const [dragGhost, setDragGhost] = React.useState(null);
+            const [state, setState] = React.useState({ daynight: 0.78, gridVisible: false, snapToGrid: false, audioOn: false });
+            const [zoom, setZoom] = React.useState(1);
+
+            React.useEffect(() => { if (!editable && editMode) setEditMode(false); }, [editable]);
+
+            React.useEffect(() => {
+                if (!onRoomSave) return;
+                const t = setTimeout(() => onRoomSave({ ...room, _theme: theme }), 500);
+                return () => clearTimeout(t);
+            }, [room, theme]);
+
+            React.useEffect(() => {
+                const fit = () => {
+                    const stage = wrapperRef.current?.querySelector('.room-stage');
+                    if (!stage) return;
+                    const s = Math.min(stage.clientWidth / 900, stage.clientHeight / 840) * 0.92;
+                    setZoom(Math.max(0.3, Math.min(2.5, s)));
+                };
+                fit();
+                window.addEventListener('resize', fit);
+                return () => window.removeEventListener('resize', fit);
+            }, []);
+
+            const THEMES = {
+                cottage:  { wallColor: '#e8dcc8', floorBase: '#d0a878', floorLine: '#8a6a42' },
+                academia: { wallColor: '#4a3a2a', floorBase: '#3a2a1a', floorLine: '#1a1008' },
+                modern:   { wallColor: '#e8e2d8', floorBase: '#c8b898', floorLine: '#8a7a5a' },
+            };
+            const themeData = THEMES[theme] || THEMES.cottage;
+
+            const roomBooks   = React.useMemo(() => mapBooksToRoom(books),            [books]);
+            const roomShelves = React.useMemo(() => mapShelvesToRoom(shelves, books),  [shelves, books]);
+
+            const liveCatalog = React.useMemo(() =>
+                ROOM_CATALOG.map(cat =>
+                    cat.category !== 'My Shelves' ? cat : {
+                        ...cat,
+                        items: roomShelves.map(s => ({ styleId: s.id, name: s.name, type: 'shelf', w: 2, d: 1, h: 4 })),
+                    }
+                ), [roomShelves]);
+
+            const onClickShelf = (item, shelf) => { setSelectedShelfId(shelf?.id || null); setSelectedBook(null); };
+            const onClickBook  = (book) => setSelectedBook(book);
+
+            const onDropCatalogItem = (catItem, x, y, wallInfo, hangingInfo) => {
+                const newId = catItem.type === 'shelf' ? catItem.styleId : (catItem.type + '_' + Date.now());
+                if (wallInfo) {
+                    setRoom(r => ({ ...r, items: [...r.items, { id: newId, type: catItem.type, styleId: catItem.styleId, x, y: 0, rotation: 0, onWall: wallInfo.onWall, wallY: wallInfo.wallY }] }));
+                } else if (hangingInfo) {
+                    setRoom(r => ({ ...r, items: [...r.items, { id: catItem.type + '_' + Date.now(), type: catItem.type, styleId: catItem.styleId, x: 0, y: 0, rotation: 0, pxX: hangingInfo.pxX, pxY: hangingInfo.pxY }] }));
+                } else {
+                    setRoom(r => ({ ...r, items: [...r.items, { id: newId, type: catItem.type, styleId: catItem.styleId, x, y, rotation: 0 }] }));
+                }
+            };
+
+            const onStartPlacing = (e, catItem) => {
+                e.dataTransfer.setData('application/x-catalog-item', JSON.stringify(catItem));
+                e.dataTransfer.effectAllowed = 'copy';
+                setDragGhost({ item: catItem, x: e.clientX, y: e.clientY });
+                const move = (ev) => setDragGhost(g => g ? { ...g, x: ev.clientX, y: ev.clientY } : null);
+                const end  = () => { setDragGhost(null); window.removeEventListener('dragover', move); window.removeEventListener('dragend', end); window.removeEventListener('drop', end); };
+                window.addEventListener('dragover', move);
+                window.addEventListener('dragend', end);
+                window.addEventListener('drop', end);
+            };
+
+            const onAdd = (catItem) => onDropCatalogItem(catItem, Math.floor(room.size.w / 2), Math.floor(room.size.d / 2));
+
+            const selectedShelf  = selectedShelfId ? roomShelves.find(s => s.id === selectedShelfId) : null;
+            const accountForRoom = {
+                displayName: account?.username || account?.email?.split('@')[0] || 'You',
+                privacy: 'friends',
+                readingStreak: 0,
+            };
+
+            return (
+                <div ref={wrapperRef} className={`libroom-root theme-${theme}${editMode ? ' edit-on' : ''}${isFullscreen ? ' fullscreen-mode' : ''}`}>
+                    <div className="room-stage">
+                        <Scene
+                            room={room} setRoom={setRoom} account={accountForRoom}
+                            daynight={state.daynight} gridVisible={state.gridVisible} snapToGrid={state.snapToGrid}
+                            selectedItemId={selectedItemId} setSelectedItemId={setSelectedItemId}
+                            onClickShelf={onClickShelf} onDropCatalogItem={onDropCatalogItem}
+                            catalog={liveCatalog} theme={themeData} zoom={zoom} onZoom={setZoom}
+                            editMode={editMode} books={roomBooks} shelves={roomShelves}
+                        />
+                    </div>
+                    {editMode && (
+                        <div className="edit-banner">
+                            ✎ Edit mode — drag items to rearrange
+                            <button onClick={() => { setEditMode(false); setInventoryOpen(false); }}>Done</button>
+                        </div>
+                    )}
+                    {dragGhost && (
+                        <div className={'drag-ghost' + ((dragGhost.item.styleId === 'fern-hanging' || dragGhost.item.styleId === 'string-lights') ? ' hanging' : '')}
+                             style={{ left: dragGhost.x, top: dragGhost.y }}>
+                            <Furniture
+                                item={{ id: '__ghost', type: dragGhost.item.type, styleId: dragGhost.item.styleId, x: 0, y: 0 }}
+                                style={dragGhost.item} shelf={null} books={roomBooks}
+                                daynight={state.daynight} onClickShelf={() => {}} selected={false} dragging={false}
+                            />
+                        </div>
+                    )}
+                    <Inventory
+                        open={inventoryOpen && editMode} onClose={() => setInventoryOpen(false)}
+                        catalog={liveCatalog} onAdd={onAdd} onStartPlacing={onStartPlacing}
+                    />
+                    {selectedShelf && (
+                        <ShelfDetail
+                            shelf={selectedShelf} books={roomBooks}
+                            onClose={() => { setSelectedShelfId(null); setSelectedBook(null); }}
+                            onClickBook={onClickBook} selectedBookId={selectedBook?.id}
+                        />
+                    )}
+                    {selectedBook && <BookDetail book={selectedBook} onClose={() => setSelectedBook(null)} />}
+                    <Toolbar
+                        state={state} setState={setState} account={accountForRoom}
+                        onToggleInventory={() => { if (!editMode) { setEditMode(true); setInventoryOpen(true); } else setInventoryOpen(o => !o); }}
+                        editMode={editMode}
+                        onToggleEdit={() => { if (!editable) return; const next = !editMode; setEditMode(next); setInventoryOpen(next); }}
+                        onToggleRoomSettings={() => {}} onResetRoom={() => setRoom(ROOM_DEFAULT)}
+                        onFullscreen={() => setIsFullscreen(f => !f)} isFullscreen={isFullscreen} editable={editable}
+                    />
+                </div>
+            );
+        }
 
         function App() {
             // ==========================================
@@ -4691,6 +6557,10 @@
             const [showUserMenu, setShowUserMenu] = useState(false);
             const [showWelcome, setShowWelcome] = useState(false);
 
+            // Room state
+            const [roomRow, setRoomRow] = useState(null);
+            const roomFetchedRef = React.useRef(false);
+
             // Close notification/account dropdowns when tapping anywhere outside them
             useEffect(() => {
                 if (!showNotifications && !showUserMenu) return;
@@ -4885,6 +6755,27 @@
                     return [];
                 }
             };
+
+            // Load room state from Supabase when Room tab first activates
+            useEffect(() => {
+                if (activeTab !== 'room' || !currentUser?.id || roomFetchedRef.current) return;
+                roomFetchedRef.current = true;
+                supabaseClient
+                    .from('rooms')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle()
+                    .then(({ data }) => setRoomRow(data || null));
+            }, [activeTab, currentUser]);
+
+            const handleRoomSave = React.useCallback((newRoomState) => {
+                if (!currentUser?.id) return;
+                supabaseClient
+                    .from('rooms')
+                    .upsert({ user_id: currentUser.id, room_state: newRoomState }, { onConflict: 'user_id' })
+                    .select()
+                    .then(({ data }) => { if (data?.[0]) setRoomRow(data[0]); });
+            }, [currentUser]);
 
             // Save books and shelves to Supabase whenever they change
             useEffect(() => {
@@ -11355,23 +13246,17 @@
 
                         </div>
 
-                        {/* My Room - Coming Soon */}
+                        {/* My Room — isometric 3D library room */}
                         {activeTab === 'room' && (
-                            <div style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '6rem 2rem',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{fontSize: '4rem', marginBottom: '1rem'}}>🏠</div>
-                                <h2 style={{fontFamily: 'Libre Baskerville, serif', fontSize: '2rem', color: '#3d2817', marginBottom: '0.75rem'}}>
-                                    My Room
-                                </h2>
-                                <p style={{fontSize: '1.1rem', color: '#8b6f47', maxWidth: '400px'}}>
-                                    Coming soon — your personal 3D library room is under construction.
-                                </p>
+                            <div style={{ position: 'fixed', top: '56px', left: 0, right: 0, bottom: 0, zIndex: 40 }}>
+                                <LibraryRoom
+                                    books={books}
+                                    shelves={shelves}
+                                    account={currentUser}
+                                    roomRow={roomRow}
+                                    onRoomSave={handleRoomSave}
+                                    editable={true}
+                                />
                             </div>
                         )}
 

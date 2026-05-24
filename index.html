@@ -6072,7 +6072,7 @@ Object.assign(window, { Scene });
         function rowToRoomState(row) {
             if (!row) return ROOM_DEFAULT;
             try {
-                const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+                const data = typeof row.room_state === 'string' ? JSON.parse(row.room_state) : row.room_state;
                 if (data && Array.isArray(data.items)) return data;
             } catch (e) {}
             return ROOM_DEFAULT;
@@ -6083,7 +6083,7 @@ Object.assign(window, { Scene });
         function LibraryRoom({ books, shelves, account, roomRow, onRoomSave, editable }) {
             const wrapperRef = React.useRef(null);
             const [room, setRoom] = React.useState(() => rowToRoomState(roomRow));
-            const [theme, setTheme] = React.useState('cottage');
+            const [theme, setTheme] = React.useState(() => { const d = rowToRoomState(roomRow); return d._theme || 'cottage'; });
             const [editMode, setEditMode] = React.useState(false);
             const [inventoryOpen, setInventoryOpen] = React.useState(false);
             const [selectedShelfId, setSelectedShelfId] = React.useState(null);

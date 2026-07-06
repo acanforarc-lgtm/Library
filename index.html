@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 4.0.1
+    YOUR LIBRARY - VERSION 4.1.0
     ========================================
+    v4.1.0: Security & speed — direct messages now truly end-to-end encrypted (NaCl box envelope in messages.content, legacy plaintext still readable); all CDN scripts version-pinned with SRI integrity hashes; iOS builds precompiled JSX (Babel removed from device); DB resilience SQL pack (core schema DDL, imports table, realtime publication) + Supabase keep-alive workflow
     v3.1.0: Isometric Library Room — CSS/SVG isometric room in the Room tab; furniture catalog drag-and-drop; shelf items wired to live books/shelves; Supabase rooms table; edit mode owner-only; read-only for visitors; lazy-mounted on tab activation
     v3.0.0: Library Import System — import from Goodreads CSV, Amazon Kindle CSV, or any generic CSV; auto-detects format; parallel ISBN + fuzzy-title matching against Google Books + Open Library; batched processing (10/batch, 250ms delay); duplicate detection fills blanks never overwrites; live progress bar; "Run in Background" option; summary screen with unmatched-row review flow; import history tracked in Supabase imports table
     v2.6.2: Books per board preset in create-shelf modal (saved to Supabase on creation); changing books-per-board repacks all existing book positions to the new grid so bindings always align correctly
@@ -4508,14 +4509,14 @@
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         // CI replaces the placeholder via sed; if it wasn't replaced (local dev), send no key at all
         const GBOOKS_KEY = (GOOGLE_BOOKS_API_KEY && !GOOGLE_BOOKS_API_KEY.startsWith('__')) ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '4.0.1';
+        const APP_VERSION = '4.1.0';
         const WHATS_NEW = {
-            version: '4.0.1',
+            version: '4.1.0',
             type: 'feature',
             items: [
-                'My Room — isometric 3D library room with drag-and-drop furniture placement',
-                'Your real bookshelves and books appear inside your 3D room',
-                'Room layout saves to the cloud; visitors can explore your room read-only',
+                'Direct messages are now end-to-end encrypted',
+                'Much faster app startup on iPhone',
+                'Reliability: pinned dependencies and database safeguards',
             ]
         };
 

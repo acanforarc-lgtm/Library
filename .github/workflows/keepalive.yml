@@ -1,0 +1,27 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase pauses projects after ~1 week without traffic.
+# This ping keeps the project awake; if it fails, the Actions failure
+# email doubles as an outage alert. The anon key is public by design
+# (it ships inside index.html); RLS is the security boundary.
+
+on:
+  schedule:
+    - cron: '17 9 * * 1,4'   # Mondays and Thursdays 09:17 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        run: |
+          KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxdXJrZ25vc3N2YWZ1anhsZWhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTM2MTIsImV4cCI6MjA4NzI2OTYxMn0.QVa-Hiqfhj3t1ui2DMdxWnVymOIqkSsPNzo0QHOy7oM"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+            -H "apikey: $KEY" \
+            "https://wqurkgnossvafujxlehq.supabase.co/rest/v1/book_cache?select=isbn&limit=1")
+          echo "Supabase responded HTTP $STATUS"
+          case "$STATUS" in
+            2*|401|403) exit 0 ;;   # reachable (auth outcomes still count as awake)
+            *) echo "Project unreachable — likely paused"; exit 1 ;;
+          esac

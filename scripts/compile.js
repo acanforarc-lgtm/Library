@@ -8,7 +8,10 @@ const path = require('path');
 const babel = require('@babel/core');
 
 const src  = path.join(__dirname, '..', 'index.html');
-const dist = path.join(__dirname, '..', 'dist');
+// Output dir: `--out www` for the Capacitor/iOS artifact; default `dist` for GitHub Pages
+const outArg = process.argv.indexOf('--out');
+const outName = outArg !== -1 && process.argv[outArg + 1] ? process.argv[outArg + 1] : 'dist';
+const dist = path.join(__dirname, '..', outName);
 const dest = path.join(dist, 'index.html');
 
 let html = fs.readFileSync(src, 'utf8');
@@ -47,4 +50,4 @@ fs.writeFileSync(dest, compiled, 'utf8');
 
 const orig = Buffer.byteLength(html, 'utf8');
 const out  = Buffer.byteLength(compiled, 'utf8');
-console.log(`Compiled → dist/index.html  (${(orig / 1024).toFixed(0)} KB → ${(out / 1024).toFixed(0)} KB, Babel runtime removed)`);
+console.log(`Compiled → ${outName}/index.html  (${(orig / 1024).toFixed(0)} KB → ${(out / 1024).toFixed(0)} KB, Babel runtime removed)`);

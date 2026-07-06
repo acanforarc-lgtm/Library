@@ -4,7 +4,7 @@
   "description": "Personal library catalog app",
   "private": true,
   "scripts": {
-    "build": "node scripts/build.js",
+    "build": "node scripts/compile.js --out www",
     "sync": "npx cap sync",
     "open:ios": "npx cap open ios"
   },

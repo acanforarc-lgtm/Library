@@ -26,7 +26,10 @@ workflows:
         script: npm install
 
       - name: Inject API key
-        script: sed -i '' "s/__GOOGLE_BOOKS_API_KEY__/$GOOGLE_BOOKS_API_KEY/g" index.html
+        script: |
+          # Prefer the iOS bundle-ID-restricted key when it exists; fall back to the web key
+          EFFECTIVE_KEY="${GOOGLE_BOOKS_API_KEY_IOS:-$GOOGLE_BOOKS_API_KEY}"
+          sed -i '' "s/__GOOGLE_BOOKS_API_KEY__/$EFFECTIVE_KEY/g" index.html
 
       - name: Build web assets
         script: npm run build

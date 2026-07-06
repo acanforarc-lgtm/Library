@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Library App — My Room</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5ede0;
+    --fg: #2a2418;
+    --muted: #7a6a52;
+    --accent: #c98a5a;      /* warm oak/terracotta */
+    --accent-2: #a3715a;
+    --rose: #c88888;
+    --sage: #9fb0a0;
+    --cream: #faf4e8;
+    --card: rgba(255, 250, 240, 0.78);
+    --line: rgba(42, 36, 24, 0.1);
+    --wall: #e8dcc8;
+    --floor-base: #d0a878;
+    --floor-line: #8a6a42;
+    --scene-scale: 1;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: var(--sans);
+    color: var(--fg);
+    background: radial-gradient(ellipse at 30% 20%, #f8f0e0, #e8dcc0 60%, #d4c0a0);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.theme-cottage {
+    --bg: #f5ede0; --wall: #e8dcc8; --floor-base: #d0a878; --floor-line: #8a6a42;
+    --accent: #c98a5a; --rose: #c88888; --sage: #9fb0a0;
+  }
+  body.theme-academia {
+    --bg: #2a2418; --fg: #f0e4c8; --muted: #c8b898;
+    --wall: #4a3a2a; --floor-base: #3a2a1a; --floor-line: #1a1008;
+    --accent: #b8894a; --rose: #8a5a4a; --sage: #6a7a5a;
+    --card: rgba(42, 36, 24, 0.78);
+    --cream: #2a2418;
+    --line: rgba(240, 228, 200, 0.15);
+    background: radial-gradient(ellipse at 30% 20%, #3a2e20, #1a1008 70%);
+  }
+  body.theme-modern {
+    --bg: #f5f2ee; --wall: #e8e2d8; --floor-base: #c8b898; --floor-line: #8a7a5a;
+    --accent: #a89878; --rose: #c8a4a0; --sage: #a8b4a0;
+    background: radial-gradient(ellipse at 30% 20%, #faf6f0, #ebe4d8 60%, #d8ccbc);
+  }
+
+  /* ── APP HEADER (simulates integration into real app) ── */
+  .app-chrome {
+    position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 40;
+    background: rgba(255, 250, 240, 0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid var(--line);
+    display: flex; align-items: center; padding: 0 20px; gap: 20px;
+  }
+  body.theme-academia .app-chrome {
+    background: rgba(26, 18, 10, .92);
+    border-bottom-color: rgba(240, 228, 200, .12);
+  }
+  .app-logo {
+    font-family: var(--serif); font-size: 20px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .app-logo em { font-style: italic; color: var(--accent); }
+  .app-nav { display: flex; gap: 4px; }
+  .app-nav button {
+    appearance: none; border: 0; background: transparent; color: var(--muted);
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    font: 500 13px var(--sans);
+  }
+  .app-nav button.active {
+    background: var(--accent); color: white;
+  }
+  .app-nav button:hover:not(.active) { background: rgba(201, 138, 90, 0.12); color: var(--fg); }
+  .app-user { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .app-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #c88888, #c98a5a);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 600; font-size: 13px;
+  }
+
+  /* ── ROOM STAGE ── */
+  .room-stage {
+    position: fixed; inset: 56px 0 0 0; overflow: hidden;
+  }
+  .room-stage-inner {
+    position: absolute; inset: 0; overflow: hidden;
+    transition: filter 1.2s ease;
+    touch-action: none;
+  }
+  .scene {
+    transition: transform .12s ease-out;
+    will-change: transform;
+  }
+
+  /* ── WALLS + FLOOR (via SVG) ── */
+  .walls-svg { overflow: visible; filter: drop-shadow(0 12px 30px rgba(0,0,0,.12)); }
+
+  .wall-items { position: absolute; inset: 0; pointer-events: none; }
+  .wall-item { position: absolute; pointer-events: auto; cursor: default; }
+  body.edit-on .wall-item { cursor: pointer; }
+  body.edit-on .wall-item.selected,
+  body.edit-on .wall-item:hover {
+    outline: 1px dashed rgba(201,138,90,.85); outline-offset: 2px;
+  }
+  .item-rotor { display: inline-block; }
+
+  /* Selection toolbar (rotate / delete) */
+  .sel-toolbar {
+    position: absolute; transform: translate(-50%, -100%);
+    display: flex; align-items: center; gap: 4px;
+    background: #2a201a; color: white;
+    padding: 5px 6px; border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.3);
+    z-index: 10000; pointer-events: auto;
+    font: 500 12px var(--sans);
+  }
+  .sel-toolbar::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: #2a201a; border-bottom: 0;
+  }
+  .st-btn {
+    appearance: none; border: 0; background: transparent;
+    color: white; cursor: pointer; padding: 4px 8px;
+    border-radius: 4px; font-size: 14px; line-height: 1;
+  }
+  .st-btn:hover { background: rgba(255,255,255,.12); }
+  .st-btn.danger:hover { background: #c84a3a; }
+  .st-sep { width: 1px; height: 16px; background: rgba(255,255,255,.2); margin: 0 2px; }
+
+  /* ── ITEMS ── */
+  .items-layer { position: absolute; left: 0; top: 0; }
+  /* Items anchor bottom-center to their tile (so they sit ON the floor) */
+  .item-wrap {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    cursor: grab;
+    transition: filter .2s;
+  }
+  /* Rugs lie flat: center them on the tile */
+  .item-wrap.rug-item { transform: translate(-50%, -50%); }
+  .item-wrap:hover { filter: brightness(1.08); }
+  .item-wrap.selected { filter: drop-shadow(0 0 0 2px var(--accent)) brightness(1.05); }
+  .item-wrap:active { cursor: grabbing; }
+
+  /* ── ZOOM CONTROLS ── */
+  .zoom-controls {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 4px;
+    background: var(--card); backdrop-filter: blur(30px);
+    border: 0.5px solid var(--line);
+    border-radius: 12px; padding: 4px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    z-index: 20;
+  }
+  .zoom-controls button {
+    appearance: none; border: 0; background: transparent; color: var(--fg);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+    font: 500 15px var(--sans);
+  }
+  .zoom-controls button:hover { background: rgba(42, 36, 24, 0.08); }
+  body.theme-academia .zoom-controls button:hover { background: rgba(240, 228, 200, 0.1); }
+  .zoom-controls .zoom-reset { font-size: 13px; color: var(--muted); }
+  .zoom-level {
+    font: 500 10px var(--sans); color: var(--muted);
+    text-align: center; padding: 2px 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Night overlay inside scene */
+  .night-overlay {
+    position: absolute; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 40%, transparent, rgba(20, 30, 60, .6) 80%);
+    transition: opacity 1.5s;
+  }
+
+  .furniture { position: relative; user-select: none; }
+  /* Shadows removed for flat-floor feel */
+  .furn-shadow { display: none !important; }
+  .furniture svg ellipse[fill^="rgba(0,0,0"] { display: none; }
+  .furn-shadow-disabled {
+    position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+    height: 10px; border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(0,0,0,.3), transparent 65%);
+    pointer-events: none;
+  }
+
+  /* ── SHELF ── */
+  .shelf {
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .shelf-body {
+    position: relative; border-radius: 3px 3px 2px 2px;
+  }
+  .shelf-row {
+    position: absolute; left: 6px; right: 6px; height: 6px;
+    border-radius: 1px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.4), inset 0 -1px 0 rgba(0,0,0,.2);
+  }
+  .shelf-books {
+    position: absolute; bottom: 6px; left: 3px; right: 3px;
+    display: flex; align-items: flex-end; gap: 1.5px;
+    overflow: hidden;
+  }
+  .shelf-book-mini {
+    border-radius: .5px .5px 0 0;
+    box-shadow: inset -1px 0 1px rgba(0,0,0,.3), inset 1px 0 0 rgba(255,255,255,.1);
+    flex-shrink: 0;
+  }
+  .shelf-nameplate {
+    position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+    font-family: var(--serif); font-size: 10px; font-style: italic;
+    color: rgba(255, 248, 235, 0.9);
+    background: rgba(42, 30, 20, 0.6);
+    padding: 2px 8px; border-radius: 2px;
+    white-space: nowrap;
+    opacity: 0; transition: opacity .2s;
+  }
+  .item-wrap:hover .shelf-nameplate,
+  .item-wrap.selected .shelf-nameplate { opacity: 1; }
+
+  /* ── LAMP GLOW ── */
+  .lamp-halo {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    width: 180px; height: 180px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 224, 160, .5), transparent 60%);
+    pointer-events: none;
+    animation: flicker 4s ease-in-out infinite;
+  }
+  .lamp-halo.small {
+    width: 90px; height: 90px; top: -10px;
+  }
+  @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: .85; } }
+
+  /* ── CANDLE GLOW ── */
+  .candle-glow {
+    position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 220, 140, .7), transparent 60%);
+    animation: flicker2 1.8s ease-in-out infinite;
+  }
+  @keyframes flicker2 { 0%, 100% { opacity: .9; transform: translateX(-50%) scale(1); } 50% { opacity: 1; transform: translateX(-50%) scale(1.08); } }
+
+  /* ── WINDOW ── */
+  .window-frame {
+    position: relative; width: 100%; height: 100%;
+    border: 6px solid #6a4a3a;
+    box-shadow: 0 0 0 2px #4a3020, inset 0 0 20px rgba(0,0,0,.3);
+    background: #4a3020;
+  }
+  .window-view {
+    position: absolute; inset: 0; overflow: hidden;
+    transition: background 1.5s;
+  }
+  .window-landscape { position: absolute; bottom: 0; left: 0; }
+  .window-mullion-v {
+    position: absolute; top: 0; bottom: 0; left: 50%; width: 4px;
+    background: #6a4a3a; transform: translateX(-50%);
+  }
+  .window-mullion-h {
+    position: absolute; left: 0; right: 0; top: 50%; height: 4px;
+    background: #6a4a3a; transform: translateY(-50%);
+  }
+  .window-sill {
+    position: absolute; bottom: -12px; left: -8px; right: -8px; height: 12px;
+    background: linear-gradient(180deg, #8a6a4a, #6a4a2a);
+    box-shadow: 0 2px 4px rgba(0,0,0,.3);
+  }
+
+  /* Rain effect */
+  .rain {
+    position: absolute; inset: 0; overflow: hidden;
+    background-image:
+      repeating-linear-gradient(100deg, transparent 0 4px, rgba(180, 200, 220, .3) 4px 5px, transparent 5px 8px),
+      repeating-linear-gradient(100deg, transparent 0 6px, rgba(200, 220, 240, .4) 6px 7px, transparent 7px 12px);
+    animation: rain 0.5s linear infinite;
+  }
+  @keyframes rain {
+    0% { background-position: 0 0, 0 0; }
+    100% { background-position: 20px 100px, -18px 120px; }
+  }
+  .snow {
+    position: absolute; inset: 0; overflow: hidden;
+    background-image:
+      radial-gradient(circle 1.5px at 20% 30%, white 100%, transparent),
+      radial-gradient(circle 1px at 60% 60%, white 100%, transparent),
+      radial-gradient(circle 1.5px at 80% 20%, white 100%, transparent),
+      radial-gradient(circle 1px at 40% 80%, white 100%, transparent);
+    animation: snow 6s linear infinite;
+  }
+  @keyframes snow { 0% { background-position: 0 -40px, 0 -40px, 0 -40px, 0 -40px; } 100% { background-position: 10px 120px, -10px 160px, 6px 180px, -8px 140px; } }
+
+  /* ── NIGHT OVERLAY ── */
+  .night-overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 40% 30%, transparent, rgba(20, 30, 60, .5) 80%);
+    transition: opacity 1.5s;
+  }
+  .window-glow-floor {
+    position: absolute; width: 300px; height: 200px;
+    background: radial-gradient(ellipse, rgba(255, 210, 140, .45), transparent 65%);
+    pointer-events: none;
+    transition: opacity 1.5s;
+  }
+
+  /* ── BOOK SPINE (detail drawer) ── */
+  .book-spine {
+    appearance: none; border: 0; padding: 0;
+    position: relative; border-radius: 2px 2px 0 0;
+    cursor: pointer; display: flex; align-items: flex-end;
+    transition: transform .15s, box-shadow .15s;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .book-spine:hover { transform: translateY(-6px); }
+  .book-spine-title {
+    writing-mode: vertical-rl; text-orientation: mixed;
+    padding: 8px 2px 10px 3px;
+    font: 500 9px var(--sans);
+    letter-spacing: .02em;
+    white-space: nowrap;
+    overflow: hidden;
+    max-height: calc(100% - 4px);
+  }
+  .book-bookmark {
+    position: absolute; top: -2px; left: 50%; transform: translateX(-50%);
+    width: 6px; height: 14px;
+    background: var(--rose);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+  }
+
+  /* ── SHELF DETAIL DRAWER ── */
+  .shelf-detail {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); backdrop-filter: blur(30px);
+    border-top: 0.5px solid var(--line);
+    box-shadow: 0 -10px 40px rgba(0,0,0,.12);
+    padding: 20px 28px 24px;
+    z-index: 30;
+    animation: slide-up .3s ease-out;
+  }
+  @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .shelf-detail-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .sd-label {
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .shelf-detail h2 {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 28px; margin: 2px 0 6px; letter-spacing: -0.01em;
+  }
+  .sd-meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; align-items: center; }
+  .sd-sync {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(159, 176, 160, 0.2); color: #5a7a5a;
+    padding: 2px 8px; border-radius: 999px; font-size: 11px;
+  }
+  body.theme-academia .sd-sync { background: rgba(159, 176, 160, 0.15); color: #9fb0a0; }
+  .sd-close {
+    appearance: none; border: 0; background: transparent; color: var(--muted);
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+    font-size: 16px;
+  }
+  .sd-close:hover { background: rgba(0,0,0,.06); color: var(--fg); }
+  .sd-books {
+    display: flex; align-items: flex-end; gap: 2px; min-height: 100px;
+    padding: 12px 0;
+    border-top: 0.5px solid var(--line);
+    overflow-x: auto;
+  }
+  .sd-books::-webkit-scrollbar { height: 6px; }
+  .sd-books::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 3px; }
+
+  /* ── BOOK DETAIL ── */
+  .book-detail {
+    position: fixed; top: 80px; right: 20px; width: 360px; max-height: calc(100vh - 100px);
+    background: var(--card); backdrop-filter: blur(30px);
+    border-radius: 18px;
+    border: 0.5px solid var(--line);
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    overflow: hidden;
+    z-index: 35;
+    animation: fade-in .2s;
+  }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .bd-head {
+    position: relative; height: 220px;
+    background: linear-gradient(135deg, #d4c0a0, #b89868);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bd-cover {
+    width: 130px; height: 190px; border-radius: 3px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3), inset -8px 0 12px rgba(0,0,0,.25);
+    padding: 16px 14px; display: flex; flex-direction: column; justify-content: space-between;
+    color: rgba(255,248,235,0.9);
+  }
+  .bd-cover-title {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 15px; line-height: 1.2; letter-spacing: -0.01em;
+  }
+  .bd-cover-author { font-size: 10px; opacity: .8; letter-spacing: .05em; text-transform: uppercase; }
+  .bd-close {
+    position: absolute; top: 10px; right: 10px;
+    appearance: none; border: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(0,0,0,.3); color: white; cursor: pointer; font-size: 13px;
+  }
+  .bd-body { padding: 20px 22px 22px; }
+  .bd-body h2 {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; line-height: 1.2;
+  }
+  .bd-author { font-size: 13px; color: var(--muted); font-style: italic; margin-bottom: 14px; }
+  .bd-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .bd-chip {
+    font-size: 11px; padding: 3px 10px; border-radius: 999px;
+    background: rgba(42, 36, 24, 0.08); color: var(--fg);
+    font-weight: 500;
+  }
+  body.theme-academia .bd-chip { background: rgba(240, 228, 200, 0.12); }
+  .bd-chip.status-reading { background: rgba(201, 138, 90, 0.18); color: var(--accent-2); }
+  .bd-chip.status-read { background: rgba(159, 176, 160, 0.25); color: #5a7a5a; }
+  body.theme-academia .bd-chip.status-read { color: #9fb0a0; }
+  .bd-chip.status-tbr { background: rgba(200, 136, 136, 0.2); color: #a85858; }
+  .bd-chip.stars { background: transparent; color: var(--accent); padding-left: 0; letter-spacing: 1px; }
+  .bd-progress { margin-bottom: 14px; }
+  .bd-progress-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted); margin-bottom: 6px;
+  }
+  .bd-progress-bar {
+    height: 4px; background: rgba(42, 36, 24, 0.1); border-radius: 999px; overflow: hidden;
+  }
+  body.theme-academia .bd-progress-bar { background: rgba(240, 228, 200, 0.15); }
+  .bd-progress-bar > div {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 999px; transition: width .4s;
+  }
+  .bd-notes {
+    background: rgba(201, 138, 90, 0.08); padding: 10px 12px; border-radius: 8px;
+    border-left: 2px solid var(--accent);
+    margin-bottom: 16px;
+    font-family: var(--serif); font-size: 13px; font-style: italic;
+    color: var(--fg);
+  }
+  .bd-notes-label {
+    font-family: var(--sans); font-style: normal; font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    font-weight: 600; margin-bottom: 4px;
+  }
+  .bd-actions { display: flex; gap: 8px; }
+  .bd-btn {
+    appearance: none; border: 0; padding: 9px 14px; border-radius: 8px;
+    font: 500 12px var(--sans); cursor: pointer;
+    background: rgba(42, 36, 24, 0.06); color: var(--fg);
+  }
+  body.theme-academia .bd-btn { background: rgba(240, 228, 200, 0.1); color: var(--fg); }
+  .bd-btn:hover { background: rgba(42, 36, 24, 0.1); }
+  .bd-btn.primary { background: var(--accent); color: white; }
+  .bd-btn.primary:hover { background: var(--accent-2); }
+
+  /* ── INVENTORY ── */
+  .inv-panel {
+    position: fixed; top: 80px; left: 20px; width: 320px; max-height: calc(100vh - 180px);
+    background: var(--card); backdrop-filter: blur(30px);
+    border-radius: 18px;
+    border: 0.5px solid var(--line);
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    z-index: 30;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: slide-right .25s ease-out;
+  }
+  @keyframes slide-right { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .inv-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px 8px;
+  }
+  .inv-head h3 {
+    font-family: var(--serif); font-weight: 500; font-size: 20px; margin: 0;
+    letter-spacing: -.01em;
+  }
+  .inv-close {
+    appearance: none; border: 0; background: transparent; color: var(--muted);
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  }
+  .inv-close:hover { background: rgba(0,0,0,.06); color: var(--fg); }
+  .inv-tabs-wrap {
+    position: relative; padding: 0 10px 10px;
+    border-bottom: 0.5px solid var(--line);
+  }
+  .inv-tabs {
+    display: flex; gap: 4px; overflow-x: auto;
+    scroll-behavior: smooth;
+    -ms-overflow-style: none; scrollbar-width: none;
+  }
+  .inv-tabs::-webkit-scrollbar { display: none; }
+  .inv-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 22px; height: 22px; border-radius: 50%; border: 0;
+    background: rgba(255,250,240,0.95); color: var(--fg);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 2;
+    transition: opacity .15s;
+  }
+  .inv-arrow.left { left: 2px; } .inv-arrow.right { right: 2px; }
+  .inv-arrow.dim { opacity: .25; pointer-events: none; }
+  body.theme-academia .inv-arrow { background: rgba(58,46,32,0.95); color: var(--fg); }
+  .inv-preview {
+    position: relative; width: 100%; aspect-ratio: 1/1;
+    border-radius: 10px; overflow: hidden;
+    background: linear-gradient(145deg, #ede0c8, #ddcbab);
+    border: .5px solid rgba(0,0,0,.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), inset 0 -4px 8px rgba(0,0,0,.04);
+  }
+  .inv-preview::before {
+    content: ''; position: absolute; inset: 8px;
+    border-radius: 7px;
+    background: linear-gradient(145deg, #f0e3cd, #e4d3b8);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -2px 6px rgba(0,0,0,.06);
+  }
+  .inv-preview-inner {
+    position: absolute; left: 50%; top: 58%;
+    transform-origin: center;
+    pointer-events: none;
+  }
+  .inv-preview-inner .furniture { position: relative; }
+  .inv-preview-inner .shelf-nameplate,
+  .inv-preview-inner .lamp-halo,
+  .inv-preview-inner .candle-glow,
+  .inv-preview-inner .furn-shadow { display: none !important; }
+  .inv-tab {
+    appearance: none; border: 0; background: transparent;
+    padding: 6px 10px; border-radius: 999px; cursor: pointer;
+    font: 500 11.5px var(--sans);
+    color: var(--muted); white-space: nowrap;
+  }
+  .inv-tab.on { background: var(--fg); color: var(--cream); }
+  body.theme-academia .inv-tab.on { background: var(--accent); color: white; }
+  .inv-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    padding: 12px 14px; overflow-y: auto; min-height: 0;
+  }
+  .inv-card {
+    border-radius: 10px; padding: 6px; cursor: grab;
+    background: rgba(255, 250, 240, 0.5);
+    border: 0.5px solid var(--line);
+    transition: transform .15s, box-shadow .15s;
+    text-align: center;
+  }
+  body.theme-academia .inv-card { background: rgba(240, 228, 200, 0.05); }
+  .inv-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+  .inv-card.locked { opacity: .5; cursor: not-allowed; }
+  .inv-card:active { cursor: grabbing; }
+  .inv-thumb {
+    aspect-ratio: 1; border-radius: 6px; overflow: hidden; margin-bottom: 4px;
+  }
+  .inv-preview {
+    position: relative; width: 100%; aspect-ratio: 1/1;
+    border-radius: 10px; overflow: hidden;
+  }
+  .inv-preview-inner {
+    position: absolute; left: 50%; top: 58%;
+    transform-origin: center;
+    pointer-events: none;
+  }
+  .inv-preview-inner .furniture { position: relative; }
+  .inv-preview-inner .shelf-nameplate,
+  .inv-preview-inner .lamp-halo,
+  .inv-preview-inner .candle-glow,
+  .inv-preview-inner .furn-shadow { display: none !important; }
+  .inv-name { font-size: 10.5px; font-weight: 500; color: var(--fg); line-height: 1.2; }
+  .inv-lock { font-size: 9px; color: var(--muted); margin-top: 2px; }
+  .inv-hint {
+    padding: 8px 14px; font-size: 10.5px; color: var(--muted);
+    text-align: center; border-top: 0.5px solid var(--line);
+    letter-spacing: .02em;
+  }
+  .inv-empty {
+    grid-column: 1 / -1;
+    padding: 28px 16px; text-align: center;
+  }
+  .inv-empty-icon { font-size: 32px; margin-bottom: 8px; opacity: .7; }
+  .inv-empty-title {
+    font-family: var(--serif); font-size: 15px; font-weight: 500;
+    margin-bottom: 4px;
+  }
+  /* Edit mode affordances */
+  body:not(.edit-on) .item-wrap { cursor: pointer; }
+  body.edit-on .item-wrap { cursor: grab; }
+  body.edit-on .item-wrap:hover::before,
+  body.edit-on .item-wrap.selected::before {
+    content: ''; position: absolute; inset: 0;
+    border: 1px dashed rgba(201,138,90,.85); border-radius: 3px;
+    pointer-events: none;
+  }
+  .edit-banner {
+    position: fixed; top: 68px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: white;
+    font: 500 12px var(--sans);
+    padding: 7px 16px; border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(201,138,90,.4);
+    z-index: 36; display: flex; align-items: center; gap: 10px;
+  }
+  .edit-banner button {
+    appearance: none; border: 0; background: rgba(255,255,255,.2); color: white;
+    padding: 3px 10px; border-radius: 999px; font: 500 11px var(--sans); cursor: pointer;
+  }
+  .edit-banner button:hover { background: rgba(255,255,255,.3); }
+  /* Drag ghost that follows the cursor */
+  .drag-ghost {
+    position: fixed; pointer-events: none; z-index: 9999;
+    opacity: 0.7; transform: translate(-50%, -100%);
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.25));
+  }
+  .drag-ghost.hanging { transform: translate(-50%, 0); }
+  .drag-ghost .shelf-nameplate,
+  .drag-ghost .lamp-halo,
+  .drag-ghost .candle-glow { display: none !important; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    position: fixed; left: 20px; right: 20px; bottom: 20px;
+    display: flex; gap: 16px; align-items: center; justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--card); backdrop-filter: blur(30px);
+    border-radius: 999px;
+    border: 0.5px solid var(--line);
+    box-shadow: 0 10px 40px rgba(0,0,0,.15);
+    z-index: 25;
+  }
+  .tb-group { display: flex; gap: 6px; align-items: center; }
+  .tb-center { flex: 1; justify-content: center; }
+  .tb-btn {
+    appearance: none; border: 0; padding: 8px 14px; border-radius: 999px;
+    font: 500 12.5px var(--sans); cursor: pointer;
+    background: transparent; color: var(--fg);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tb-btn.primary { background: var(--fg); color: var(--cream); }
+  body.theme-academia .tb-btn.primary { background: var(--accent); color: white; }
+  .tb-btn.primary:hover { background: var(--accent-2); color: white; }
+  .tb-btn.ghost { background: transparent; color: var(--muted); padding: 8px; font-size: 16px; border-radius: 50%; width: 32px; height: 32px; justify-content: center; }
+  .tb-btn:hover:not(.primary) { background: rgba(42, 36, 24, 0.08); }
+  body.theme-academia .tb-btn:hover:not(.primary) { background: rgba(240, 228, 200, 0.08); }
+  .tb-icon { font-size: 14px; }
+  .tb-chip {
+    appearance: none; border: 0; padding: 6px 12px; border-radius: 999px;
+    font: 500 11.5px var(--sans); cursor: pointer;
+    background: transparent; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .tb-chip.on { background: rgba(201, 138, 90, 0.18); color: var(--accent-2); }
+  .tb-chip:hover:not(.on) { background: rgba(42, 36, 24, 0.06); color: var(--fg); }
+  .tb-divider { width: 0.5px; height: 20px; background: var(--line); }
+  .tb-time { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted); }
+  .tb-time input { width: 90px; accent-color: var(--accent); }
+  .tb-streak {
+    font-size: 12px; color: var(--muted); padding: 6px 10px;
+    background: rgba(201, 138, 90, 0.12); border-radius: 999px;
+  }
+  .tb-streak b { color: var(--accent-2); font-weight: 600; }
+  body.theme-academia .tb-streak b { color: var(--accent); }
+  .tb-privacy {
+    font-size: 11.5px; color: var(--muted); padding: 6px 10px;
+    border: 0.5px solid var(--line); border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px;
+    text-transform: capitalize;
+  }
+
+  /* ── INTEGRATION NOTE BADGE ── */
+  .int-badge {
+    position: fixed; top: 72px; right: 20px; z-index: 20;
+    background: rgba(42, 36, 24, 0.92); color: var(--cream);
+    padding: 8px 14px; border-radius: 999px;
+    font: 500 11px var(--sans); cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.2);
+  }
+  .int-badge:hover { background: var(--fg); }
+  .int-badge.hidden { display: none; }
+
+  .int-modal {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(42, 36, 24, 0.6);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  .int-dialog {
+    background: var(--cream); color: var(--fg);
+    width: min(680px, calc(100vw - 40px)); max-height: calc(100vh - 40px);
+    border-radius: 18px; padding: 28px 32px;
+    overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,.3);
+  }
+  body.theme-academia .int-dialog { background: #3a2e20; color: var(--fg); }
+  .int-dialog h2 {
+    font-family: var(--serif); font-weight: 500; font-size: 26px; margin: 0 0 4px;
+  }
+  .int-dialog .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .int-dialog h3 {
+    font-family: var(--serif); font-size: 16px; font-weight: 600;
+    margin: 20px 0 8px;
+  }
+  .int-dialog pre {
+    background: rgba(42, 36, 24, 0.06); padding: 12px 14px; border-radius: 8px;
+    font: 11px/1.5 ui-monospace, monospace; overflow-x: auto;
+    border-left: 2px solid var(--accent);
+    white-space: pre; color: var(--fg);
+  }
+  body.theme-academia .int-dialog pre { background: rgba(240, 228, 200, 0.08); }
+  .int-dialog ul { padding-left: 18px; margin: 6px 0; }
+  .int-dialog li { font-size: 13px; line-height: 1.6; }
+  .int-dialog li code {
+    background: rgba(201, 138, 90, 0.15); padding: 1px 5px; border-radius: 3px;
+    font-size: 11px;
+  }
+  .int-close {
+    position: absolute; top: 14px; right: 14px;
+    appearance: none; border: 0; background: transparent;
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+    color: var(--muted); font-size: 18px;
+  }
+  .int-close:hover { background: rgba(0,0,0,.08); color: var(--fg); }
+
+  /* Fullscreen mode: hide chrome */
+  body.fullscreen-mode .app-chrome { display: none; }
+  body.fullscreen-mode .room-stage { inset: 0; }
+  body.fullscreen-mode .int-badge { top: 20px; }
+
+</style>
+</head>
+<body class="theme-cottage">
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="furniture.jsx"></script>
+  <script type="text/babel" src="panels.jsx"></script>
+  <script type="text/babel" src="scene.jsx"></script>
+
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "theme": "cottage",
+      "autoSceneScale": true,
+      "sceneScale": 1
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const [room, setRoom] = React.useState(() => {
+        try {
+          const saved = localStorage.getItem('library-room-state');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            // Sanity check: must have items array
+            if (parsed && Array.isArray(parsed.items)) return parsed;
+          }
+        } catch (e) {}
+        return window.DEFAULT_ROOM;
+      });
+      // Persist room edits to localStorage (debounced via effect)
+      React.useEffect(() => {
+        const t = setTimeout(() => {
+          try { localStorage.setItem('library-room-state', JSON.stringify(room)); } catch (e) {}
+        }, 250);
+        return () => clearTimeout(t);
+      }, [room]);
+      const [account] = React.useState(window.MOCK_ACCOUNT);
+      const [inventoryOpen, setInventoryOpen] = React.useState(false);
+      const [editMode, setEditMode] = React.useState(false);
+      const [dragGhost, setDragGhost] = React.useState(null);
+      const [selectedShelfId, setSelectedShelfId] = React.useState(null);
+      const [selectedBook, setSelectedBook] = React.useState(null);
+      const [selectedItemId, setSelectedItemId] = React.useState(null);
+      const [isFullscreen, setIsFullscreen] = React.useState(false);
+      const [intModalOpen, setIntModalOpen] = React.useState(false);
+      const [state, setState] = React.useState({
+        daynight: 0.78,
+        gridVisible: false,
+        snapToGrid: false,
+        audioOn: true,
+      });
+      const [zoom, setZoom] = React.useState(1);
+
+      // Auto-fit zoom to viewport on first load / resize
+      React.useEffect(() => {
+        const fit = () => {
+          const stage = document.querySelector('.room-stage');
+          if (!stage) return;
+          const vw = stage.clientWidth;
+          const vh = stage.clientHeight;
+          const naturalW = 900;
+          const naturalH = 840;
+          const s = Math.min(vw / naturalW, vh / naturalH) * 0.92;
+          if (t.autoSceneScale) setZoom(s);
+        };
+        fit();
+        window.addEventListener('resize', fit);
+        return () => window.removeEventListener('resize', fit);
+      }, [t.autoSceneScale]);
+
+      // Theme switch
+      React.useEffect(() => {
+        document.body.className = 'theme-' + t.theme + (isFullscreen ? ' fullscreen-mode' : '');
+      }, [t.theme, isFullscreen]);
+
+      // Theme data
+      const themes = {
+        cottage: { wallColor: '#e8dcc8', floorBase: '#d0a878', floorLine: '#8a6a42' },
+        academia: { wallColor: '#4a3a2a', floorBase: '#3a2a1a', floorLine: '#1a1008' },
+        modern: { wallColor: '#e8e2d8', floorBase: '#c8b898', floorLine: '#8a7a5a' },
+      };
+      const theme = themes[t.theme] || themes.cottage;
+
+      // Edit mode class on body
+      React.useEffect(() => {
+        document.body.classList.toggle('edit-on', editMode);
+      }, [editMode]);
+
+      // Shelf click
+      const onClickShelf = (item, shelf) => {
+        setSelectedShelfId(shelf?.id || null);
+        setSelectedBook(null);
+      };
+      const onClickBook = (book) => { setSelectedBook(book); };
+
+      // Types that mount on walls
+      const WALL_TYPES = new Set(['art', 'window']);
+
+      // Drop from catalog (after native HTML5 drop into scene).
+      // wallInfo: when set (for wall items), contains { onWall, wallY } from the scene.
+      // hangingInfo: when set (for ceiling items), contains { pxX, pxY } scene-local pixels.
+      const onDropCatalogItem = (catItem, x, y, wallInfo, hangingInfo) => {
+        if (wallInfo) {
+          const newItem = {
+            id: `${catItem.type}_${Date.now()}`,
+            type: catItem.type,
+            styleId: catItem.styleId,
+            x, y: 0, rotation: 0,
+            onWall: wallInfo.onWall,
+            wallY: wallInfo.wallY,
+          };
+          setRoom((r) => ({ ...r, items: [...r.items, newItem] }));
+        } else if (hangingInfo) {
+          const newItem = {
+            id: `${catItem.type}_${Date.now()}`,
+            type: catItem.type,
+            styleId: catItem.styleId,
+            x: 0, y: 0, rotation: 0,
+            pxX: hangingInfo.pxX,
+            pxY: hangingInfo.pxY,
+          };
+          setRoom((r) => ({ ...r, items: [...r.items, newItem] }));
+        } else {
+          const newItem = {
+            id: `${catItem.type}_${Date.now()}`,
+            type: catItem.type,
+            styleId: catItem.styleId,
+            x, y, rotation: 0,
+          };
+          setRoom((r) => ({ ...r, items: [...r.items, newItem] }));
+        }
+      };
+      // Catalog → start NATIVE HTML5 drag. The item is NOT added to the room
+      // until the user releases inside the scene (onDropCatalogItem). During
+      // the drag we render a custom floating sprite at the cursor — the
+      // browser's default drag image was suppressed in panels.jsx.
+      const onStartPlacing = (e, catItem) => {
+        e.dataTransfer.setData('application/x-catalog-item', JSON.stringify(catItem));
+        e.dataTransfer.effectAllowed = 'copy';
+        setDragGhost({ item: catItem, x: e.clientX, y: e.clientY });
+        const move = (ev) => setDragGhost((g) => g ? { ...g, x: ev.clientX, y: ev.clientY } : null);
+        const end = () => {
+          setDragGhost(null);
+          window.removeEventListener('dragover', move);
+          window.removeEventListener('dragend', end);
+          window.removeEventListener('drop', end);
+        };
+        window.addEventListener('dragover', move);
+        window.addEventListener('dragend', end);
+        window.addEventListener('drop', end);
+      };
+      const onAdd = (catItem) => {
+        const cx = Math.floor(room.size.w / 2);
+        const cy = Math.floor(room.size.d / 2);
+        onDropCatalogItem(catItem, cx, cy);
+      };
+
+      const selectedShelf = selectedShelfId ? window.MOCK_SHELVES.find((s) => s.id === selectedShelfId) : null;
+
+      return (
+        <>
+          {/* APP CHROME (this is your existing app header) */}
+          <div className="app-chrome">
+            <div className="app-logo">Bookish<em>.</em></div>
+            <nav className="app-nav">
+              <button>Library</button>
+              <button>Reading</button>
+              <button className="active">My Room</button>
+              <button>Feed</button>
+              <button>Discover</button>
+            </nav>
+            <div className="app-user">
+              <div className="app-avatar">{account.displayName[0]}</div>
+            </div>
+          </div>
+
+          {/* ROOM */}
+          <div className="room-stage">
+            <Scene
+              room={room}
+              setRoom={setRoom}
+              account={account}
+              daynight={state.daynight}
+              gridVisible={state.gridVisible}
+              snapToGrid={state.snapToGrid}
+              selectedItemId={selectedItemId}
+              setSelectedItemId={setSelectedItemId}
+              onClickShelf={onClickShelf}
+              onDropCatalogItem={onDropCatalogItem}
+              catalog={window.CATALOG}
+              theme={theme}
+              zoom={zoom}
+              onZoom={setZoom}
+            />
+          </div>
+
+          {/* INTEGRATION NOTES */}
+          <button className="int-badge" onClick={() => setIntModalOpen(true)}>
+            ⚙ Integration notes
+          </button>
+          {intModalOpen && <IntegrationModal onClose={() => setIntModalOpen(false)} />}
+
+          {/* EDIT MODE BANNER */}
+          {editMode && (
+            <div className="edit-banner">
+              ✎ Edit mode — drag items to rearrange
+              <button onClick={() => { setEditMode(false); setInventoryOpen(false); }}>Done</button>
+            </div>
+          )}
+
+          {/* DRAG GHOST — actual rendered furniture sprite following the cursor */}
+          {dragGhost && (
+            <div className={'drag-ghost' + (
+              (dragGhost.item.styleId === 'fern-hanging' || dragGhost.item.styleId === 'string-lights') ? ' hanging' : ''
+            )} style={{ left: dragGhost.x, top: dragGhost.y }}>
+              <window.Furniture
+                item={{ id: '__ghost', type: dragGhost.item.type, styleId: dragGhost.item.styleId, x: 0, y: 0 }}
+                style={dragGhost.item}
+                shelf={null}
+                books={window.MOCK_BOOKS}
+                daynight={state.daynight}
+                onClickShelf={() => {}}
+                selected={false} dragging={false}
+              />
+            </div>
+          )}
+
+          {/* INVENTORY */}
+          <Inventory
+            open={inventoryOpen && editMode}
+            onClose={() => setInventoryOpen(false)}
+            catalog={window.CATALOG}
+            onAdd={onAdd}
+            onStartPlacing={onStartPlacing}
+          />
+
+          {/* SHELF DETAIL */}
+          {selectedShelf && (
+            <ShelfDetail
+              shelf={selectedShelf}
+              books={window.MOCK_BOOKS}
+              onClose={() => { setSelectedShelfId(null); setSelectedBook(null); }}
+              onClickBook={onClickBook}
+              selectedBookId={selectedBook?.id}
+            />
+          )}
+
+          {/* BOOK DETAIL */}
+          {selectedBook && (
+            <BookDetail book={selectedBook} onClose={() => setSelectedBook(null)} />
+          )}
+
+          {/* TOOLBAR */}
+          <Toolbar
+            state={state}
+            setState={setState}
+            account={account}
+            onToggleInventory={() => {
+              if (!editMode) { setEditMode(true); setInventoryOpen(true); }
+              else setInventoryOpen((o) => !o);
+            }}
+            editMode={editMode}
+            onToggleEdit={() => {
+              const next = !editMode;
+              setEditMode(next);
+              setInventoryOpen(next);
+            }}
+            onToggleRoomSettings={() => {}}
+            onResetRoom={() => setRoom(window.DEFAULT_ROOM)}
+            onFullscreen={() => setIsFullscreen((f) => !f)}
+            isFullscreen={isFullscreen}
+          />
+
+          {/* TWEAKS */}
+          <TweaksPanel title="Tweaks">
+            <TweakSection label="Aesthetic" />
+            <TweakRadio
+              label="Theme"
+              value={t.theme}
+              options={[
+                { value: 'cottage', label: 'Cozy' },
+                { value: 'academia', label: 'Dark' },
+                { value: 'modern', label: 'Soft' },
+              ]}
+              onChange={(v) => setTweak('theme', v)}
+            />
+            <TweakSection label="View" />
+            <TweakToggle label="Auto-fit to viewport" value={t.autoSceneScale} onChange={(v) => setTweak('autoSceneScale', v)} />
+            {!t.autoSceneScale && (
+              <TweakSlider label="Zoom" value={t.sceneScale} min={0.5} max={1.6} step={0.05} onChange={(v) => setTweak('sceneScale', v)} />
+            )}
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    // Integration notes modal
+    function IntegrationModal({ onClose }) {
+      return (
+        <div className="int-modal" onClick={onClose}>
+          <div className="int-dialog" onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
+            <button className="int-close" onClick={onClose}>✕</button>
+            <h2>Integration notes</h2>
+            <div className="sub">What your backend needs to expose to wire this prototype into the real app.</div>
+
+            <h3>1 · Existing data (read-only sync)</h3>
+            <ul>
+              <li><code>userLibrary.books[]</code> — reuse your existing book records. Required fields: <code>id, title, author, spine (color), height, width, status, rating, pagesRead, pages, genre, notes</code></li>
+              <li><code>userLibrary.shelves[]</code> — reuse your existing 2D shelves. Required: <code>id, name, sortBy, bookIds[]</code>. The 3D view reads these — no duplication.</li>
+              <li><code>account.privacy</code> — <code>"public" | "friends" | "private"</code>. The room view inherits this; no new visibility toggle.</li>
+              <li><code>account.location.{'{lat,lng,tz}'}</code> — drives the day/night cycle.</li>
+              <li><code>account.readingStreak</code> — unlocks catalog items; shown in toolbar.</li>
+            </ul>
+
+            <h3>2 · New data (to add)</h3>
+            <ul>
+              <li><code>rooms</code> table keyed by <code>userId</code>. One row per user.</li>
+              <li>Shape: <code>{'{ size, tileSize, wallColor, floorStyle, windowWall, items[], audio }'}</code></li>
+              <li>Each <code>item</code>: <code>{'{ id, type, styleId, x, y, rotation, onWall?, onTopOf? }'}</code></li>
+              <li>Shelf items' <code>id</code> matches a <code>shelves.id</code> from #1 — that's how the 3D shelf knows which books to render.</li>
+            </ul>
+
+            <h3>3 · Sync contract</h3>
+            <ul>
+              <li>When user adds/removes a book in 2D → update <code>shelves.bookIds</code> → 3D shelves re-render automatically (single source of truth).</li>
+              <li>When user creates a new shelf in 2D → appears in 3D "Place shelf" flow as an available instance.</li>
+              <li>When user drags in 3D → only <code>rooms.items</code> is written. Never duplicate book data.</li>
+            </ul>
+
+            <h3>4 · Events to fire</h3>
+            <ul>
+              <li><code>onBookClick(bookId)</code> — opens existing book detail OR inline card (current behavior). Your call.</li>
+              <li><code>onRoomSave(roomState)</code> — debounced 1s after last drag. Persists room.</li>
+              <li><code>onPrivacyChange</code> — respects account setting; no override in this view.</li>
+            </ul>
+
+            <h3>5 · Assets needed from you</h3>
+            <ul>
+              <li>Illustrated sprites for each <code>styleId</code> in the catalog (currently SVG placeholders). Recommended: 2× PNG at iso projection.</li>
+              <li>Ambient audio loops (rain+fireplace, morning birds, rainy café).</li>
+              <li>Locked-item unlock criteria (streak tier, premium, etc).</li>
+            </ul>
+
+            <h3>6 · Platform notes</h3>
+            <ul>
+              <li>Pure HTML/CSS/JS — drops into your existing HTML app as a route.</li>
+              <li>No WebGL. Works on iOS WebView. ~60fps on modern devices.</li>
+              <li>iOS fullscreen: gesture-based entry via toolbar button; safe-area insets respected.</li>
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+
+</body>
+</html>

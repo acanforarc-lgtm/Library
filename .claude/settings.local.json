@@ -1,5 +1,9 @@
 {
   "permissions": {
-    "allow": ["Bash"]
+    "allow": [
+      "Bash",
+      "Bash(ls \"C:\\\\Users\\\\charl\\\\.claude\\\\skills\\\\\")",
+      "Read(//c/Users/charl/.claude/**)"
+    ]
   }
 }

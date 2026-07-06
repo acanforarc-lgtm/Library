@@ -70,12 +70,12 @@
     v1.0.x: Full cloud migration, Supabase auth + storage
     ========================================
     -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2/dist/umd/supabase.js" integrity="sha384-nD3dwv4+ZqdYnmZKe/249ImlV04om7xTCcsoSeQYI+RO+XlKPoqAWaJR1M5SJH9p" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js" integrity="sha384-ezQ6HS3FLspd9te19o2McUV6FAK091+GG7KO54f/R8DKgCDi7fULhapNrd5LY+vG" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js" integrity="sha384-05+sicyRJQ56XpL4U9HJ8YbtSzFDvAg7apPKOGV6A0JsAJKFM68jp5oLnUjG5mEp" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js" integrity="sha384-qpU3wxGxaAPcz02pOLeZTv5B0rNzsh3CETsUqdHxRBP70bO0kHoBopr+f9AcGj04" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
@@ -4478,12 +4478,12 @@
         .libroom-root .art-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;}
     </style>
     <!-- QuaggaJS for Barcode Scanning -->
-    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js" integrity="sha384-IkRTkdAeAAAqE2ct5zNAfMiX8+H35pGJp8j7+ZFwh7PKaJh5eunsOFAb9l6Z9R7r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js" integrity="sha384-llrj4SUC221pVa/E3xKZwmp2zd8q9ReUcs9N37u6A5pQhjiymLsQRg+1AysLVKOZ" crossorigin="anonymous"></script>
 
     <!-- Three.js for 3D Room -->
-    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js" integrity="sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf" crossorigin="anonymous"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -4506,7 +4506,8 @@
         // Add your key here once you have it from Google Cloud Console.
         // Restrict it in Google Cloud to bundle ID: com.acanfora.yourlibrary
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
-        const GBOOKS_KEY = GOOGLE_BOOKS_API_KEY ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
+        // CI replaces the placeholder via sed; if it wasn't replaced (local dev), send no key at all
+        const GBOOKS_KEY = (GOOGLE_BOOKS_API_KEY && !GOOGLE_BOOKS_API_KEY.startsWith('__')) ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
         const APP_VERSION = '4.0.1';
         const WHATS_NEW = {
             version: '4.0.1',
@@ -6357,10 +6358,12 @@ Object.assign(window, { Scene });
             const [messagesLoading, setMessagesLoading] = useState(false);
             const [unreadMessages, setUnreadMessages] = useState(0);
             const [msgContextMenu, setMsgContextMenu] = useState(null); // { id, x, y }
+            const [convPeerPubKey, setConvPeerPubKey] = useState(null);
             const msgLongPressTimer = React.useRef(null);
             const msgSubscriptionRef = React.useRef(null);
             const globalMsgSubRef = React.useRef(null);
             const activeConversationRef = React.useRef(null);
+            const convPeerPubKeyRef = React.useRef(null);
             const messagesEndRef = React.useRef(null);
             const chatMessagesRef = React.useRef(null);
 
@@ -6629,6 +6632,11 @@ Object.assign(window, { Scene });
                 activeConversationRef.current = activeConversation;
             }, [activeConversation]);
 
+            // Keep convPeerPubKeyRef in sync so global subscription can access it
+            useEffect(() => {
+                convPeerPubKeyRef.current = convPeerPubKey;
+            }, [convPeerPubKey]);
+
             // Load social data + start global message subscription when user logs in
             useEffect(() => {
                 if (!currentUser?.id) return;
@@ -6650,9 +6658,16 @@ Object.assign(window, { Scene });
                         const msg = payload.new;
                         const activeCon = activeConversationRef.current;
                         if (activeCon && activeCon.id === msg.conversation_id) {
-                            // Already viewing this conversation — message subscription handles it,
-                            // but add as fallback if per-conv sub missed it
-                            setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+                            // Already viewing this conversation — decrypt before adding as fallback
+                            const mySecKey = localStorage.getItem('lib_enc_sk');
+                            const peerKey = convPeerPubKeyRef.current;
+                            const decryptedMsg = {
+                                ...msg,
+                                content: (mySecKey && peerKey)
+                                    ? decryptMsg(msg.content, peerKey, mySecKey)
+                                    : (msg.content || '')
+                            };
+                            setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, decryptedMsg]);
                             // Mark as read immediately
                             supabaseClient.from('messages').update({ read_at: new Date().toISOString() }).eq('id', msg.id);
                         } else {
@@ -6962,6 +6977,38 @@ Object.assign(window, { Scene });
 
             function storeSecretKey(secretKey) {
                 localStorage.setItem('lib_enc_sk', secretKey);
+            }
+
+            // NaCl box: encrypt plaintext for a peer using DH key exchange.
+            // Both parties can decrypt using box.open(ct, nonce, peerPub, ownSec).
+            function encryptMsg(text, peerPubKey64, mySecKey64) {
+                const msg = nacl.util.decodeUTF8(text);
+                const peerPub = nacl.util.decodeBase64(peerPubKey64);
+                const mySec = nacl.util.decodeBase64(mySecKey64);
+                const nonce = nacl.randomBytes(nacl.box.nonceLength);
+                const ct = nacl.box(msg, nonce, peerPub, mySec);
+                return JSON.stringify({ v: 1, n: nacl.util.encodeBase64(nonce), c: nacl.util.encodeBase64(ct) });
+            }
+
+            // Attempt to decrypt a stored message. Returns plaintext on success,
+            // the raw string if it is not our encrypted format (legacy plaintext),
+            // or a locked-padlock placeholder if decryption fails.
+            function decryptMsg(content, peerPubKey64, mySecKey64) {
+                if (!content) return '';
+                let parsed;
+                try { parsed = JSON.parse(content); } catch { return content; }
+                if (parsed?.v !== 1) return content;
+                try {
+                    const nonce = nacl.util.decodeBase64(parsed.n);
+                    const ct    = nacl.util.decodeBase64(parsed.c);
+                    const peerPub = nacl.util.decodeBase64(peerPubKey64);
+                    const mySec   = nacl.util.decodeBase64(mySecKey64);
+                    const plain = nacl.box.open(ct, nonce, peerPub, mySec);
+                    if (!plain) return '🔒 [Unable to decrypt message]';
+                    return nacl.util.encodeUTF8(plain);
+                } catch {
+                    return '🔒 [Decryption error]';
+                }
             }
 
             // ==========================================
@@ -7647,7 +7694,7 @@ Object.assign(window, { Scene });
                 }
             };
 
-            const loadMessages = async (conversationId) => {
+            const loadMessages = async (conversationId, peerPubKey) => {
                 setMessagesLoading(true);
                 try {
                     const { data } = await supabaseClient
@@ -7656,7 +7703,13 @@ Object.assign(window, { Scene });
                         .eq('conversation_id', conversationId)
                         .eq('is_deleted', false)
                         .order('created_at', { ascending: true });
-                    setMessages(data || []);
+                    const mySecKey = localStorage.getItem('lib_enc_sk');
+                    const rows = (data || []).map(msg =>
+                        (mySecKey && peerPubKey)
+                            ? { ...msg, content: decryptMsg(msg.content, peerPubKey, mySecKey) }
+                            : msg
+                    );
+                    setMessages(rows);
                     // Mark received messages as read
                     await supabaseClient.from('messages')
                         .update({ read_at: new Date().toISOString() })
@@ -7683,23 +7736,27 @@ Object.assign(window, { Scene });
                     ? activeConversation.participant2_id
                     : activeConversation.participant1_id;
                 try {
-                    const content = newMessage.trim();
+                    const plaintext = newMessage.trim();
+                    const mySecKey = localStorage.getItem('lib_enc_sk');
+                    const storedContent = (mySecKey && convPeerPubKey)
+                        ? encryptMsg(plaintext, convPeerPubKey, mySecKey)
+                        : plaintext;
                     const { data: inserted, error } = await supabaseClient.from('messages').insert({
                         conversation_id: activeConversation.id,
                         sender_id: currentUser.id,
                         recipient_id: otherId,
-                        content
+                        content: storedContent
                     }).select().single();
                     if (error) throw error;
-                    // Append optimistically — no reload needed
-                    setMessages(prev => prev.some(m => m.id === inserted.id) ? prev : [...prev, inserted]);
+                    // Append optimistically with plaintext so the sender sees it immediately
+                    setMessages(prev => prev.some(m => m.id === inserted.id) ? prev : [...prev, { ...inserted, content: plaintext }]);
                     setNewMessage('');
-                    // Notify recipient
+                    // Notify recipient using plaintext preview (never expose ciphertext in notifications)
                     supabaseClient.from('notifications').insert({
                         user_id: otherId,
                         type: 'message',
                         title: currentUser.name,
-                        content: content.length > 60 ? content.slice(0, 60) + '…' : content,
+                        content: plaintext.length > 60 ? plaintext.slice(0, 60) + '…' : plaintext,
                         related_user_id: currentUser.id,
                         action_url: activeConversation.id
                     });
@@ -7721,12 +7778,23 @@ Object.assign(window, { Scene });
 
             const openConversation = async (conv) => {
                 setActiveConversation(conv);
-                // Unsubscribe from previous subscription
                 if (msgSubscriptionRef.current) {
                     msgSubscriptionRef.current.unsubscribe();
                 }
-                await loadMessages(conv.id);
-                // Subscribe to new messages in this conversation
+                // Fetch the other participant's encryption public key before loading messages
+                const peerId = conv.participant1_id === currentUser.id
+                    ? conv.participant2_id
+                    : conv.participant1_id;
+                const { data: peerProfile } = await supabaseClient
+                    .from('user_profiles')
+                    .select('encryption_public_key')
+                    .eq('id', peerId)
+                    .single();
+                const peerPubKey = peerProfile?.encryption_public_key || null;
+                setConvPeerPubKey(peerPubKey);
+                await loadMessages(conv.id, peerPubKey);
+                // Subscribe to new messages in this conversation.
+                // Capture peerPubKey in closure so the callback always uses the correct key.
                 msgSubscriptionRef.current = supabaseClient
                     .channel(`conv-${conv.id}`)
                     .on('postgres_changes', {
@@ -7735,9 +7803,16 @@ Object.assign(window, { Scene });
                         table: 'messages',
                         filter: `conversation_id=eq.${conv.id}`
                     }, (payload) => {
+                        const mySecKey = localStorage.getItem('lib_enc_sk');
+                        const decryptedMsg = {
+                            ...payload.new,
+                            content: (mySecKey && peerPubKey)
+                                ? decryptMsg(payload.new.content, peerPubKey, mySecKey)
+                                : (payload.new.content || '')
+                        };
                         setMessages(prev => {
                             if (prev.some(m => m.id === payload.new.id)) return prev;
-                            return [...prev, payload.new];
+                            return [...prev, decryptedMsg];
                         });
                         if (payload.new.recipient_id === currentUser.id) {
                             supabaseClient.from('messages')

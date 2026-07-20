@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 4.1.2
+    YOUR LIBRARY - VERSION 4.1.3
     ========================================
+    v4.1.3: Community (book clubs) enabled — fixed broken sender/member names (was embedding auth.users → now server-stamped, anti-spoofing), added always-on keyword moderation, optimistic sends, leave/delete group, group realtime; new Community tab. Requires v4.1.3_community.sql.
     v4.1.2: UI fixes — bookcase book width now matches its visual footprint at any books-per-shelf (fixed coordinate-space + rounding mismatch); My Room tabs pinned to the top for a full room view; search bar narrowed (~half) so tabs + books sit higher
     v4.1.1: Security hardening (RLS) — fixes friend-request self-accept that exposed private libraries; blocks forged "system" notifications; closes anon-key exposure of ai_moderation_log. Requires v4.1.1_security_hardening.sql to be run in Supabase. No client behavior change.
     v4.1.0: Security & speed — direct messages now truly end-to-end encrypted (NaCl box envelope in messages.content, legacy plaintext still readable); all CDN scripts version-pinned with SRI integrity hashes; iOS builds precompiled JSX (Babel removed from device); DB resilience SQL pack (core schema DDL, imports table, realtime publication) + Supabase keep-alive workflow
@@ -4512,14 +4513,14 @@
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         // CI replaces the placeholder via sed; if it wasn't replaced (local dev), send no key at all
         const GBOOKS_KEY = (GOOGLE_BOOKS_API_KEY && !GOOGLE_BOOKS_API_KEY.startsWith('__')) ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '4.1.2';
+        const APP_VERSION = '4.1.3';
         const WHATS_NEW = {
-            version: '4.1.2',
-            type: 'fix',
+            version: '4.1.3',
+            type: 'feature',
             items: [
-                'Books on a bookcase now line up correctly at any books-per-shelf setting',
-                'My Room: tabs moved to the top for a full view of your room',
-                'Slimmer search bar so more of your books and bookcases show',
+                'New Community tab — start book clubs and discuss any book',
+                'Public & private groups with roles, chats, and shelves',
+                'Live group chat with built-in content moderation',
             ]
         };
 
@@ -8095,6 +8096,29 @@ Object.assign(window, { Scene });
                 return `${Math.floor(h / 24)}d`;
             }
 
+            // ── Content moderation (always-on keyword filter) ─────────────────
+            // A minimal, non-exhaustive starter blocklist. Expand it, or wire a
+            // server-side / AI moderation call here (see book_public_chats.
+            // ai_moderation_enabled + the ai_moderation_log table). Returns
+            // { ok: true } or { ok: false, reason }.
+            const GROUP_BLOCKLIST = new Set([
+                'fuck','shit','bitch','asshole','cunt','nigger','faggot','retard','slut','whore','kike','spic'
+            ]);
+            const moderateContent = (text) => {
+                const t = (text || '').trim();
+                if (!t) return { ok: false, reason: 'Message is empty.' };
+                if (t.length > 2000) return { ok: false, reason: 'Message too long (2000 character max).' };
+                const words = t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+                if (words.some(w => GROUP_BLOCKLIST.has(w))) {
+                    return { ok: false, reason: 'Your message was blocked by the community filter.' };
+                }
+                return { ok: true };
+            };
+
+            // Display name this user publishes into group rows (denormalized so
+            // other members never need to read your profile — see v4.1.3 SQL).
+            const myGroupName = () => currentUser?.user_metadata?.name || currentUser?.email?.split('@')[0] || 'User';
+
             // ── Load groups (mine + public) ───────────────────────────────────
             const loadGroups = async () => {
                 if (!currentUser) return;
@@ -8204,9 +8228,11 @@ Object.assign(window, { Scene });
             };
 
             const loadPendingRequests = async (groupId) => {
+                // Note: requester/target are auth.users ids — not embeddable via
+                // PostgREST — so resolve their names from the loaded group members.
                 const { data } = await supabaseClient
                     .from('role_change_requests')
-                    .select('*, requester:requested_by(id), target:target_user_id(id), role:requested_role_id(name)')
+                    .select('*, role:requested_role_id(name)')
                     .eq('group_id', groupId)
                     .eq('status', 'pending');
                 setPendingRoleRequests(data || []);
@@ -8261,9 +8287,47 @@ Object.assign(window, { Scene });
                 }
             };
 
+            // ── Leave a group (any non-owner member) ──────────────────────────
+            const leaveGroup = async (group) => {
+                if (!currentUser) return;
+                if ((group.owner_id || group.ownerId) === currentUser.id) {
+                    alert('You own this group — delete it instead of leaving.');
+                    return;
+                }
+                if (!window.confirm('Leave this group?')) return;
+                const { error } = await supabaseClient
+                    .from('group_members')
+                    .delete()
+                    .eq('group_id', group.id)
+                    .eq('user_id', currentUser.id);
+                if (error) { alert(error.message); return; }
+                setGroupsView('list');
+                setSelectedGroup(null);
+                await loadGroups();
+            };
+
+            // ── Delete a group (owner only; soft delete via is_active) ─────────
+            const deleteGroup = async (group) => {
+                if ((group.owner_id || group.ownerId) !== currentUser?.id) {
+                    alert('Only the owner can delete this group.');
+                    return;
+                }
+                if (!window.confirm('Delete this group permanently? This cannot be undone.')) return;
+                const { error } = await supabaseClient
+                    .from('book_groups')
+                    .update({ is_active: false })
+                    .eq('id', group.id);
+                if (error) { alert(error.message); return; }
+                setGroupsView('list');
+                setSelectedGroup(null);
+                await loadGroups();
+            };
+
             // ── Add member (by user profile lookup) ───────────────────────────
             const addMemberToGroup = async (group, targetUserId) => {
                 const memberRole = (group.roles || []).find(r => (r.role_type || r.roleType) === 'member');
+                // user_name is stamped server-side by a trigger from the target's
+                // real profile — works even for private users the admin can't read.
                 const { error } = await supabaseClient
                     .from('group_members')
                     .insert({ group_id: group.id, user_id: targetUserId, role_id: memberRole?.id || null });
@@ -8416,7 +8480,7 @@ Object.assign(window, { Scene });
                 try {
                     const { data, error } = await supabaseClient
                         .from('group_chat_messages')
-                        .select('*, sender:sender_id(id, email, user_metadata)')
+                        .select('*')
                         .eq('chat_id', chatId)
                         .eq('is_deleted', false)
                         .order('created_at', { ascending: true })
@@ -8472,14 +8536,38 @@ Object.assign(window, { Scene });
             const sendGroupMessage = async () => {
                 const content = groupMsgInput.trim();
                 if (!content || !selectedGroupChat || !currentUser) return;
+                // Always-on moderation before anything leaves the client
+                const check = moderateContent(content);
+                if (!check.ok) { alert(check.reason); return; }
                 setGroupMsgInput('');
-                const { error } = await supabaseClient
+                const senderName = myGroupName();
+                // Optimistically show the message so the sender sees it even if
+                // realtime is momentarily unavailable.
+                const tmpId = 'tmp_' + Date.now();
+                const optimistic = {
+                    id: tmpId, chat_id: selectedGroupChat.id, sender_id: currentUser.id,
+                    sender_name: senderName, content, is_deleted: false,
+                    created_at: new Date().toISOString(), _pending: true,
+                };
+                setGroupMessages(prev => [...prev, optimistic]);
+                // sender_name is stamped server-side by a trigger (anti-spoofing);
+                // we only send content + ids. The returned row carries the real name.
+                const { data, error } = await supabaseClient
                     .from('group_chat_messages')
-                    .insert({ chat_id: selectedGroupChat.id, sender_id: currentUser.id, content });
+                    .insert({ chat_id: selectedGroupChat.id, sender_id: currentUser.id, content })
+                    .select()
+                    .single();
                 if (error) {
+                    setGroupMessages(prev => prev.filter(m => m.id !== tmpId));
                     setGroupMsgInput(content);
                     alert('Error sending message: ' + error.message);
+                    return;
                 }
+                // Swap the temp row for the real one (dedupe against realtime echo)
+                setGroupMessages(prev => {
+                    const withoutTmp = prev.filter(m => m.id !== tmpId);
+                    return withoutTmp.some(m => m.id === data.id) ? withoutTmp : [...withoutTmp, data];
+                });
             };
 
             // ── Delete (soft) a message ───────────────────────────────────────
@@ -12469,7 +12557,7 @@ Object.assign(window, { Scene });
                                         >📖 Summary</div>
                                     )}
 
-                                    {currentUser && selectedBook?.isbn && selectedBook.isbn !== 'Not Available' && false && (
+                                    {currentUser && selectedBook?.isbn && selectedBook.isbn !== 'Not Available' && (
                                         <div style={{marginTop:'1.25rem', borderTop:'1px solid #e0c9a6', paddingTop:'1rem'}}>
                                             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem'}}>
                                                 <div style={{fontWeight:700, color:'#3d2817', fontSize:'0.95rem'}}>💬 Community</div>
@@ -12923,7 +13011,18 @@ Object.assign(window, { Scene });
                             >
                                 🏠 My Room
                             </div>
-                            {/* Groups tab hidden — pending redesign */}
+                            {currentUser && (
+                                <div
+                                    className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        if (editingShelfId !== null) { setPendingTab('groups'); setShowEditLeavePrompt(true); return; }
+                                        setShowAllBooks(false); setAllBooksEditMode(false); setSelectedBookIds(new Set());
+                                        setActiveTab('groups');
+                                    }}
+                                >
+                                    👥 Community
+                                </div>
+                            )}
                         </div>
 
                         {/* Your Books Section - Netflix Style */}
@@ -14045,9 +14144,9 @@ Object.assign(window, { Scene });
                         )}
 
                         {/* ═══════════════════════════════════════════════
-                            GROUPS SECTION — Coming Soon
+                            COMMUNITY / GROUPS SECTION — enabled v4.1.3
                             ═══════════════════════════════════════════════ */}
-                        {activeTab === 'groups' && currentUser && false && (() => {
+                        {activeTab === 'groups' && currentUser && (() => {
 
                             /* ── Helpers (inline so they close over state) ── */
                             const myGroups   = groups.filter(g => isMemberOfGroup(g));
@@ -14107,7 +14206,7 @@ Object.assign(window, { Scene });
                                             )}
                                             {groupMessages.map(msg => {
                                                 const mine = msg.sender_id === currentUser.id;
-                                                const senderName = msg.sender?.user_metadata?.name || msg.senderName || 'User';
+                                                const senderName = msg.sender_name || 'User';
                                                 return (
                                                     <div key={msg.id} className={`group-msg ${mine ? 'mine' : 'theirs'}`}>
                                                         {!mine && <div className="group-msg-sender">{senderName}</div>}
@@ -14179,6 +14278,21 @@ Object.assign(window, { Scene });
                                                     </span>
                                                 </div>
                                             </div>
+                                            {(group.owner_id || group.ownerId) === currentUser?.id ? (
+                                                <button
+                                                    className="group-member-btn remove"
+                                                    style={{alignSelf:'flex-start'}}
+                                                    onClick={() => deleteGroup(group)}
+                                                    title="Delete this group"
+                                                >Delete</button>
+                                            ) : (
+                                                <button
+                                                    className="group-member-btn"
+                                                    style={{alignSelf:'flex-start', borderColor:'#8b6f47', color:'#8b6f47'}}
+                                                    onClick={() => leaveGroup(group)}
+                                                    title="Leave this group"
+                                                >Leave</button>
+                                            )}
                                         </div>
 
                                         {/* Pending role requests banner */}
@@ -14437,8 +14551,8 @@ Object.assign(window, { Scene });
                                                         {pendingRoleRequests.map(req => (
                                                             <div key={req.id} style={{background:'#fff8e1', border:'1.5px solid #ffe082', borderRadius:8, padding:'0.65rem 0.9rem', marginBottom:'0.4rem', display:'flex', alignItems:'center', gap:'0.75rem'}}>
                                                                 <div style={{flex:1, fontSize:'0.85rem', color:'#3d2817'}}>
-                                                                    Assign <strong>{req.role?.name || req.requested_role_id}</strong> to user
-                                                                    <span style={{color:'#8b6f47'}}> {req.target_user_id}</span>
+                                                                    Assign <strong>{req.role?.name || req.requested_role_id}</strong> to
+                                                                    <span style={{color:'#8b6f47'}}> {members.find(m => (m.user_id || m.userId) === req.target_user_id)?.user_name || req.target_user_id}</span>
                                                                 </div>
                                                                 <button style={{background:'#2d6a4f', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', cursor:'pointer', fontWeight:700, fontSize:'0.8rem'}} onClick={() => reviewRoleRequest(group, req.id, true)}>✓ Approve</button>
                                                                 <button style={{background:'#c0392b', color:'#fff', border:'none', borderRadius:6, padding:'0.3rem 0.7rem', cursor:'pointer', fontWeight:700, fontSize:'0.8rem'}} onClick={() => reviewRoleRequest(group, req.id, false)}>✗ Reject</button>

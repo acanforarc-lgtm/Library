@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 4.1.1
+    YOUR LIBRARY - VERSION 4.1.2
     ========================================
+    v4.1.2: UI fixes — bookcase book width now matches its visual footprint at any books-per-shelf (fixed coordinate-space + rounding mismatch); My Room tabs pinned to the top for a full room view; search bar narrowed (~half) so tabs + books sit higher
     v4.1.1: Security hardening (RLS) — fixes friend-request self-accept that exposed private libraries; blocks forged "system" notifications; closes anon-key exposure of ai_moderation_log. Requires v4.1.1_security_hardening.sql to be run in Supabase. No client behavior change.
     v4.1.0: Security & speed — direct messages now truly end-to-end encrypted (NaCl box envelope in messages.content, legacy plaintext still readable); all CDN scripts version-pinned with SRI integrity hashes; iOS builds precompiled JSX (Babel removed from device); DB resilience SQL pack (core schema DDL, imports table, realtime publication) + Supabase keep-alive workflow
     v3.1.0: Isometric Library Room — CSS/SVG isometric room in the Room tab; furniture catalog drag-and-drop; shelf items wired to live books/shelves; Supabase rooms table; edit mode owner-only; read-only for visitors; lazy-mounted on tab activation
@@ -175,7 +176,7 @@
         .header-search {
             position: relative;
             flex: 1;
-            max-width: 600px;
+            max-width: 340px; /* narrowed ~half (was 600px) so tabs + books sit higher */
             margin: 0 auto;
             display: flex;
             gap: 0.25rem;
@@ -2923,7 +2924,8 @@
             }
 
             .header-search {
-                max-width: 100%;
+                max-width: 62%;   /* ~half width on phone; keeps input tappable while freeing vertical space */
+                min-width: 210px;
             }
 
             .main-content {
@@ -4510,14 +4512,14 @@
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         // CI replaces the placeholder via sed; if it wasn't replaced (local dev), send no key at all
         const GBOOKS_KEY = (GOOGLE_BOOKS_API_KEY && !GOOGLE_BOOKS_API_KEY.startsWith('__')) ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '4.1.1';
+        const APP_VERSION = '4.1.2';
         const WHATS_NEW = {
-            version: '4.1.1',
-            type: 'feature',
+            version: '4.1.2',
+            type: 'fix',
             items: [
-                'Privacy & security hardening for profiles and notifications',
-                'Direct messages are end-to-end encrypted',
-                'Faster app startup on iPhone',
+                'Books on a bookcase now line up correctly at any books-per-shelf setting',
+                'My Room: tabs moved to the top for a full view of your room',
+                'Slimmer search bar so more of your books and bookcases show',
             ]
         };
 
@@ -6234,7 +6236,10 @@ Object.assign(window, { Scene });
             const getShelfBookWidth = (shelfId) => {
                 const shelf = shelves.find(s => s.id === shelfId);
                 const maxBooks = shelf?.max_books || 20;
-                return Math.round(SHELF_WIDTH / maxBooks);
+                // Exact (no rounding): the reserved footprint must equal the visual
+                // book width (100%−32px)/maxBooks, or books overlap/gap when maxBooks
+                // does not divide SHELF_WIDTH evenly (e.g. 15, 18, 22).
+                return SHELF_WIDTH / maxBooks;
             };
             
             // ==========================================
@@ -12879,8 +12884,16 @@ Object.assign(window, { Scene });
 
                     {/* Main Content Area */}
                     <div className="main-content">
-                        {/* Tab Navigation */}
-                        <div className="tabs" style={activeTab === 'messages' ? {marginBottom: '0.5rem'} : {}}>
+                        {/* Tab Navigation — in Room view the tabs pin to the very top as a
+                            fixed bar so the room gets a full, unobstructed view below them. */}
+                        <div className="tabs" style={
+                            activeTab === 'room'
+                                ? { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 45, margin: 0,
+                                    padding: 'calc(env(safe-area-inset-top, 0px) + 10px) 0 10px',
+                                    background: 'linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%)',
+                                    borderBottom: '2px solid #8b6f47' }
+                                : (activeTab === 'messages' ? { marginBottom: '0.5rem' } : {})
+                        }>
                             <div
                                 className={`tab ${activeTab === 'books' ? 'active' : ''}`}
                                 onClick={() => {
@@ -13325,7 +13338,7 @@ Object.assign(window, { Scene });
 
                         {/* My Room — isometric 3D library room */}
                         {activeTab === 'room' && (
-                            <div style={{ position: 'fixed', top: '56px', left: 0, right: 0, bottom: 0, zIndex: 40 }}>
+                            <div style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) + 64px)', left: 0, right: 0, bottom: 0, zIndex: 40 }}>
                                 <LibraryRoom
                                     books={books}
                                     shelves={shelves}
@@ -13573,7 +13586,7 @@ Object.assign(window, { Scene });
                                                             className="book"
                                                             style={{
                                                                 position: 'absolute',
-                                                                left: `${(snapPreviewPosition / SHELF_WIDTH) * 100}%`,
+                                                                left: `calc(16px + ${snapPreviewPosition / SHELF_WIDTH} * (100% - 32px))`,
                                                                 bottom: '0.5rem',
                                                                 height: '250px',
                                                                 width: `calc((100% - 32px) / ${_maxBooks})`,
@@ -13617,8 +13630,11 @@ Object.assign(window, { Scene });
                                                     ) : (
                                                         boardBooks.map(book => {
                                                             const position = book.position !== null ? book.position : 0;
-                                                            // Position as % of shelf width — CSS book width is set via --shelf-max-books
-                                                            const percentagePosition = (position / SHELF_WIDTH) * 100;
+                                                            // Map position (0..SHELF_WIDTH) into the board's inner content area
+                                                            // (100% − 32px, offset 16px) — the SAME space the drag math uses in
+                                                            // calculateDropPosition — so the visible book lines up exactly with
+                                                            // its footprint and its width (100%−32px)/maxBooks.
+                                                            const bookLeft = `calc(16px + ${position / SHELF_WIDTH} * (100% - 32px))`;
                                                             
                                                             return (
                                                                 <div
@@ -13637,7 +13653,7 @@ Object.assign(window, { Scene });
                                                                         cursor: 'grab',
                                                                         opacity: draggedBook?.id === book.id ? '0.5' : '1',
                                                                         position: 'absolute',
-                                                                        left: `${percentagePosition}%`,
+                                                                        left: bookLeft,
                                                                         bottom: '0.5rem',
                                                                         touchAction: 'none',
                                                                         width: `calc((100% - 32px) / ${_maxBooks})`

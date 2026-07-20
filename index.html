@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 4.1.4
+    YOUR LIBRARY - VERSION 5.0.0
     ========================================
+    v5.0.0: Version correction — Community (book clubs) was under-versioned as a patch bump (v4.1.3). Re-numbered to a major release to match its actual scope (full social/group-chat system: roles, moderation, tiered chats, group shelves) and this project's own precedent (My Room was bumped 3.1.0→4.0.0 for the same reason). No functional change from v4.1.4 beyond the version number and this release's What's New content/CTA.
     v4.1.4: What's New popup fix — the splash-vs-bell decision compared minor version numbers only, so a MAJOR bump (e.g. 4.x.x → 5.0.0) reset the minor to 0 and was incorrectly treated as a patch (bell-only, no splash). Now correctly checks major-or-minor. Also: new users no longer see a "What's New" splash on their very first-ever launch (nothing to compare against). Added an optional "Take me there →" CTA so a What's New entry can deep-link straight to the new feature's tab.
     v4.1.3: Community (book clubs) enabled — fixed broken sender/member names (was embedding auth.users → now server-stamped, anti-spoofing), added always-on keyword moderation, optimistic sends, leave/delete group, group realtime; new Community tab. Requires v4.1.3_community.sql.
     v4.1.2: UI fixes — bookcase book width now matches its visual footprint at any books-per-shelf (fixed coordinate-space + rounding mismatch); My Room tabs pinned to the top for a full room view; search bar narrowed (~half) so tabs + books sit higher
@@ -4514,19 +4515,20 @@
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         // CI replaces the placeholder via sed; if it wasn't replaced (local dev), send no key at all
         const GBOOKS_KEY = (GOOGLE_BOOKS_API_KEY && !GOOGLE_BOOKS_API_KEY.startsWith('__')) ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '4.1.4';
+        const APP_VERSION = '5.0.0';
         const WHATS_NEW = {
-            version: '4.1.4',
-            type: 'fix',
+            version: '5.0.0',
+            type: 'feature',
             items: [
-                'Fixed: the "What\'s New" popup could be skipped on some big updates',
-                'New updates can now link straight to the feature they added',
+                '📚 Community is here — create and join book clubs',
+                'Public & private groups with roles, chats, and shelves',
+                'Live group chat with built-in content moderation',
             ],
             // Optional: set both to let the splash offer a "Take me there" button
             // that jumps straight to the new feature's tab. Leave null for a
             // plain informational release.
-            actionTab: null,
-            actionLabel: null,
+            actionTab: 'groups',
+            actionLabel: 'Explore Community →',
         };
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

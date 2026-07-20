@@ -9,6 +9,16 @@
 --   2. [MED]  notifications spoofing → forged "system" messages
 --   3. [MED]  ai_moderation_log exposed via the public anon key
 -- ============================================================
+--
+-- DEADLOCK NOTE: these DROP/CREATE POLICY statements need a brief
+-- exclusive lock on each table. On a LIVE project (app serving reads),
+-- a concurrent query can cause "40P01: deadlock detected". If that
+-- happens: (a) re-run — deadlocks are usually transient, or (b) run
+-- the three numbered sections below as SEPARATE queries so each grabs
+-- and releases its lock immediately. The lock_timeout below makes a
+-- contended run fail fast (clean retry) instead of hanging.
+
+SET lock_timeout = '5s';
 
 
 -- ────────────────────────────────────────────────────────────

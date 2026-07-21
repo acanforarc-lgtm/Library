@@ -6,8 +6,9 @@
     <title>Your Library</title>
     <!--
     ========================================
-    YOUR LIBRARY - VERSION 5.0.0
+    YOUR LIBRARY - VERSION 5.0.1
     ========================================
+    v5.0.1: Search bar height fix — the v4.1.2 "narrow the search bar" request was about height, not width. Width restored to its original size; bar height halved instead (container + input padding, and the scanner/search icon buttons + barcode SVG all halved to match).
     v5.0.0: Version correction — Community (book clubs) was under-versioned as a patch bump (v4.1.3). Re-numbered to a major release to match its actual scope (full social/group-chat system: roles, moderation, tiered chats, group shelves) and this project's own precedent (My Room was bumped 3.1.0→4.0.0 for the same reason). No functional change from v4.1.4 beyond the version number and this release's What's New content/CTA.
     v4.1.4: What's New popup fix — the splash-vs-bell decision compared minor version numbers only, so a MAJOR bump (e.g. 4.x.x → 5.0.0) reset the minor to 0 and was incorrectly treated as a patch (bell-only, no splash). Now correctly checks major-or-minor. Also: new users no longer see a "What's New" splash on their very first-ever launch (nothing to compare against). Added an optional "Take me there →" CTA so a What's New entry can deep-link straight to the new feature's tab.
     v4.1.3: Community (book clubs) enabled — fixed broken sender/member names (was embedding auth.users → now server-stamped, anti-spoofing), added always-on keyword moderation, optimistic sends, leave/delete group, group realtime; new Community tab. Requires v4.1.3_community.sql.
@@ -179,13 +180,13 @@
         .header-search {
             position: relative;
             flex: 1;
-            max-width: 340px; /* narrowed ~half (was 600px) so tabs + books sit higher */
+            max-width: 600px; /* width restored — "narrow" was meant as height, see padding below */
             margin: 0 auto;
             display: flex;
             gap: 0.25rem;
             align-items: center;
             background: white;
-            padding: 0.6rem 0.4rem 0.6rem 1.2rem;
+            padding: 0.3rem 0.4rem 0.3rem 1.2rem; /* top/bottom halved (was 0.6rem) for a shorter bar */
             border-radius: 50px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             border: 2px solid transparent;
@@ -202,7 +203,7 @@
             border: none;
             outline: none;
             font-size: 0.95rem;
-            padding: 0.4rem 0.5rem;
+            padding: 0.2rem 0.5rem; /* top/bottom halved (was 0.4rem) */
             background: transparent;
             color: #3d2817;
         }
@@ -233,8 +234,8 @@
         .search-clear {
             background: transparent !important;
             color: #8b6f47 !important;
-            font-size: 1.5rem !important;
-            padding: 0.3rem 0.5rem !important;
+            font-size: 1.1rem !important; /* halved from 1.5rem to match the shorter bar */
+            padding: 0.15rem 0.5rem !important; /* top/bottom halved (was 0.3rem) */
             opacity: 0.6;
             transition: opacity 0.2s;
             border-radius: 50%;
@@ -250,13 +251,13 @@
         
         /* Scanner Button */
         .scanner-btn {
-            width: 2.2rem !important;
-            height: 2.2rem !important;
+            width: 1.1rem !important; /* halved from 2.2rem to shorten the search bar */
+            height: 1.1rem !important;
             padding: 0 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            font-size: 1.1rem !important;
+            font-size: 0.6rem !important;
             flex-shrink: 0;
         }
 
@@ -308,9 +309,9 @@
         .header-search button[title="Search"] {
             background: transparent !important;
             color: #3d2817 !important;
-            font-size: 1.3rem !important;
-            width: 2.2rem !important;
-            height: 2.2rem !important;
+            font-size: 0.75rem !important; /* halved from 1.3rem to fit the shorter bar */
+            width: 1.1rem !important; /* halved from 2.2rem */
+            height: 1.1rem !important;
             padding: 0 !important;
             display: flex !important;
             align-items: center !important;
@@ -2927,8 +2928,7 @@
             }
 
             .header-search {
-                max-width: 62%;   /* ~half width on phone; keeps input tappable while freeing vertical space */
-                min-width: 210px;
+                max-width: 100%;   /* width restored on phone — see .header-search padding for the height cut */
             }
 
             .main-content {
@@ -4515,20 +4515,18 @@
         const GOOGLE_BOOKS_API_KEY = '__GOOGLE_BOOKS_API_KEY__';
         // CI replaces the placeholder via sed; if it wasn't replaced (local dev), send no key at all
         const GBOOKS_KEY = (GOOGLE_BOOKS_API_KEY && !GOOGLE_BOOKS_API_KEY.startsWith('__')) ? `&key=${GOOGLE_BOOKS_API_KEY}` : '';
-        const APP_VERSION = '5.0.0';
+        const APP_VERSION = '5.0.1';
         const WHATS_NEW = {
-            version: '5.0.0',
-            type: 'feature',
+            version: '5.0.1',
+            type: 'fix',
             items: [
-                '📚 Community is here — create and join book clubs',
-                'Public & private groups with roles, chats, and shelves',
-                'Live group chat with built-in content moderation',
+                'Shorter search bar — more of your books and bookcases now fit on screen',
             ],
             // Optional: set both to let the splash offer a "Take me there" button
             // that jumps straight to the new feature's tab. Leave null for a
             // plain informational release.
-            actionTab: 'groups',
-            actionLabel: 'Explore Community →',
+            actionTab: null,
+            actionLabel: null,
         };
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -12116,7 +12114,7 @@ Object.assign(window, { Scene });
                                         color: 'white'
                                     }}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="11" height="11">
                                         <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm2 0h1v16h-1V4zm2 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4z"/>
                                     </svg>
                                 </button>

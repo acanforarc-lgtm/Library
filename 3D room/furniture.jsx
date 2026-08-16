@@ -421,34 +421,144 @@ function Art({ item, style }) {
 
 }
 
-function Window({ item, style, daynight }) {
-  const w = 110;
-  const h = 140;
-  const isNight = daynight < 0.2 || daynight > 0.85;
-  const isEvening = daynight > 0.7 && daynight <= 0.85;
-  const skyColor = isNight ? '#1a2540' :
-  isEvening ? '#c88868' :
-  daynight < 0.3 ? '#3a4a6a' :
-  daynight < 0.5 ? '#a8b8c8' :
-  '#b8c8d4';
-  const skyColor2 = isNight ? '#0a1024' :
-  isEvening ? '#8a5850' :
-  '#d8dce4';
+function Window({ item, style, daynight, weather }) {
+  const w = 110, h = 140;
+  // Effective condition: live weather wins; otherwise the preset styleId.
+  const cond = weather || (
+    style.styleId === 'window-rain' ? 'rain' :
+    style.styleId === 'window-snow' ? 'snow' :
+    'clear');
+  // Each preset carries its own canonical time-of-day so a placed window
+  // always matches its catalog name ("Sunny Morning" reads as morning even
+  // when the room's global clock is set to evening). Live weather takes over
+  // the real time-of-day.
+  const presetTime = { 'window-rain': 0.80, 'window-sunny': 0.34, 'window-snow': 0.5 };
+  const morning = !weather && style.styleId === 'window-sunny';
+  const t = weather ? daynight : (presetTime[style.styleId] ?? daynight);
+  const isNight = t < 0.2 || t > 0.86;
+  const isDawn = t >= 0.2 && t < 0.32;
+  const isDusk = t > 0.72 && t <= 0.86;
+  const overcast = cond === 'rain' || cond === 'clouds' || cond === 'snow' || cond === 'fog' || cond === 'storm';
+  const showSun = !overcast && !isNight;
+  const showMoon = isNight && cond !== 'storm';
+
+  // Sky gradient by time + condition
+  let skyTop, skyBot;
+  if (cond === 'fog') { skyTop = '#c3c7c9'; skyBot = '#dadedd'; }
+  else if (cond === 'storm') { skyTop = '#363c44'; skyBot = '#59616a'; }
+  else if (isNight) { skyTop = overcast ? '#1b2130' : '#12193a'; skyBot = overcast ? '#2b313e' : '#2c3866'; }
+  else if (isDawn) { skyTop = '#4b5c92'; skyBot = '#f0b183'; }
+  else if (isDusk) { skyTop = '#39477e'; skyBot = '#ee9a63'; }
+  else { skyTop = overcast ? '#8b98a7' : '#5f9bd6'; skyBot = overcast ? '#bcc4cc' : '#d3e8f4'; }
+
+  // Hill / treeline palette
+  const hills = isNight ? ['#233250', '#1a2842', '#111c31']
+    : (isDawn || isDusk) ? ['#6b6a8e', '#54527b', '#3c3a62']
+    : overcast ? ['#8a988c', '#6d8070', '#516551']
+    : ['#a3c585', '#7bac64', '#5b8b49'];
+  const uid = String(item.id || style.styleId).replace(/[^a-z0-9]/gi, '');
+  const skyId = 'sky_' + uid, sunId = 'sun_' + uid;
+  const sunX = morning ? 33 : isDawn ? 28 : isDusk ? 72 : 50;
+  const sunY = morning ? 40 : (isDawn || isDusk) ? 60 : 30;
+  const sunFill = isDusk ? '#ffd9a6' : isDawn ? '#ffe8c0' : '#fff3cf';
+  const snowy = cond === 'snow';
+
   return (
     <div className="furniture window" style={{ width: w, height: h }}>
       <div className="window-frame">
-        <div className="window-view" style={{ background: `linear-gradient(180deg, ${skyColor}, ${skyColor2})` }}>
-          {/* Distant buildings / trees */}
-          <svg className="window-landscape" viewBox="0 0 170 220" width={w} height={h}>
-            <path d="M0 150 L30 130 L50 140 L70 120 L95 135 L120 118 L145 132 L170 125 L170 220 L0 220 Z" fill={isNight ? '#0a1024' : '#7a8a78'} opacity=".8" />
-            {isNight && [...Array(10)].map((_, i) =>
-            <circle key={i} cx={15 + i * 16} cy={20 + i % 3 * 12} r=".8" fill="#fff" opacity={.3 + i % 3 * .2} />
-            )}
-            {isNight && <circle cx="130" cy="40" r="16" fill="#f0e4c0" opacity=".9" />}
+        <div className="window-view">
+          <svg viewBox="0 0 100 130" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style={{ display: 'block' }}>
+            <defs>
+              <linearGradient id={skyId} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor={skyTop} />
+                <stop offset="1" stopColor={skyBot} />
+              </linearGradient>
+              <radialGradient id={sunId} cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stopColor={sunFill} stopOpacity="0.95" />
+                <stop offset="0.4" stopColor={sunFill} stopOpacity="0.35" />
+                <stop offset="1" stopColor={sunFill} stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <rect x="0" y="0" width="100" height="130" fill={`url(#${skyId})`} />
+
+            {/* Stars on clear nights */}
+            {isNight && !overcast && [...Array(14)].map((_, i) => (
+              <circle key={i} cx={(i * 29 + 11) % 100} cy={((i * 17) % 55) + 4}
+                r={i % 3 === 0 ? 0.8 : 0.5} fill="#fff" opacity={0.35 + (i % 3) * 0.22} />
+            ))}
+
+            {/* Sun with soft glow */}
+            {showSun && <>
+              <circle cx={sunX} cy={sunY} r="22" fill={`url(#${sunId})`} />
+              <circle cx={sunX} cy={sunY} r="9" fill={sunFill} />
+            </>}
+            {/* Moon */}
+            {showMoon && <>
+              <circle cx="70" cy="26" r="18" fill="#cdd6ea" opacity="0.2" />
+              <circle cx="70" cy="26" r="8" fill="#eef1f8" />
+              <circle cx="73" cy="24" r="2" fill="#d2d8e6" opacity="0.7" />
+              <circle cx="67" cy="29" r="1.4" fill="#d2d8e6" opacity="0.6" />
+            </>}
+
+            {/* Clouds */}
+            {(cond === 'clouds' || cond === 'rain' || cond === 'storm' || (cond === 'clear' && !isNight)) && (() => {
+              const cloud = cond === 'clear' ? '#ffffff' : cond === 'storm' ? '#3f454d' : isNight ? '#39414f' : '#e4e9ee';
+              const op = cond === 'clear' ? 0.9 : 0.85;
+              const puffs = cond === 'clear' ? [[26, 22, 9], [34, 24, 7]] : [[24, 18, 11], [36, 20, 9], [70, 30, 12], [82, 32, 9]];
+              return puffs.map((p, i) => <ellipse key={i} cx={p[0]} cy={p[1]} rx={p[2]} ry={p[2] * 0.62} fill={cloud} opacity={op} />);
+            })()}
+
+            {/* Distant hills / treeline */}
+            <path d="M0 74 Q26 64 52 70 T100 68 L100 130 L0 130 Z" fill={hills[0]} />
+            <path d="M0 90 Q30 79 60 86 T100 84 L100 130 L0 130 Z" fill={hills[1]} />
+            <path d="M0 106 Q22 98 46 104 T100 102 L100 130 L0 130 Z" fill={hills[2]} />
+            {/* Snow caps */}
+            {snowy && <>
+              <path d="M0 74 Q26 64 52 70 T100 68 L100 78 Q52 72 0 82 Z" fill="#f2f5f8" opacity="0.85" />
+              <path d="M0 90 Q30 79 60 86 T100 84 L100 92 Q60 88 0 96 Z" fill="#e8edf1" opacity="0.8" />
+            </>}
+            {/* Fir trees on the near ridge */}
+            {[14, 30, 58, 78, 90].map((x, i) => {
+              const ty = 100 + (i % 2) * 4;
+              const tc = snowy ? '#dfe6ea' : hills[2];
+              return <path key={i} d={`M${x} ${ty} l4 8 l-8 0 Z M${x} ${ty + 4} l5 8 l-10 0 Z`} fill={tc} opacity="0.9" />;
+            })}
+            {/* Warm window lights in the distance at night */}
+            {isNight && [22, 44, 63, 81].map((x, i) => (
+              <rect key={i} x={x} y={96 + (i % 2) * 5} width="2" height="2.4" fill="#ffcf7a" opacity="0.85" />
+            ))}
+            {/* Horizon haze */}
+            <rect x="0" y="70" width="100" height="16" fill={skyBot} opacity="0.28" />
           </svg>
-          {/* Rain */}
-          {style.styleId === 'window-rain' && <div className="rain" />}
-          {style.styleId === 'window-snow' && <div className="snow" />}
+
+          {/* Weather overlays */}
+          {(cond === 'rain' || cond === 'storm') && (() => {
+            const heavy = cond === 'storm';
+            // Deterministic per-window variation.
+            const seed = uid.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            const beads = [[18, 22, 5], [70, 15, 4], [41, 52, 6], [84, 58, 4], [27, 76, 5], [61, 83, 4], [52, 33, 3], [10, 64, 4], [90, 34, 3]];
+            const runners = [[24, 8, 3.6, 0], [66, 24, 4.6, 1.5], [46, 3, 5.3, 3.0], [81, 12, 4.1, 2.3]];
+            const rn = heavy ? runners : runners.slice(0, 3);
+            return (
+              <div className={'win-rain' + (heavy ? ' heavy' : '')}>
+                <div className="win-rain-fall" />
+                {beads.map((b, i) => {
+                  const dx = ((seed + i * 37) % 9) - 4, dy = ((seed + i * 53) % 7) - 3;
+                  return <span key={'b' + i} className="win-bead" style={{ left: (b[0] + dx) + '%', top: (b[1] + dy) + '%', width: b[2], height: b[2] * 1.15 }} />;
+                })}
+                {rn.map((r, i) => {
+                  const dx = ((seed + i * 29) % 11) - 5;
+                  const left = r[0] + dx, top = r[1];
+                  return <span key={'r' + i} className="win-runner" style={{ left: left + '%', top: top + '%', '--travel': (118 - top) + 'px', '--dur': (r[2] / (heavy ? 1.4 : 1)) + 's', '--delay': r[3] + 's' }} />;
+                })}
+              </div>
+            );
+          })()}
+          {cond === 'snow' && <div className="win-snow" />}
+          {cond === 'fog' && <div className="win-fog" />}
+          {cond === 'storm' && <div className="win-flash" />}
+          {/* Glass sheen */}
+          <div className="win-glass" />
         </div>
         {/* Mullions */}
         <div className="window-mullion-v" />
@@ -549,8 +659,11 @@ function StringLights({ item, style }) {
 }
 
 // Router
-function Furniture({ item, style, shelf, books, daynight, onClickShelf, selected, dragging }) {
+function Furniture({ item, style, shelf, books, daynight, onClickShelf, selected, dragging, weather }) {
   if (!style) return null;
+  // Extra catalog pieces register themselves by styleId and take priority.
+  const extra = window.EXTRA_RENDERERS && window.EXTRA_RENDERERS[style.styleId];
+  if (extra) return React.createElement(extra, { item, style, daynight });
   switch (item.type) {
     case 'shelf':return <Shelf item={item} style={style} shelf={shelf} books={books} onClickShelf={onClickShelf} selected={selected} dragging={dragging} />;
     case 'chair':
@@ -566,7 +679,7 @@ function Furniture({ item, style, shelf, books, daynight, onClickShelf, selected
     case 'rug':return <Rug item={item} style={style} />;
     case 'pet':return <Cat item={item} style={style} />;
     case 'art':return <Art item={item} style={style} />;
-    case 'window':return <Window item={item} style={style} daynight={daynight} />;
+    case 'window':return <Window item={item} style={style} daynight={daynight} weather={weather} />;
     case 'trinket':return <Trinket item={item} style={style} />;
     default:return null;
   }

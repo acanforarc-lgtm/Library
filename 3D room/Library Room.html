@@ -120,7 +120,7 @@
     background: #2a201a; color: white;
     padding: 5px 6px; border-radius: 8px;
     box-shadow: 0 6px 20px rgba(0,0,0,.3);
-    z-index: 10000; pointer-events: auto;
+    z-index: 2000000; pointer-events: auto;
     font: 500 12px var(--sans);
   }
   .sel-toolbar::after {
@@ -150,6 +150,142 @@
   .item-wrap:hover { filter: brightness(1.08); }
   .item-wrap.selected { filter: drop-shadow(0 0 0 2px var(--accent)) brightness(1.05); }
   .item-wrap:active { cursor: grabbing; }
+  /* No contact shadows — items read as flat art sitting on the floor. */
+  /* Reactive pet glides smoothly to its next spot */
+  .item-wrap.pet-item { transition: left 2.6s ease-in-out, top 2.6s ease-in-out, filter .2s; }
+  body.edit-on .item-wrap:not(.selected):hover {
+    filter: brightness(1.05) drop-shadow(0 0 0 1.5px rgba(201,138,90,.7));
+  }
+
+  /* Cinematic vignette over the room stage */
+  .room-stage::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 7;
+    background: radial-gradient(ellipse 72% 64% at 50% 44%, transparent 58%, rgba(50,36,22,.15));
+  }
+
+  /* ── ROOM RESIZE HANDLES ── */
+  .resize-handle {
+    position: absolute; width: 28px; height: 28px; transform: translate(-50%, -50%);
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; z-index: 60; touch-action: none;
+  }
+  .resize-handle .rh-dot {
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--accent); border: 2.5px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,.35); transition: transform .12s;
+  }
+  .resize-handle:hover .rh-dot { transform: scale(1.28); }
+  .resize-handle:active { cursor: grabbing; }
+
+  /* ── TOAST ── */
+  .room-toast {
+    position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%);
+    background: #2a201a; color: #fff; padding: 9px 16px; border-radius: 999px;
+    font: 500 13px var(--sans); box-shadow: 0 8px 24px rgba(0,0,0,.28);
+    z-index: 2000001; animation: fade-in .2s;
+  }
+
+  /* ── ROOM SETTINGS PANEL ── */
+  .rs-panel {
+    position: fixed; top: 72px; left: 16px; width: 282px; max-height: calc(100vh - 168px);
+    display: flex; flex-direction: column;
+    background: var(--card); backdrop-filter: blur(30px);
+    border: .5px solid var(--line); border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2); z-index: 45; overflow: hidden;
+    animation: fade-in .2s;
+  }
+  .rs-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px; border-bottom: .5px solid var(--line);
+  }
+  .rs-head h3 { margin: 0; font: 500 16px var(--serif); }
+  .rs-close {
+    appearance: none; border: 0; background: transparent; color: var(--muted);
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 14px;
+  }
+  .rs-close:hover { background: rgba(0,0,0,.06); color: var(--fg); }
+  .rs-body { padding: 4px 16px 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+  .rs-sec { padding: 12px 0; border-bottom: .5px solid var(--line); }
+  .rs-sec:last-of-type { border-bottom: 0; }
+  .rs-label {
+    font: 600 10px var(--sans); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 9px;
+  }
+  .rs-stepper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; font-size: 13px; }
+  .rs-step-ctrls { display: flex; align-items: center; gap: 8px; }
+  .rs-step-ctrls button {
+    appearance: none; border: .5px solid var(--line); background: rgba(255,255,255,.6);
+    width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 15px; color: var(--fg);
+  }
+  .rs-step-ctrls button:hover { background: var(--accent); color: #fff; }
+  .rs-step-ctrls b { min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+  .rs-hint { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 4px; }
+  .rs-range { width: 100%; accent-color: var(--accent); }
+  .rs-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .rs-sw {
+    width: 34px; height: 34px; border-radius: 9px; border: 2px solid transparent;
+    cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.2); padding: 0;
+  }
+  .rs-sw.on { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--accent); }
+  .rs-btn-row { display: flex; gap: 8px; }
+  .rs-btn {
+    flex: 1; appearance: none; border: .5px solid var(--line); background: rgba(255,255,255,.6);
+    border-radius: 9px; padding: 8px; cursor: pointer; font: 500 12px var(--sans); color: var(--fg);
+  }
+  .rs-btn:hover { background: rgba(201,138,90,.14); }
+  .rs-btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .rs-btn.primary:hover { background: var(--accent-2); }
+  .rs-save-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .rs-input {
+    flex: 1; min-width: 0; border: .5px solid var(--line); background: rgba(255,255,255,.6);
+    border-radius: 8px; padding: 7px 9px; font: 400 12px var(--sans); color: var(--fg);
+  }
+  .rs-input:focus { outline: none; border-color: var(--accent); }
+  .rs-layouts { display: flex; flex-direction: column; gap: 5px; }
+  .rs-empty { font-size: 11px; color: var(--muted); font-style: italic; }
+  .rs-layout { display: flex; gap: 4px; }
+  .rs-layout-load {
+    flex: 1; text-align: left; appearance: none; border: .5px solid var(--line);
+    background: rgba(255,255,255,.5); border-radius: 8px; padding: 7px 10px;
+    cursor: pointer; font: 500 12px var(--sans); color: var(--fg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .rs-layout-load:hover { background: rgba(201,138,90,.14); }
+  .rs-layout-del {
+    appearance: none; border: 0; background: transparent; color: var(--muted);
+    width: 28px; border-radius: 8px; cursor: pointer;
+  }
+  .rs-layout-del:hover { background: #c84a3a; color: #fff; }
+  .rs-reset {
+    width: 100%; margin-top: 12px; appearance: none; border: .5px solid var(--line);
+    background: transparent; border-radius: 9px; padding: 9px; cursor: pointer;
+    font: 500 12px var(--sans); color: var(--muted);
+  }
+  .rs-reset:hover { border-color: #c84a3a; color: #c84a3a; }
+  .rs-danger { margin-top: 4px; }
+  .rs-danger .rs-reset { margin-top: 6px; }
+  .rs-danger .rs-hint { margin-top: 8px; }
+
+  /* ── CONFIRM DIALOG ── */
+  .cf-scrim {
+    position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center;
+    background: rgba(20,16,10,.34); backdrop-filter: blur(3px);
+  }
+  .cf-card {
+    width: 300px; background: var(--card); backdrop-filter: blur(30px);
+    border: .5px solid var(--line); border-radius: 14px; padding: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.28);
+  }
+  .cf-card h4 { margin: 0 0 6px; font: 600 14px var(--sans); color: var(--fg); }
+  .cf-card p { margin: 0 0 14px; font: 400 12px/1.5 var(--sans); color: var(--muted); text-wrap: pretty; }
+  .cf-actions { display: flex; gap: 8px; }
+  .cf-btn {
+    flex: 1; appearance: none; border: .5px solid var(--line); background: transparent;
+    border-radius: 9px; padding: 9px; cursor: pointer; font: 500 12px var(--sans); color: var(--fg);
+  }
+  .cf-btn:hover { background: rgba(201,138,90,.14); }
+  .cf-btn.danger { background: #c84a3a; border-color: transparent; color: #fff; }
+  .cf-btn.danger:hover { background: #b13e30; }
 
   /* ── ZOOM CONTROLS ── */
   .zoom-controls {
@@ -175,10 +311,9 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Night overlay inside scene */
+  /* Night overlay inside scene (geometry + gradient live in scene.jsx SVG) */
   .night-overlay {
     position: absolute; pointer-events: none;
-    background: radial-gradient(ellipse at 50% 40%, transparent, rgba(20, 30, 60, .6) 80%);
     transition: opacity 1.5s;
   }
 
@@ -298,10 +433,91 @@
   }
   @keyframes snow { 0% { background-position: 0 -40px, 0 -40px, 0 -40px, 0 -40px; } 100% { background-position: 10px 120px, -10px 160px, 6px 180px, -8px 140px; } }
 
+  /* ── WINDOW WEATHER (reworked) ── */
+  .win-rain { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  /* Falling raindrops — short soft streaks that fall down the pane, two
+     depth layers at different speeds. Reads as drops, not diagonal lines. */
+  .win-rain-fall, .win-rain-fall::after { content: ''; position: absolute; inset: -10% 0; }
+  .win-rain-fall {
+    background-image:
+      radial-gradient(1px 6px at 14% 12%, rgba(220,234,246,.6), transparent 62%),
+      radial-gradient(1px 5px at 44% 34%, rgba(214,230,244,.5), transparent 62%),
+      radial-gradient(1px 7px at 72% 18%, rgba(220,234,246,.55), transparent 62%),
+      radial-gradient(1px 5px at 90% 56%, rgba(210,228,242,.45), transparent 62%);
+    background-size: 60px 78px; animation: winRainFall .5s linear infinite; opacity: .8;
+  }
+  .win-rain-fall::after {
+    background-image:
+      radial-gradient(1.4px 9px at 26% 20%, rgba(226,238,248,.5), transparent 60%),
+      radial-gradient(1.4px 8px at 64% 46%, rgba(220,234,246,.42), transparent 60%),
+      radial-gradient(1.4px 10px at 84% 8%, rgba(226,238,248,.46), transparent 60%);
+    background-size: 92px 118px; animation: winRainFall .82s linear infinite;
+  }
+  @keyframes winRainFall { to { background-position: 5px 78px, -4px 78px, 4px 78px, -5px 78px; } }
+  .win-rain.heavy .win-rain-fall { opacity: 1; animation-duration: .32s; }
+  .win-rain.heavy .win-rain-fall::after { animation-duration: .52s; }
+  /* Beads clinging to the glass */
+  .win-bead {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.9), rgba(206,224,240,.55) 46%, rgba(150,176,200,.4) 82%, transparent);
+    box-shadow: 0 .5px .5px rgba(255,255,255,.5), inset 0 -.5px .5px rgba(90,120,150,.5);
+  }
+  /* Droplets that occasionally run down the pane leaving a thin trail */
+  .win-runner {
+    position: absolute; width: 4px; height: 15px; opacity: 0; border-radius: 0 0 2px 2px;
+    background: linear-gradient(rgba(206,224,240,0), rgba(206,224,240,.42) 72%);
+    animation: winRun var(--dur, 4s) linear infinite; animation-delay: var(--delay, 0s);
+  }
+  .win-runner::after {
+    content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+    width: 5px; height: 6px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.95), rgba(198,218,236,.7) 50%, rgba(140,168,194,.42) 86%, transparent);
+  }
+  @keyframes winRun {
+    0% { opacity: 0; transform: translateY(0) scaleY(.35); }
+    5% { opacity: 1; }
+    68% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(var(--travel, 100px)) scaleY(1); }
+  }
+  .win-snow {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    background-image:
+      radial-gradient(circle 1.6px at 20% 20%, #fff 99%, transparent),
+      radial-gradient(circle 1.2px at 55% 42%, #fff 99%, transparent),
+      radial-gradient(circle 1.8px at 82% 24%, #fff 99%, transparent),
+      radial-gradient(circle 1.1px at 34% 70%, #fff 99%, transparent),
+      radial-gradient(circle 1.5px at 72% 82%, #fff 99%, transparent);
+    background-size: 100px 130px; animation: winSnow 7s linear infinite;
+  }
+  @keyframes winSnow { to { background-position: 6px 130px, -8px 130px, 4px 130px, -6px 130px, 8px 130px; } }
+  .win-fog {
+    position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+    background: linear-gradient(0deg, rgba(232,234,236,0), rgba(232,234,236,.78));
+    animation: winFog 8s ease-in-out infinite alternate;
+  }
+  @keyframes winFog { from { opacity: .5; transform: translateX(-4px); } to { opacity: .85; transform: translateX(4px); } }
+  .win-flash {
+    position: absolute; inset: 0; pointer-events: none; background: #eaf0ff; opacity: 0;
+    animation: winFlash 6s steps(1) infinite;
+  }
+  @keyframes winFlash { 0%,92%,100% { opacity: 0; } 93% { opacity: .55; } 94% { opacity: 0; } 96% { opacity: .4; } 97% { opacity: 0; } }
+  .win-glass {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(125deg, rgba(255,255,255,.14) 0%, transparent 32%, transparent 60%, rgba(255,255,255,.07) 74%, transparent 82%);
+  }
+
+  /* Room-settings weather toggle */
+  .rs-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; font-size: 13px; }
+  .rs-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .rs-switch { position: relative; flex: 0 0 auto; width: 38px; height: 22px; border-radius: 999px; background: rgba(42,36,24,.2); transition: background .18s; }
+  .rs-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .18s; }
+  .rs-toggle input:checked + .rs-switch { background: var(--accent); }
+  .rs-toggle input:checked + .rs-switch::after { transform: translateX(16px); }
+  .rs-weather-status { margin-top: 8px; font-size: 11px; color: var(--muted); line-height: 1.45; }
+
   /* ── NIGHT OVERLAY ── */
   .night-overlay {
-    position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse at 40% 30%, transparent, rgba(20, 30, 60, .5) 80%);
+    position: absolute; pointer-events: none;
     transition: opacity 1.5s;
   }
   .window-glow-floor {
@@ -498,6 +714,40 @@
     position: relative; padding: 0 10px 10px;
     border-bottom: 0.5px solid var(--line);
   }
+  /* Category dropdown */
+  .inv-catbar { position: relative; padding: 0 12px 10px; border-bottom: .5px solid var(--line); }
+  .inv-catbtn {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    appearance: none; border: .5px solid var(--line); background: rgba(255,250,240,.7);
+    border-radius: 10px; padding: 9px 12px; cursor: pointer;
+    font: 600 12.5px var(--sans); color: var(--fg); text-align: left;
+  }
+  .inv-catbtn span:first-child { flex: 1; }
+  .inv-catbtn:hover, .inv-catbtn.on { border-color: var(--accent); }
+  .inv-caret { font-size: 10px; color: var(--muted); }
+  .inv-catcount {
+    font: 500 10.5px var(--sans); color: var(--muted);
+    background: rgba(201,138,90,.14); border-radius: 999px; padding: 2px 7px;
+  }
+  body.theme-academia .inv-catbtn { background: rgba(240,228,200,.06); }
+  .inv-catmenu {
+    position: absolute; left: 12px; right: 12px; top: calc(100% - 4px); z-index: 5;
+    max-height: 300px; overflow-y: auto;
+    background: var(--card); backdrop-filter: blur(30px);
+    border: .5px solid var(--line); border-radius: 12px; padding: 5px;
+    box-shadow: 0 18px 44px rgba(0,0,0,.22);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .inv-catopt {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    padding: 8px 10px; border-radius: 8px; text-align: left;
+    font: 500 12px var(--sans); color: var(--fg);
+  }
+  .inv-catopt span:first-child { flex: 1; }
+  .inv-catopt:hover { background: rgba(201,138,90,.14); }
+  .inv-catopt.on { background: var(--accent); color: #fff; }
+  .inv-catopt.on .inv-catcount { background: rgba(255,255,255,.24); color: #fff; }
   .inv-tabs {
     display: flex; gap: 4px; overflow-x: auto;
     scroll-behavior: smooth;
@@ -619,10 +869,11 @@
   /* Drag ghost that follows the cursor */
   .drag-ghost {
     position: fixed; pointer-events: none; z-index: 9999;
-    opacity: 0.7; transform: translate(-50%, -100%);
+    opacity: 0.7; transform: translate(-50%, -100%) scale(var(--ghost-zoom, 1));
+    transform-origin: 50% 100%;
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.25));
   }
-  .drag-ghost.hanging { transform: translate(-50%, 0); }
+  .drag-ghost.hanging { transform: translate(-50%, 0) scale(var(--ghost-zoom, 1)); transform-origin: 50% 0; }
   .drag-ghost .shelf-nameplate,
   .drag-ghost .lamp-halo,
   .drag-ghost .candle-glow { display: none !important; }
@@ -662,8 +913,16 @@
   .tb-chip.on { background: rgba(201, 138, 90, 0.18); color: var(--accent-2); }
   .tb-chip:hover:not(.on) { background: rgba(42, 36, 24, 0.06); color: var(--fg); }
   .tb-divider { width: 0.5px; height: 20px; background: var(--line); }
-  .tb-time { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted); }
-  .tb-time input { width: 90px; accent-color: var(--accent); }
+  .tb-time { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(42,36,24,.05); }
+  .tb-time-btn {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 9px; border-radius: 999px; color: var(--muted);
+    font: 500 11.5px var(--sans); transition: background .14s, color .14s;
+  }
+  .tb-time-btn .tb-time-ic { font-size: 12.5px; line-height: 1; }
+  .tb-time-btn:hover:not(.on) { background: rgba(42,36,24,.06); color: var(--fg); }
+  .tb-time-btn.on { background: rgba(201,138,90,.18); color: var(--accent-2); }
   .tb-streak {
     font-size: 12px; color: var(--muted); padding: 6px 10px;
     background: rgba(201, 138, 90, 0.12); border-radius: 999px;
@@ -748,6 +1007,8 @@
 
   <script type="text/babel" src="tweaks-panel.jsx"></script>
   <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="furniture-extra.jsx"></script>
+  <script type="text/babel" src="furniture-extra2.jsx"></script>
   <script type="text/babel" src="furniture.jsx"></script>
   <script type="text/babel" src="panels.jsx"></script>
   <script type="text/babel" src="scene.jsx"></script>
@@ -788,30 +1049,84 @@
       const [selectedItemId, setSelectedItemId] = React.useState(null);
       const [isFullscreen, setIsFullscreen] = React.useState(false);
       const [intModalOpen, setIntModalOpen] = React.useState(false);
+      const [roomSettingsOpen, setRoomSettingsOpen] = React.useState(false);
+      const [toast, setToast] = React.useState(null);
+      const [layouts, setLayouts] = React.useState(() => {
+        try { return JSON.parse(localStorage.getItem('library-room-layouts') || '[]'); } catch (e) { return []; }
+      });
+      const [weatherPref, setWeatherPref] = React.useState(() => {
+        try { return JSON.parse(localStorage.getItem('library-room-weather') || 'null'); } catch (e) { return null; }
+      });
+      const [liveWeather, setLiveWeather] = React.useState({ status: 'idle', condition: null, tempC: null });
+      const mapWeatherCode = (c) => {
+        if (c === 0 || c === 1) return 'clear';
+        if (c === 2 || c === 3) return 'clouds';
+        if (c === 45 || c === 48) return 'fog';
+        if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return 'rain';
+        if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow';
+        if (c >= 95) return 'storm';
+        return 'clear';
+      };
+      const persistWeatherPref = (p) => {
+        setWeatherPref(p);
+        try { localStorage.setItem('library-room-weather', JSON.stringify(p)); } catch (e) {}
+      };
+      const enableLiveWeather = React.useCallback(() => {
+        if (!navigator.geolocation) { setLiveWeather({ status: 'error' }); return; }
+        setLiveWeather({ status: 'locating' });
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            const { latitude, longitude } = pos.coords;
+            const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(3)}&longitude=${longitude.toFixed(3)}&current=temperature_2m,weather_code`);
+            const j = await r.json();
+            const code = j.current.weather_code;
+            setLiveWeather({ status: 'ok', condition: mapWeatherCode(code), tempC: Math.round(j.current.temperature_2m), code });
+            persistWeatherPref({ enabled: true });
+          } catch (e) { setLiveWeather({ status: 'error' }); }
+        }, () => { setLiveWeather({ status: 'denied' }); persistWeatherPref({ enabled: false }); }, { timeout: 12000, maximumAge: 600000 });
+      }, []);
+      const disableLiveWeather = () => { persistWeatherPref({ enabled: false }); setLiveWeather({ status: 'idle', condition: null }); };
+      // Auto-resume live weather if the user opted in previously
+      React.useEffect(() => { if (weatherPref && weatherPref.enabled) enableLiveWeather(); }, []);
+      const effectiveWeather = (weatherPref && weatherPref.enabled && liveWeather.status === 'ok') ? liveWeather.condition : null;
+      const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      // Local clock → day/night phase (noon = 0.5, midnight = 0/1).
+      const localDaynight = () => { const d = new Date(); return (d.getHours() + d.getMinutes() / 60) / 24; };
       const [state, setState] = React.useState({
-        daynight: 0.78,
+        daynight: localDaynight(),
+        timeMode: 'auto',
         gridVisible: false,
         snapToGrid: false,
         audioOn: true,
       });
+      // In Auto mode, keep the room's light in sync with the user's real local time.
+      React.useEffect(() => {
+        if (state.timeMode !== 'auto') return;
+        const tick = () => setState((s) => (s.timeMode === 'auto' ? { ...s, daynight: localDaynight() } : s));
+        tick();
+        const id = setInterval(tick, 60000);
+        return () => clearInterval(id);
+      }, [state.timeMode]);
       const [zoom, setZoom] = React.useState(1);
 
-      // Auto-fit zoom to viewport on first load / resize
+      // Auto-fit zoom to viewport on first load / resize / footprint change
       React.useEffect(() => {
         const fit = () => {
           const stage = document.querySelector('.room-stage');
           if (!stage) return;
           const vw = stage.clientWidth;
           const vh = stage.clientHeight;
-          const naturalW = 900;
-          const naturalH = 840;
-          const s = Math.min(vw / naturalW, vh / naturalH) * 0.92;
+          const span = room.size.w + room.size.d;
+          const naturalW = span * room.tileSize * 0.5 + 140;
+          const naturalH = span * room.tileSize * 0.25 + (room.wallHeight || 380) + 150;
+          const s = Math.min(vw / naturalW, vh / naturalH) * 1.06;
           if (t.autoSceneScale) setZoom(s);
         };
         fit();
         window.addEventListener('resize', fit);
         return () => window.removeEventListener('resize', fit);
-      }, [t.autoSceneScale]);
+      }, [t.autoSceneScale, room.size.w, room.size.d, room.wallHeight, room.tileSize]);
 
       // Theme switch
       React.useEffect(() => {
@@ -830,6 +1145,90 @@
       React.useEffect(() => {
         document.body.classList.toggle('edit-on', editMode);
       }, [editMode]);
+
+      // Keyboard nudge / rotate / delete for the selected floor item
+      React.useEffect(() => {
+        const onKey = (e) => {
+          if (!editMode || !selectedItemId) return;
+          const tag = (e.target.tagName || '').toLowerCase();
+          if (tag === 'input' || tag === 'textarea') return;
+          const step = e.shiftKey ? 1 : 0.5;
+          const dirs = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+          if (dirs[e.key]) {
+            e.preventDefault();
+            const [dx, dy] = dirs[e.key];
+            setRoom((r) => ({ ...r, items: r.items.map((i) =>
+              (i.id === selectedItemId && !i.onWall && i.pxX == null)
+                ? { ...i, x: clamp(i.x + dx * step, 0, r.size.w - 1), y: clamp(i.y + dy * step, 0, r.size.d - 1) } : i) }));
+          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            setRoom((r) => ({ ...r, items: r.items.filter((i) => i.id !== selectedItemId) }));
+            setSelectedItemId(null);
+          } else if (e.key === 'r' || e.key === 'R') {
+            e.preventDefault();
+            const d = e.shiftKey ? -15 : 15;
+            setRoom((r) => ({ ...r, items: r.items.map((i) => i.id === selectedItemId ? { ...i, rotation: (((i.rotation || 0) + d) % 360 + 360) % 360 } : i) }));
+          }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [editMode, selectedItemId]);
+
+      // Reactive pet: wanders toward soft furniture (or a random tile) when idle
+      React.useEffect(() => {
+        if (editMode) return;
+        const hop = () => setRoom((r) => {
+          const pets = r.items.filter((i) => i.type === 'pet' && i.pxX == null);
+          if (!pets.length) return r;
+          const soft = r.items.filter((i) => (i.type === 'chair' || i.type === 'rug') && i.pxX == null);
+          return { ...r, items: r.items.map((i) => {
+            if (i.type !== 'pet' || i.pxX != null) return i;
+            let tx, ty;
+            if (soft.length && Math.random() < 0.6) {
+              const s = soft[Math.floor(Math.random() * soft.length)];
+              tx = s.x + (Math.random() - 0.5) * 1.2; ty = s.y + (Math.random() - 0.5) * 1.2;
+            } else { tx = Math.random() * (r.size.w - 1); ty = Math.random() * (r.size.d - 1); }
+            return { ...i, x: clamp(tx, 0, r.size.w - 1), y: clamp(ty, 0, r.size.d - 1) };
+          }) };
+        });
+        const id = setInterval(hop, 7000);
+        return () => clearInterval(id);
+      }, [editMode]);
+
+      // Rotate the whole arrangement 90° clockwise (footprint + items)
+      const onRotateRoom = () => {
+        setRoom((r) => {
+          const W = r.size.w, D = r.size.d;
+          const items = r.items.map((i) => {
+            if (i.onWall) {
+              // north (back-right, along W) ↔ west (back-left, along D)
+              if (i.onWall === 'north') return { ...i, onWall: 'west', x: clamp(i.x, 0, D - 1) };
+              return { ...i, onWall: 'north', x: clamp(i.x, 0, W - 1) };
+            }
+            if (i.pxX != null) return i; // ceiling-hung stay put
+            // (x,y) → (D-1-y, x) rotates clockwise into the swapped footprint
+            return { ...i, x: clamp((D - 1) - i.y, 0, D - 1), y: clamp(i.x, 0, W - 1),
+              rotation: (((i.rotation || 0) + 90) % 360) };
+          });
+          return { ...r, size: { w: D, d: W }, items };
+        });
+        showToast('Rotated room 90°');
+      };
+
+      // Named layouts
+      const persistLayouts = (next) => {
+        setLayouts(next);
+        try { localStorage.setItem('library-room-layouts', JSON.stringify(next)); } catch (e) {}
+      };
+      const onSaveLayout = (name) => {
+        const nm = (name || '').trim() || ('Layout ' + (layouts.length + 1));
+        const snapshot = { id: 'ly_' + Date.now(), name: nm, room: JSON.parse(JSON.stringify(room)) };
+        persistLayouts([...layouts.filter((l) => l.name !== nm), snapshot]);
+        showToast('Saved “' + nm + '”');
+      };
+      const onLoadLayout = (ly) => { setRoom(ly.room); setSelectedItemId(null); showToast('Loaded “' + ly.name + '”'); };
+      const onDeleteLayout = (ly) => persistLayouts(layouts.filter((l) => l.id !== ly.id));
+      const onShareSnapshot = () => showToast('✓ Snapshot shared to your Feed');
 
       // Shelf click
       const onClickShelf = (item, shelf) => {
@@ -897,6 +1296,11 @@
       const onAdd = (catItem) => {
         const cx = Math.floor(room.size.w / 2);
         const cy = Math.floor(room.size.d / 2);
+        // Wall pieces hang on the back-right wall instead of landing on the floor.
+        if (catItem.type === 'art' || catItem.type === 'window') {
+          onDropCatalogItem(catItem, cx, 0, { onWall: 'north', wallY: 120 });
+          return;
+        }
         onDropCatalogItem(catItem, cx, cy);
       };
 
@@ -936,6 +1340,8 @@
               theme={theme}
               zoom={zoom}
               onZoom={setZoom}
+              editMode={editMode}
+              weather={effectiveWeather}
             />
           </div>
 
@@ -957,7 +1363,7 @@
           {dragGhost && (
             <div className={'drag-ghost' + (
               (dragGhost.item.styleId === 'fern-hanging' || dragGhost.item.styleId === 'string-lights') ? ' hanging' : ''
-            )} style={{ left: dragGhost.x, top: dragGhost.y }}>
+            )} style={{ left: dragGhost.x, top: dragGhost.y, '--ghost-zoom': zoom }}>
               <window.Furniture
                 item={{ id: '__ghost', type: dragGhost.item.type, styleId: dragGhost.item.styleId, x: 0, y: 0 }}
                 style={dragGhost.item}
@@ -1001,20 +1407,48 @@
             setState={setState}
             account={account}
             onToggleInventory={() => {
-              if (!editMode) { setEditMode(true); setInventoryOpen(true); }
-              else setInventoryOpen((o) => !o);
+              if (!editMode) { setEditMode(true); setInventoryOpen(true); setRoomSettingsOpen(false); }
+              else setInventoryOpen((o) => { if (!o) setRoomSettingsOpen(false); return !o; });
             }}
             editMode={editMode}
             onToggleEdit={() => {
               const next = !editMode;
               setEditMode(next);
               setInventoryOpen(next);
+              if (!next) setRoomSettingsOpen(false);
             }}
-            onToggleRoomSettings={() => {}}
+            onToggleRoomSettings={() => {
+              if (!editMode) setEditMode(true);
+              setRoomSettingsOpen((o) => { if (!o) setInventoryOpen(false); return !o; });
+            }}
+            roomSettingsOpen={roomSettingsOpen}
             onResetRoom={() => setRoom(window.DEFAULT_ROOM)}
             onFullscreen={() => setIsFullscreen((f) => !f)}
             isFullscreen={isFullscreen}
           />
+
+          {/* ROOM SETTINGS */}
+          <RoomSettings
+            open={roomSettingsOpen && editMode}
+            room={room}
+            setRoom={setRoom}
+            onClose={() => setRoomSettingsOpen(false)}
+            onRotateRoom={onRotateRoom}
+            onResetRoom={() => { setRoom(window.DEFAULT_ROOM); setSelectedItemId(null); setSelectedShelfId(null); showToast('Room reset'); }}
+            onClearLayout={() => { setRoom((r) => ({ ...r, items: [] })); setSelectedItemId(null); setSelectedShelfId(null); showToast('Layout cleared'); }}
+            layouts={layouts}
+            onSaveLayout={onSaveLayout}
+            onLoadLayout={onLoadLayout}
+            onDeleteLayout={onDeleteLayout}
+            onShareSnapshot={onShareSnapshot}
+            weatherPref={weatherPref}
+            liveWeather={liveWeather}
+            onEnableLiveWeather={enableLiveWeather}
+            onDisableLiveWeather={disableLiveWeather}
+          />
+
+          {/* TOAST */}
+          {toast && <div className="room-toast">{toast}</div>}
 
           {/* TWEAKS */}
           <TweaksPanel title="Tweaks">

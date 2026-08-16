@@ -4,17 +4,53 @@
 
 function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
   onClickShelf, selectedItemId, setSelectedItemId,
-  onDropCatalogItem, catalog, theme, zoom, onZoom }) {
+  onDropCatalogItem, catalog, theme: baseTheme, zoom, onZoom, editMode, weather }) {
   const sceneRef = React.useRef(null);
   const stageRef = React.useRef(null);
+  // Zero-size marker rendered at scene-local (0,0). Its live screen position
+  // encodes EVERY transform on the scene (pan, zoom, the +40px shift, centering),
+  // so inverting a cursor through it is exact at any zoom — no hand-derived math.
+  const sceneOriginRef = React.useRef(null);
   const [dragItemId, setDragItemId] = React.useState(null);
   const [pan, setPan] = React.useState({ x: 0, y: 0 });
+  // Measured top-center of the selected item's real rendered box, in scene-local
+  // coords. Lets the toolbar hug just above ANY item regardless of its height.
+  const [selBox, setSelBox] = React.useState(null);
 
   const TILE = room.tileSize;
   const W = room.size.w,D = room.size.d;
   const isoW = (W + D) * TILE * 0.5;
   const isoH = (W + D) * TILE * 0.25;
-  const wallH = 380;
+  const wallH = room.wallHeight || 380;
+  // Room-level material overrides win over the tweak theme.
+  const theme = {
+    wallColor: room.wallColor || baseTheme.wallColor,
+    floorBase: room.floorBase || baseTheme.floorBase,
+    floorLine: room.floorLine || baseTheme.floorLine,
+  };
+
+  // Drag one of the floor-diamond corners to resize the room footprint.
+  const onResizeDown = (e, axis) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedItemId(null);
+    const move = (ev) => {
+      const tp = pxToTile(ev.clientX, ev.clientY);
+      setRoom((r) => {
+        let w = r.size.w, d = r.size.d;
+        if (axis === 'w' || axis === 'wd') w = Math.max(8, Math.min(16, Math.round(tp.x)));
+        if (axis === 'd' || axis === 'wd') d = Math.max(6, Math.min(14, Math.round(tp.y)));
+        if (w === r.size.w && d === r.size.d) return r;
+        return { ...r, size: { w, d } };
+      });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   // World origin: we place tile (0,0) at the back of the floor diamond.
   // Screen mapping: screenX = (x - y) * TILE/2 + D*TILE/2 (so back tile = D*TILE/2)
@@ -37,20 +73,31 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
     return { x: sx, y: sy };
   };
 
+  // Cursor (client px) → scene-local px, measured through the origin marker.
+  const cursorToScene = (clientX, clientY) => {
+    const o = sceneOriginRef.current.getBoundingClientRect();
+    return { x: (clientX - (o.left + o.width / 2)) / zoom, y: (clientY - (o.top + o.height / 2)) / zoom };
+  };
+
   const pxToTile = (clientX, clientY) => {
-    const rect = stageRef.current.getBoundingClientRect();
-    // stage pixel → scene-local pixel.
-    // The scene element has CSS transform: translate(..., calc(-50% + pan.y + 40px)) scale(zoom).
-    // The fixed +40px Y shift must be subtracted in display-pixel units BEFORE dividing
-    // by zoom, otherwise drops land off by 40 display px.
-    const cx = (clientX - rect.left - rect.width / 2) / zoom - pan.x;
-    const cy = (clientY - rect.top - rect.height / 2 - 40) / zoom - pan.y;
+    const { x: cx, y: cy } = cursorToScene(clientX, clientY);
     const tx = (cx / (TILE * 0.5) + cy / (TILE * 0.25)) / 2;
     const ty = (cy / (TILE * 0.25) - cx / (TILE * 0.5)) / 2;
     return { x: tx, y: ty };
   };
 
   // ── item drag (move) — only in edit mode ───────────────
+  React.useLayoutEffect(() => {
+    if (!selectedItemId || !sceneRef.current) { setSelBox((b) => b === null ? b : null); return; }
+    const el = sceneRef.current.querySelector('[data-item-id="' + selectedItemId + '"]');
+    if (!el) { setSelBox((b) => b === null ? b : null); return; }
+    const er = el.getBoundingClientRect();
+    const sr = sceneRef.current.getBoundingClientRect();
+    const nx = (er.left + er.width / 2 - sr.left) / zoom;
+    const nt = (er.top - sr.top) / zoom;
+    setSelBox((b) => (b && Math.abs(b.x - nx) < 0.5 && Math.abs(b.top - nt) < 0.5) ? b : { x: nx, top: nt });
+  }, [selectedItemId, room.items, zoom, pan, daynight]);
+
   const onItemPointerDown = (e, item) => {
     e.stopPropagation();
     if (item.onWall) return;
@@ -65,8 +112,10 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
       const move = (ev) => {
         const dx = (ev.clientX - startMouse.x) / zoom;
         const dy = (ev.clientY - startMouse.y) / zoom;
-        const npx = startPx.x + dx;
-        const npy = startPx.y + dy;
+        // Keep hanging items inside the room silhouette (between the side
+        // walls, and from the ceiling down to the floor).
+        const npx = Math.max(cLeft.x, Math.min(cRight.x, startPx.x + dx));
+        const npy = Math.max(cBack.y - wallH, Math.min(cFront.y, startPx.y + dy));
         setRoom((r) => ({ ...r, items: r.items.map((it) => it.id === item.id ? { ...it, pxX: npx, pxY: npy } : it) }));
       };
       const up = () => {
@@ -87,8 +136,11 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
       let nx = startTile.x + tileDx;
       let ny = startTile.y + tileDy;
       if (snapToGrid) { nx = Math.round(nx); ny = Math.round(ny); }
-      nx = Math.max(0, Math.min(W, nx));
-      ny = Math.max(0, Math.min(D, ny));
+      // Clamp so the item's whole footprint stays on the floor, not just its center.
+      const fst = getStyle(item);
+      const fw = fst.w || 1, fd = fst.d || 1;
+      nx = Math.max(fw / 2 - 0.5, Math.min(W - fw / 2 - 0.5, nx));
+      ny = Math.max(fd / 2 - 0.5, Math.min(D - fd / 2 - 0.5, ny));
       setRoom((r) => ({ ...r, items: r.items.map((it) => it.id === item.id ? { ...it, x: nx, y: ny } : it) }));
     };
     const up = () => {
@@ -108,13 +160,15 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
     setDragItemId(item.id);
     setSelectedItemId(item.id);
 
+    // Item's rendered pixel height + tile width, used to keep it fully on the wall.
+    const wallEl = e.currentTarget;
+    const furnEl = wallEl.querySelector('.furniture');
+    const itemHpx = furnEl ? furnEl.offsetHeight : 120;
+    const itemWtiles = getStyle(item).w || 2;
+
     // Capture initial offset between cursor and item's anchor so the item
     // doesn't snap to the cursor on pick-up.
-    const rect = stageRef.current.getBoundingClientRect();
-    const cursorScene = (cx, cy) => ({
-      x: (cx - rect.left - rect.width / 2) / zoom - pan.x,
-      y: (cy - rect.top - rect.height / 2 - 40) / zoom - pan.y,
-    });
+    const cursorScene = (cx, cy) => cursorToScene(cx, cy);
     const itemAnchorScene = (it) => {
       if (it.onWall === 'north') {
         const t = (it.x + 0.5) / W;
@@ -148,12 +202,13 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
       const t = denom !== 0 ? (target.x - cBack.x) / denom : 0;
       let along = t * wallLen - 0.5;
       if (snapToGrid) along = Math.round(along);
-      along = Math.max(0, Math.min(wallLen - 1, along));
+      along = Math.max(itemWtiles / 2 - 0.5, Math.min(wallLen - itemWtiles / 2 - 0.5, along));
       // Wall floor edge Y at this along position.
       const ts = (along + 0.5) / wallLen;
       const sy = cBack.y + (endC.y - cBack.y) * ts;
       let nWallY = sy - target.y;
-      nWallY = Math.max(0, Math.min(wallH, nWallY));
+      // Cap so the item's top edge never pokes above the wall.
+      nWallY = Math.max(0, Math.min(wallH - itemHpx, nWallY));
       setRoom((r) => ({ ...r, items: r.items.map((it) => it.id === item.id ? { ...it, onWall: wall, x: along, wallY: nWallY } : it) }));
     };
     const up = () => {
@@ -176,9 +231,7 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
     if (WALL_TYPES_HERE.has(cat.type)) {
       // Wall drop: figure out which wall + along + wallY (height up the wall)
       // from cursor's scene-local pixel position.
-      const rect = stageRef.current.getBoundingClientRect();
-      const cx = (e.clientX - rect.left - rect.width / 2) / zoom - pan.x;
-      const cy = (e.clientY - rect.top - rect.height / 2 - 40) / zoom - pan.y;
+      const { x: cx, y: cy } = cursorToScene(e.clientX, e.clientY);
       // Decide wall by tile coords (same as before): nearer to y=0 (north) or x=0 (west)
       const wall = pos.y < pos.x ? 'north' : 'west';
       const cBackP = tileCenterToScreen(0, 0);
@@ -202,7 +255,8 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
       const wallLen = wall === 'north' ? W : D;
       const itemW = cat.w || 2;
       along = Math.max(itemW / 2, Math.min(wallLen - itemW / 2, along));
-      wallY = Math.max(0, Math.min(wallH, wallY));
+      const estHpx = cat.type === 'window' ? 140 : (cat.h || 2) * 40;
+      wallY = Math.max(0, Math.min(wallH - estHpx, wallY));
       onDropCatalogItem(cat, along, 0, { onWall: wall, wallY });
     } else {
       // Floor drop. Storage uses tile corners; render adds +0.5. Subtract here.
@@ -211,9 +265,7 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
         // Hanging items can be placed ABOVE the floor diamond (near ceiling).
         // Store scene-local pixel coords (not tile coords) to avoid the
         // iso back-projection shooting the item to the far right.
-        const rect = stageRef.current.getBoundingClientRect();
-        const sx = (e.clientX - rect.left - rect.width / 2) / zoom - pan.x;
-        const sy = (e.clientY - rect.top - rect.height / 2 - 40) / zoom - pan.y;
+        const { x: sx, y: sy } = cursorToScene(e.clientX, e.clientY);
         onDropCatalogItem(cat, 0, 0, null, { pxX: sx, pxY: sy });
       } else {
         let x = pos.x - 0.5;
@@ -309,7 +361,7 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
       onPointerDown={onStageDown}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
-      style={{ filter: lightFilter, cursor: 'grab' }}>
+      style={{ cursor: 'grab' }}>
       
       <div
         ref={sceneRef}
@@ -318,8 +370,10 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
           position: 'absolute',
           left: '50%', top: '50%',
           transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px + 40px)) scale(${zoom})`,
-          transformOrigin: 'center center'
+          transformOrigin: 'center center',
+          filter: lightFilter
         }}>
+        <div ref={sceneOriginRef} style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, pointerEvents: 'none' }} />
         
         {/* ── BACK-LEFT WALL (north) ───────────────────────
                           Runs from cBack (top) to cLeft (bottom-left).
@@ -340,6 +394,11 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             <linearGradient id="floorGrad" x1="0" x2="1" y1="0" y2="1">
               <stop offset="0" stopColor={theme.floorBase} />
               <stop offset="1" stopColor={shade(theme.floorBase, -10)} />
+            </linearGradient>
+            <linearGradient id="cornerAO" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0" stopColor="rgba(0,0,0,0)" />
+              <stop offset=".5" stopColor="rgba(0,0,0,.15)" />
+              <stop offset="1" stopColor="rgba(0,0,0,0)" />
             </linearGradient>
           </defs>
           <g transform={`translate(${isoW / 2 + 50} ${wallH + 50})`}>
@@ -371,6 +430,15 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             fill={shade(theme.wallColor, -28)} opacity=".85" />
             <polygon points={`${cBack.x},${cBack.y - 8} ${cRight.x},${cRight.y - 8} ${cRight.x},${cRight.y} ${cBack.x},${cBack.y}`}
             fill={shade(theme.wallColor, -34)} opacity=".85" />
+
+            {/* Crown molding (picture rail) near the top of each wall */}
+            <polygon points={`${cBack.x},${cBack.y - wallH} ${cLeft.x},${cLeft.y - wallH} ${cLeft.x},${cLeft.y - wallH + 12} ${cBack.x},${cBack.y - wallH + 12}`}
+            fill={shade(theme.wallColor, 12)} opacity=".75" />
+            <polygon points={`${cBack.x},${cBack.y - wallH} ${cRight.x},${cRight.y - wallH} ${cRight.x},${cRight.y - wallH + 12} ${cBack.x},${cBack.y - wallH + 12}`}
+            fill={shade(theme.wallColor, 6)} opacity=".75" />
+
+            {/* Soft ambient-occlusion down the back corner seam */}
+            <rect x={cBack.x - 46} y={cBack.y - wallH} width="92" height={wallH} fill="url(#cornerAO)" />
 
             {/* Floor diamond */}
             <polygon
@@ -412,6 +480,18 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             <ellipse cx={cBack.x} cy={cBack.y + 80} rx="160" ry="50"
             fill="rgba(255,210,140,.25)" />
             }
+
+            {/* Drop-target footprint under the item being dragged */}
+            {dragItemId && (() => {
+              const it = floorItems.find((i) => i.id === dragItemId);
+              if (!it || it.onWall || it.type === 'rug') return null;
+              const isH = it.styleId === 'fern-hanging' || it.styleId === 'string-lights';
+              if (isH && it.pxX != null) return null;
+              const a = tileCenterToScreen(it.x, it.y), b = tileCenterToScreen(it.x + 1, it.y);
+              const c = tileCenterToScreen(it.x + 1, it.y + 1), d = tileCenterToScreen(it.x, it.y + 1);
+              return <polygon points={`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`}
+                fill="rgba(201,138,90,.22)" stroke="rgba(201,138,90,.9)" strokeWidth="1.5" />;
+            })()}
           </g>
         </svg>
 
@@ -425,7 +505,11 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
           {wallItems.map((item) => {
             const st = getStyle(item);
             let anchor;
-            const wallYpx = item.wallY != null ? item.wallY : wallH * 0.35;
+            // Clamp height so items saved out-of-bounds (or from older builds)
+            // never float above the wall top.
+            const estH = item.type === 'window' ? 140 : (st.h || 2) * 40;
+            const rawWallY = item.wallY != null ? item.wallY : wallH * 0.35;
+            const wallYpx = Math.max(0, Math.min(wallH - estH, rawWallY));
             if (item.onWall === 'north') {
               // north = back-RIGHT wall (along x-axis, length = W tiles)
               const t = (item.x + 0.5) / W;
@@ -441,6 +525,7 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             }
             return (
               <div key={item.id} className={'wall-item' + (selectedItemId === item.id ? ' selected' : '')}
+              data-item-id={item.id}
               style={{
                 left: anchor.x, top: anchor.y,
                 transform: `translate(-50%, -100%) ${anchor.skew}`,
@@ -451,7 +536,7 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
                 if (!document.body.classList.contains('edit-on')) {setSelectedItemId(item.id);return;}
                 onWallItemPointerDown(e, item);
               }}>
-                <Furniture item={item} style={st} daynight={daynight} />
+                <Furniture item={item} style={st} daynight={daynight} weather={weather} />
               </div>);
 
           })}
@@ -478,11 +563,12 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             const wrapTop = p.y;
             return (
               <div key={item.id}
-              className={'item-wrap' + (selectedItemId === item.id ? ' selected' : '') + (item.type === 'rug' ? ' rug-item' : '') + (isHanging ? ' hanging-item' : '')}
+              data-item-id={item.id}
+              className={'item-wrap' + (selectedItemId === item.id ? ' selected' : '') + (item.type === 'rug' ? ' rug-item' : '') + (isHanging ? ' hanging-item' : '') + (item.onTopOf ? ' on-furniture' : '') + (item.type === 'pet' && dragItemId !== item.id ? ' pet-item' : '')}
               style={{
                 left: p.x, top: wrapTop,
                 transform: wrapTransform,
-                zIndex: Math.round((item.x + item.y) * 10),
+                zIndex: Math.max(1, 100000 + Math.round((item.x + item.y) * 10) + (item.zBoost || 0) * 400),
                 ['--rot']: (item.rotation || 0) % 360 + 'deg'
               }}
               onPointerDown={(e) => onItemPointerDown(e, item)}>
@@ -501,13 +587,46 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
           })}
         </div>
 
+        {/* Room-resize corner handles (edit mode only) */}
+        {editMode && [
+          { axis: 'w', p: cRight, label: '↔ width' },
+          { axis: 'd', p: cLeft, label: '↕ depth' },
+          { axis: 'wd', p: cFront, label: '⤢ size' },
+        ].map((h) => (
+          <div key={h.axis} className={'resize-handle rh-' + h.axis}
+            style={{ left: h.p.x, top: h.p.y }}
+            title={'Drag to resize (' + h.label + ')'}
+            onPointerDown={(e) => onResizeDown(e, h.axis)}>
+            <span className="rh-dot" />
+          </div>
+        ))}
+
         {/* Night overlay */}
         {(daynight < 0.25 || daynight > 0.8) &&
-        <div className="night-overlay" style={{
+        <svg className="night-overlay" width={isoW + 100} height={isoH + wallH + 100}
+        style={{
+          position: 'absolute', pointerEvents: 'none',
           opacity: daynight < 0.2 || daynight > 0.88 ? 0.42 : 0.22,
-          left: -isoW / 2 - 50, top: -wallH - 50,
-          width: isoW + 100, height: isoH + wallH + 100
-        }} />
+          left: -isoW / 2 - 50, top: -wallH - 50
+        }}>
+          <defs>
+            <radialGradient id="nightFall" cx=".4" cy=".3" r=".9">
+              <stop offset="0" stopColor="rgba(20,30,60,0)" />
+              <stop offset=".8" stopColor="rgba(20,30,60,.5)" />
+              <stop offset="1" stopColor="rgba(20,30,60,.5)" />
+            </radialGradient>
+          </defs>
+          <g transform={`translate(${isoW / 2 + 50} ${wallH + 50})`}>
+            <polygon fill="url(#nightFall)" points={`
+              ${cBack.x},${cBack.y - wallH}
+              ${cRight.x},${cRight.y - wallH}
+              ${cRight.x},${cRight.y}
+              ${cFront.x},${cFront.y}
+              ${cLeft.x},${cLeft.y}
+              ${cLeft.x},${cLeft.y - wallH}
+            `} />
+          </g>
+        </svg>
         }
 
         {/* Selection toolbar (rotate / delete) */}
@@ -528,6 +647,8 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             const p = tileCenterToScreen(sel.x + 0.5, sel.y + 0.5);
             pos = { x: p.x, y: p.y - 110 };
           }
+          // Prefer the measured real box top so the toolbar hugs every item.
+          if (selBox) pos = { x: selBox.x, y: selBox.top - 12 };
           const rotateBy = (delta) => {
             setRoom((r) => ({
               ...r,
@@ -538,10 +659,19 @@ function Scene({ room, setRoom, account, daynight, gridVisible, snapToGrid,
             setRoom((r) => ({ ...r, items: r.items.filter((i) => i.id !== sel.id) }));
             setSelectedItemId(null);
           };
+          const layer = (delta) => {
+            setRoom((r) => ({
+              ...r,
+              items: r.items.map((i) => i.id === sel.id ? { ...i, zBoost: Math.max(-200, Math.min(200, (i.zBoost || 0) + delta)) } : i),
+            }));
+          };
           return (
             <div className="sel-toolbar" style={{ left: pos.x, top: pos.y }} onPointerDown={(e) => e.stopPropagation()}>
               <button className="st-btn" title="Rotate left" onClick={() => rotateBy(-15)}>↺</button>
               <button className="st-btn" title="Rotate right" onClick={() => rotateBy(15)}>↻</button>
+              <div className="st-sep" />
+              <button className="st-btn" title="Bring forward" onClick={() => layer(1)}>⬆</button>
+              <button className="st-btn" title="Send backward" onClick={() => layer(-1)}>⬇</button>
               <div className="st-sep" />
               <button className="st-btn danger" title="Delete" onClick={del}>🗑</button>
             </div>);

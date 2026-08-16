@@ -5178,6 +5178,8 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js" integrity="sha384-llrj4SUC221pVa/E3xKZwmp2zd8q9ReUcs9N37u6A5pQhjiymLsQRg+1AysLVKOZ" crossorigin="anonymous"></script>
 
     <!-- Three.js for 3D Room -->
+    <!-- TODO(room): only used by the disabled Three.js room; remove with it. -->
+
     <script src="https://unpkg.com/three@0.128.0/build/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js" integrity="sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf" crossorigin="anonymous"></script>
 </head>
@@ -8082,6 +8084,10 @@ Object.assign(window, { Scene });
             { id: "rug1",     type: "rug",      styleId: "rug-persian-warm", x: 3, y: 4 },
             { id: "lamp1",    type: "lamp",     styleId: "floor-lamp-brass", x: 3, y: 5, rotation: 0 },
             { id: "plant1",   type: "plant",    styleId: "monstera",         x: 0, y: 8, rotation: 0 },
+            // TODO(room): on a fresh room this hangs below the front-right floor edge —
+            // hanging items anchor from their top and only get free placement (pxX/pxY)
+            // once dragged. Give it pxX/pxY here, or drop it from the default.
+            // → vault: Open Issues, "Default room's hanging fern sits below the floor".
             { id: "plant2",   type: "plant",    styleId: "fern-hanging",     x: 11,y: 8, rotation: 0 },
             { id: "art1",     type: "art",      styleId: "frame-botanical",  x: 8, y: 0, rotation: 0, onWall: "north" },
             { id: "cat1",     type: "pet",      styleId: "cat-orange",       x: 5, y: 6, rotation: 0 },
@@ -8395,6 +8401,17 @@ Object.assign(window, { Scene });
             const onClickBook  = (book) => setSelectedBook(book);
 
             const onDropCatalogItem = (catItem, x, y, wallInfo, hangingInfo) => {
+                // A dropped bookshelf reuses the app shelf's id so the sprite can find
+                // its books. Three consequences are known and unresolved:
+                // TODO(room): dropping the same shelf twice yields two items with the
+                //   same id — duplicate React keys, both drawing the same books.
+                //   Either block the second drop or drop the id-as-link scheme.
+                // TODO(room): new shelves never auto-place; the user must open the
+                //   catalog and drag each one in. Decide whether creating a shelf in
+                //   the app should drop it into a free tile automatically.
+                // TODO(room): deleting a shelf in the app leaves an orphan item that
+                //   renders as an empty bookcase until removed by hand. Consider
+                //   pruning unmatched shelf items on load.
                 const newId = catItem.type === 'shelf' ? catItem.styleId : (catItem.type + '_' + Date.now());
                 if (wallInfo) {
                     setRoom(r => ({ ...r, items: [...r.items, { id: newId, type: catItem.type, styleId: catItem.styleId, x, y: 0, rotation: 0, onWall: wallInfo.onWall, wallY: wallInfo.wallY }] }));
@@ -8528,7 +8545,17 @@ Object.assign(window, { Scene });
                         onResetRoom={() => { setRoom(ROOM_DEFAULT); setSelectedItemId(null); setSelectedShelfId(null); showToast('Room reset'); }}
                         onClearLayout={() => { setRoom(r => ({ ...r, items: [] })); setSelectedItemId(null); setSelectedShelfId(null); showToast('Layout cleared'); }}
                         layouts={layouts} onSaveLayout={onSaveLayout} onLoadLayout={onLoadLayout} onDeleteLayout={onDeleteLayout}
+                        // TODO(room): "Share" only toasts. Real sharing needs the isometric
+                        // scene rasterised (it's DOM/SVG, not canvas) + a post to the Community
+                        // feed. → vault: Open Issues, "Share in Room settings doesn't share".
                         onShareSnapshot={() => showToast('Sharing your room is coming soon')}
+                        // TODO(room): live weather is deliberately not wired. Passing
+                        // onEnableLiveWeather/onDisableLiveWeather here is all it takes to
+                        // reveal the toggle in RoomSettings — but it pulls in
+                        // navigator.geolocation + api.open-meteo.com, so it needs an
+                        // NSLocationWhenInUseUsageDescription in Info.plist, the new origin
+                        // allowed, and an App Review answer for why a library app wants
+                        // location. → vault: Improvement Ideas item N.
                     />
                     {toast && <div className="room-toast">{toast}</div>}
                 </div>
@@ -15771,6 +15798,12 @@ Object.assign(window, { Scene });
                         )}
 
                         {/* My Room - 3D Section (disabled) */}
+                        {/* TODO(room): dead since v4.0.0 — the original Three.js/WebGL room,
+                            superseded by the isometric LibraryRoom above. Still costs every
+                            launch: ~400 lines here, the roomStateRef/roomViewMode/roomPositions
+                            state in App, the .room-section CSS block, and two Three.js CDN
+                            scripts in <head>. Delete the lot once you're sure the isometric
+                            room is the keeper. → vault: Open Issues, "Disabled / Dead Code". */}
                         {false && activeTab === 'room' && (
                             <div className="room-section">
                                 {/* Toolbar */}

@@ -4,3 +4,4 @@ Memory/
 .claude/settings.json
 .claude/scheduled_tasks.lock
 dist/
+docs/skills/*.zip

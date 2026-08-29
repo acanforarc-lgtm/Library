@@ -59,22 +59,73 @@ skill exists to prevent.
 ## Required primitives
 
 Build from these. Do not hand-type polygon point lists for box-shaped volumes —
-that is how the projection drifts.
+that is how the projection drifts. These are the real implementations from
+`3D room/furniture-extra.jsx`; paste them in if the target file lacks them.
 
 ```jsx
-function exShade(hex, pct) { /* per-channel lighten/darken */ }
+function exShade(hex, pct) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16 & 0xff) + pct));
+  const g = Math.max(0, Math.min(255, (n >> 8 & 0xff) + pct));
+  const b = Math.max(0, Math.min(255, (n & 0xff) + pct));
+  return '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
+}
 
 // One light source for the whole room. Never invent per-piece values.
 function exFaces(base) {
   return { top: exShade(base, 14), left: exShade(base, -26), right: exShade(base, -8) };
 }
 
-// (cx, cy) is the CENTRE OF THE FOOTPRINT DIAMOND ON THE FLOOR.
-// a/b are its half-width/half-depth, hh the height in px.
-function ExBox({ cx, cy, a, b, hh, base, c }) { /* top, left, right faces */ }
+// Isometric box. (cx, cy) is the centre of its footprint diamond ON THE FLOOR,
+// a/b the diamond's half-width/half-depth (b MUST be a/2), hh the height in px.
+function ExBox({ cx, cy, a, b, hh, base, c }) {
+  const f = c || exFaces(base);
+  return (
+    <g>
+      <polygon points={`${cx},${cy - b - hh} ${cx + a},${cy - hh} ${cx},${cy + b - hh} ${cx - a},${cy - hh}`} fill={f.top} />
+      <polygon points={`${cx - a},${cy - hh} ${cx},${cy + b - hh} ${cx},${cy + b} ${cx - a},${cy}`} fill={f.left} />
+      <polygon points={`${cx},${cy + b - hh} ${cx + a},${cy - hh} ${cx + a},${cy} ${cx},${cy + b}`} fill={f.right} />
+    </g>);
+}
 
-// Fixed-size sprite wrapper; bottom-anchors onto the tile.
-function ExSprite({ w, h, cls, children, extra }) { /* … */ }
+// Oblong footprints (w !== d) are NOT diamonds. Use these instead of squashing b.
+function exFootprint(cx, cy, w, d, TILE = 56) {
+  const A = (w + d) * TILE / 4, B = (w - d) * TILE / 4;
+  return [
+    [cx + A, cy + B / 2], [cx + B, cy + A / 2],
+    [cx - A, cy - B / 2], [cx - B, cy - A / 2],
+  ];
+}
+
+// Prism over an arbitrary footprint — the general form of ExBox.
+function ExPrism({ cx, cy, w, d, hh, base, TILE = 56 }) {
+  const f = exFaces(base);
+  const p = exFootprint(cx, cy, w, d, TILE);
+  const up = (pt) => [pt[0], pt[1] - hh];
+  const str = (pts) => pts.map((q) => q.join(',')).join(' ');
+  return (
+    <g>
+      <polygon points={str(p.map(up))} fill={f.top} />
+      <polygon points={str([p[3], p[1], up(p[1]), up(p[3])])} fill={f.left} />
+      <polygon points={str([p[1], p[0], up(p[0]), up(p[1])])} fill={f.right} />
+    </g>);
+}
+
+// Fixed-size sprite wrapper; bottom-anchors onto its tile.
+function ExSprite({ w, h, cls, children, extra }) {
+  return (
+    <div className={'furniture ' + (cls || '')} style={{ width: w, height: h }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}>{children}</svg>
+      {extra}
+    </div>);
+}
+
+// Night emitters add a radial glow rather than just getting lighter.
+const exGlow = (color, size) => ({
+  position: 'absolute', left: '50%', bottom: '18%', width: size, height: size,
+  transform: 'translate(-50%, 50%)', pointerEvents: 'none',
+  background: `radial-gradient(circle, ${color}, transparent 68%)`
+});
 ```
 
 Register the piece by `styleId` in `window.EXTRA_RENDERERS`; the `Furniture`
